@@ -6,8 +6,7 @@ const restaurantMenuSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'FoodRestaurant',
             required: true,
-            unique: true,
-            index: true
+            unique: true
         },
         // Stored as-is for UI; validated at service layer.
         sections: {

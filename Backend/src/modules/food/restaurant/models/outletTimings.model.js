@@ -17,7 +17,6 @@ const outletTimingsSchema = new mongoose.Schema(
       ref: "FoodRestaurant",
       required: true,
       unique: true,
-      index: true,
     },
     timings: {
       type: [dayTimingSchema],

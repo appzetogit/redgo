@@ -1,3 +1,5 @@
+import dns from 'dns';
+
 import http from 'http';
 import app from './src/app.js';
 import { config } from './src/config/env.js';
@@ -45,6 +47,7 @@ const gracefulShutdown = async (signal) => {
 
 const startServer = async () => {
     try {
+        dns.setServers(['8.8.8.8', '8.8.4.4']);
         validateConfig();
         initializeFirebaseRealtime();
 

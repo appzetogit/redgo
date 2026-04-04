@@ -118,6 +118,12 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
   const [invalidOrderIds, setInvalidOrderIds] = useState(new Set());
 
   const fetchOrders = useCallback(async () => {
+    const token = localStorage.getItem("user_accessToken") || localStorage.getItem("accessToken");
+    if (!token) {
+      setHasFetchedApi(true);
+      return;
+    }
+
     try {
       const response = await orderAPI.getOrders({ limit: 10, page: 1 });
       let nextOrders = [];

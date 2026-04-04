@@ -66,7 +66,7 @@ app.use(xssClean());
 app.use('/api', apiRateLimiter);
 
 // Optional: log API response time (method, path, status, duration) - no sensitive data
-app.use('/api', responseTimeLogger);
+// app.use('/api', responseTimeLogger);
 
 // API Routes
 app.use('/api', routes);

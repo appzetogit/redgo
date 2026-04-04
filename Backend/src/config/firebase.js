@@ -13,10 +13,44 @@ const sanitizeString = (value) => String(value ?? '').trim();
 const getServiceAccountFromEnv = () => {
     if (cachedServiceAccount) return cachedServiceAccount;
 
+    // 1. Try Base64 encoded JSON (most robust for .env)
+    const base64Json = sanitizeString(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64);
+    if (base64Json) {
+        try {
+            const rawJson = Buffer.from(base64Json, 'base64').toString('utf8');
+            cachedServiceAccount = JSON.parse(rawJson);
+            if (cachedServiceAccount.private_key) {
+                cachedServiceAccount.private_key = cachedServiceAccount.private_key
+                    .split('\\\\n').join('\n')
+                    .split('\\n').join('\n')
+                    .split('\\r').join('\r')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .join('\n')
+                    .trim();
+            }
+            return cachedServiceAccount;
+        } catch (err) {
+            logger.error('Error parsing FIREBASE_SERVICE_ACCOUNT_BASE64:', err.message);
+        }
+    }
+
+    // 2. Try raw JSON string
     const rawJson = sanitizeString(config.firebaseServiceAccount);
     if (rawJson) {
+        
         try {
             cachedServiceAccount = JSON.parse(rawJson);
+            if (cachedServiceAccount.private_key) {
+                cachedServiceAccount.private_key = cachedServiceAccount.private_key
+                    .split('\\\\n').join('\n')
+                    .split('\\n').join('\n')
+                    .split('\\r').join('\r')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .join('\n')
+                    .trim();
+            }
             return cachedServiceAccount;
         } catch (err) {
             logger.error('Error parsing FIREBASE_SERVICE_ACCOUNT JSON:', err.message);
@@ -100,3 +134,5 @@ export const getFirebaseMessaging = () => {
 };
 
 export default admin;
+
+
