@@ -135,7 +135,7 @@ export default function RestaurantLogin() {
         </div>
 
         <div className="text-center space-y-1.5 sm:space-y-2 mb-6 sm:mb-10">
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight lowercase">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             {companyName}
           </h1>
           <p className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">
@@ -214,11 +214,6 @@ export default function RestaurantLogin() {
         </div>
       </div>
 
-      <div className={`pb-8 text-center ${keyboardInset ? "hidden" : ""}`}>
-          <p className="text-[10px] font-black text-slate-300 tracking-[0.2em] uppercase">
-            &copy; {new Date().getFullYear()} {companyName.toUpperCase()} PARTNER
-          </p>
-      </div>
     </div>
   )
 }

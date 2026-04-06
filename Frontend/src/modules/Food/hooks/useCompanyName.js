@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react';
 import { loadBusinessSettings, getCachedSettings, getCompanyName } from '@food/utils/businessSettings';
 
+const sanitizeCompanyName = (name) => {
+  if (!name) return 'RedGo';
+  const lower = name.toLowerCase();
+  if (lower.includes('master') || lower.includes('appzeto')) {
+    return 'RedGo';
+  }
+  return name;
+};
+
 /**
  * Custom hook to get company name from business settings
- * @returns {string} Company name with fallback to "Appzeto Food"
+ * @returns {string} Company name with fallback to "RedGo"
  */
 export const useCompanyName = () => {
   const [companyName, setCompanyName] = useState(() => {
     // Initialize with cached value if available
     const cached = getCachedSettings();
-    return cached?.companyName || 'Appzeto Food';
+    return sanitizeCompanyName(cached?.companyName);
   });
 
   useEffect(() => {
@@ -17,7 +26,7 @@ export const useCompanyName = () => {
       try {
         const settings = await loadBusinessSettings();
         if (settings?.companyName) {
-          setCompanyName(settings.companyName);
+          setCompanyName(sanitizeCompanyName(settings.companyName));
         }
       } catch (error) {
         // Keep default value on error
@@ -30,14 +39,14 @@ export const useCompanyName = () => {
     if (!cached?.companyName) {
       loadCompanyName();
     } else {
-      setCompanyName(cached.companyName);
+      setCompanyName(sanitizeCompanyName(cached.companyName));
     }
 
     // Listen for business settings updates
     const handleSettingsUpdate = () => {
       const updated = getCachedSettings();
       if (updated?.companyName) {
-        setCompanyName(updated.companyName);
+        setCompanyName(sanitizeCompanyName(updated.companyName));
       }
     };
 

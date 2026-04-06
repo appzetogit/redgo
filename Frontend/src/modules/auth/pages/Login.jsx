@@ -105,7 +105,7 @@ export default function UnifiedOTPFastLogin() {
                   fcmToken = t.trim();
                   break;
                 }
-              } catch (e) {}
+              } catch (e) { }
             }
           } else {
             fcmToken = localStorage.getItem("fcm_web_registered_token_user") || null;
@@ -178,25 +178,25 @@ export default function UnifiedOTPFastLogin() {
       <div className="w-full bg-[#CB202D] dark:bg-[#b01c27] rounded-b-[2.5rem] p-6 text-center text-white relative overflow-hidden shadow-2xl">
         <div className="absolute inset-0 bg-white/5 opacity-50 blur-3xl rounded-full -top-1/2 -left-1/4 animate-pulse" />
         <div className="absolute right-0 bottom-0 w-32 h-32 md:w-48 md:h-48 opacity-10 pointer-events-none">
-           <svg viewBox="0 0 200 200" fill="currentColor">
-              <path d="M100 0C44.8 0 0 44.8 0 100s44.8 100 100 100 100-44.8 100-100S155.2 0 100 0zm0 180c-44.1 0-80-35.9-80-80s35.9-80 80-80 80 35.9 80 80-35.9 80-80 80z"/>
-           </svg>
+          <svg viewBox="0 0 200 200" fill="currentColor">
+            <path d="M100 0C44.8 0 0 44.8 0 100s44.8 100 100 100 100-44.8 100-100S155.2 0 100 0zm0 180c-44.1 0-80-35.9-80-80s35.9-80 80-80 80 35.9 80 80-35.9 80-80 80z" />
+          </svg>
         </div>
-        
+
         <div className="relative z-10 flex flex-col items-center">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mb-3 shadow-xl"
           >
-             <span className="text-[#CB202D] text-3xl font-black">A</span>
+            <span className="text-[#CB202D] text-3xl font-black">R</span>
           </motion.div>
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-2xl md:text-5xl font-black tracking-tight mb-1"
           >
-            AppZeto <span className="text-white/80 font-normal">Master</span>
+            RedGo
           </motion.h1>
           <p className="text-xs md:text-base font-bold text-white/90 tracking-[0.2em] uppercase">
             Taste the best, forget the rest
@@ -207,10 +207,10 @@ export default function UnifiedOTPFastLogin() {
       <div className="flex-1 max-w-[480px] mx-auto w-full px-6 py-4 flex flex-col justify-center -mt-8 relative z-20">
         {/* Main Card */}
         <div className="bg-white dark:bg-[#1a1a1a] rounded-[2rem] p-6 sm:p-8 md:p-12 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-none border border-gray-50 dark:border-gray-800">
-           <div className="text-center mb-6 space-y-2">
-              <h2 className="text-2xl font-black text-gray-900 dark:text-white">Login or Signup</h2>
-              <div className="h-1 w-12 bg-[#CB202D] mx-auto rounded-full" />
-           </div>
+          <div className="text-center mb-6 space-y-2">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white">Login or Signup</h2>
+            <div className="h-1 w-12 bg-[#CB202D] mx-auto rounded-full" />
+          </div>
 
           <form onSubmit={step === 1 ? handleSendOTP : handleVerifyOTP} className="space-y-5">
             {step === 1 ? (
@@ -221,7 +221,7 @@ export default function UnifiedOTPFastLogin() {
                       <Phone className="w-5 h-5 text-gray-400 group-focus-within:text-[#CB202D] transition-colors" />
                     </div>
                     <div className="absolute left-8 inset-y-0 flex items-center pointer-events-none">
-                       <span className="text-sm font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-800 pr-3">+91</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-800 pr-3">+91</span>
                     </div>
                     <input
                       type="tel"
@@ -242,16 +242,16 @@ export default function UnifiedOTPFastLogin() {
             ) : (
               <div className="space-y-6">
                 <div className="space-y-4">
-                   <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                      <div className="w-10 h-10 bg-[#CB202D]/10 rounded-full flex items-center justify-center">
-                         <ShieldCheck className="w-5 h-5 text-[#CB202D]" />
-                      </div>
-                      <div className="flex-1">
-                         <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-none mb-1">Sent to</p>
-                         <p className="text-sm font-black text-gray-900 dark:text-white">+91 {phoneNumber}</p>
-                      </div>
-                      <button type="button" onClick={handleEditNumber} className="text-xs text-[#CB202D] font-black underline cursor-pointer">Edit</button>
-                   </div>
+                  <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+                    <div className="w-10 h-10 bg-[#CB202D]/10 rounded-full flex items-center justify-center">
+                      <ShieldCheck className="w-5 h-5 text-[#CB202D]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-none mb-1">Sent to</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white">+91 {phoneNumber}</p>
+                    </div>
+                    <button type="button" onClick={handleEditNumber} className="text-xs text-[#CB202D] font-black underline cursor-pointer">Edit</button>
+                  </div>
 
                   <div className="flex justify-center gap-3 mt-4">
                     {[0, 1, 2, 3].map((index) => (
@@ -270,7 +270,7 @@ export default function UnifiedOTPFastLogin() {
                           newOtp[index] = val;
                           const combined = newOtp.join("").slice(0, 4);
                           setOtp(combined);
-                          
+
                           // Focus next
                           if (index < 3 && val) {
                             document.getElementById(`otp-${index + 1}`)?.focus();
@@ -323,11 +323,10 @@ export default function UnifiedOTPFastLogin() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-4 rounded-2xl font-black text-lg transition-all relative overflow-hidden shadow-xl ${
-                loading
+              className={`w-full py-4 rounded-2xl font-black text-lg transition-all relative overflow-hidden shadow-xl ${loading
                   ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-50"
                   : "bg-[#CB202D] hover:bg-[#b01c27] text-white hover:shadow-2xl hover:shadow-[#CB202D]/30 active:scale-[0.98] hover:-translate-y-0.5"
-              }`}
+                }`}
             >
               {loading ? (
                 <Loader2 className="w-7 h-7 animate-spin mx-auto text-white" />
@@ -339,10 +338,10 @@ export default function UnifiedOTPFastLogin() {
         </div>
 
         <div className="mt-6 text-center space-y-2">
-           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
-             By continuing, you agree to our <br />
-             <Link to="/food/user/profile/terms" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Terms of Service</Link> & <Link to="/food/user/profile/privacy" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Privacy Policy</Link>
-           </p>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
+            By continuing, you agree to our <br />
+            <Link to="/food/user/profile/terms" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Terms of Service</Link> & <Link to="/food/user/profile/privacy" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Privacy Policy</Link>
+          </p>
         </div>
       </div>
     </div>

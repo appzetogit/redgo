@@ -53,12 +53,12 @@ function resolveNativeInitialRoute() {
     return storedRoute
   }
 
-  if (isModuleAuthenticated('restaurant')) return '/food/restaurant'
-  if (isModuleAuthenticated('delivery')) return '/food/delivery'
+  if (isModuleAuthenticated('restaurant')) return '/restaurant'
+  if (isModuleAuthenticated('delivery')) return '/delivery'
   if (isModuleAuthenticated('admin')) return '/admin'
-  if (isModuleAuthenticated('user')) return '/food/user'
+  if (isModuleAuthenticated('user')) return '/'
 
-  return '/food/user'
+  return '/'
 }
 
 function bootstrapNativeHashRoute() {

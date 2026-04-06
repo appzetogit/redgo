@@ -93,12 +93,22 @@ export const updateFavicon = (url) => {
   document.head.appendChild(link);
 };
 
+const sanitizeCompanyName = (name) => {
+  if (!name) return 'RedGo';
+  const lower = name.toLowerCase();
+  if (lower.includes('master') || lower.includes('appzeto')) {
+    return 'RedGo';
+  }
+  return name;
+};
+
 /**
  * Update page title
  */
 export const updateTitle = (companyName) => {
-  if (companyName && typeof document !== 'undefined') {
-    document.title = companyName;
+  const sanitized = sanitizeCompanyName(companyName);
+  if (sanitized && typeof document !== 'undefined') {
+    document.title = sanitized;
   }
 };
 
@@ -136,22 +146,22 @@ export const getCachedSettings = () => {
 
 /**
  * Get company name from business settings with fallback
- * @returns {string} Company name or default "Appzeto Food"
+ * @returns {string} Company name or default "RedGo"
  */
 export const getCompanyName = () => {
   const settings = getCachedSettings();
-  return settings?.companyName || "Appzeto";
+  return sanitizeCompanyName(settings?.companyName);
 };
 
 /**
  * Get company name asynchronously (loads if not cached)
- * @returns {Promise<string>} Company name or default "Appzeto Food"
+ * @returns {Promise<string>} Company name or default "RedGo"
  */
 export const getCompanyNameAsync = async () => {
   try {
     const settings = await loadBusinessSettings();
-    return settings?.companyName || "Appzeto";
+    return sanitizeCompanyName(settings?.companyName);
   } catch (error) {
-    return "Appzeto";
+    return "RedGo";
   }
 };

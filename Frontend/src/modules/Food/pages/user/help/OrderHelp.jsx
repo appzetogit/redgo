@@ -434,10 +434,10 @@ export default function OrderHelp() {
                       Include order {order.id} in subject
                     </p>
                     <a
-                      href={`mailto:support@appzeto.com?subject=Help with Order ${order.id}`}
+                      href={`mailto:support@redgo.com?subject=Help with Order ${order.id}`}
                       className="text-sm text-primary hover:underline font-medium"
                     >
-                      support@appzeto.com
+                      support@redgo.com
                     </a>
                   </div>
                 </div>

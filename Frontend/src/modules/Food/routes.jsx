@@ -23,13 +23,6 @@ const AdminForgotPassword = lazy(() => import("@food/pages/admin/auth/AdminForgo
 // Delivery Module
 const DeliveryRouter = lazy(() => import("../DeliveryV2"))
 
-function UserPathRedirect() {
-  const location = useLocation()
-  // Correctly handle the /food/user -> /food redirect regardless of where it starts
-  const newPath = location.pathname.replace("/user", "") || "/food"
-  return <Navigate to={newPath} replace />
-}
-
 // Scroll to top on route change
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -47,26 +40,20 @@ function RestaurantGlobalNotificationListenerInner() {
 function RestaurantGlobalNotificationListener() {
   const location = useLocation()
   const isRestaurantRoute =
-    location.pathname.startsWith("/food/restaurant") &&
-    !location.pathname.startsWith("/food/restaurants")
+    location.pathname.startsWith("/food/restaurant") ||
+    location.pathname.startsWith("/restaurant")
+
   const isRestaurantAuthRoute =
-    location.pathname === "/food/restaurant/login" ||
-    location.pathname === "/food/restaurant/auth/sign-in" ||
-    location.pathname === "/food/restaurant/signup" ||
-    location.pathname === "/food/restaurant/signup-email" ||
-    location.pathname === "/food/restaurant/forgot-password" ||
-    location.pathname === "/food/restaurant/otp" ||
-    location.pathname === "/food/restaurant/welcome" ||
-    location.pathname === "/food/restaurant/auth/google-callback"
-  const isOrderManagedRoute =
-    location.pathname === "/food/restaurant" ||
-    location.pathname === "/food/restaurant/orders" ||
-    location.pathname.startsWith("/food/restaurant/orders/")
+    location.pathname.includes("/login") ||
+    location.pathname.includes("/sign-in") ||
+    location.pathname.includes("/signup") ||
+    location.pathname.includes("/forgot-password") ||
+    location.pathname.includes("/otp") ||
+    location.pathname.includes("/welcome")
 
   const shouldListen =
     isRestaurantRoute &&
     !isRestaurantAuthRoute &&
-    !isOrderManagedRoute &&
     isModuleAuthenticated("restaurant")
 
   if (!shouldListen) {
@@ -90,29 +77,29 @@ export default function App() {
       <PushSoundEnableButton />
       <Suspense fallback={<Loader />}>
         <Routes>
-          {/* User Module - Explicitly mapped to /user */}
-          <Route
-            path="user/*"
-            element={<UserRouter />}
-          />
-
-          {/* Restaurant Module - Already mapped to /restaurant */}
+          {/* Restaurant Module */}
           <Route
             path="restaurant/*"
-            element={
-              <RestaurantRouter />
-            }
+            element={<RestaurantRouter />}
           />
 
-          {/* Delivery Module - Already mapped to /delivery */}
+          {/* Delivery Module */}
           <Route
             path="delivery/*"
             element={<DeliveryRouter />}
           />
 
-          {/* Legacy Redirects & Fallbacks - use absolute path to avoid /user appended in a loop */}
-          <Route path="/" element={<Navigate to="/food/user" replace />} />
-          <Route path="*" element={<Navigate to="/food/user" replace />} />
+          {/* User Module (mapped to /user AND root for backward compatibility and main entry) */}
+          <Route
+            path="user/*"
+            element={<UserRouter />}
+          />
+
+          {/* Catch-all for everything else (User App root) */}
+          <Route
+            path="/*"
+            element={<UserRouter />}
+          />
         </Routes>
       </Suspense>
     </>

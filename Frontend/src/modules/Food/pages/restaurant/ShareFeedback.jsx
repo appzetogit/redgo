@@ -73,7 +73,7 @@ export default function ShareFeedback() {
         <div className="mt-6 mb-6">
           <p className="text-sm text-gray-700 mb-1">Tell us about your</p>
           <p className="text-lg font-semibold text-gray-900">
-            Overall experience with {companyName.toLowerCase()}
+            Overall experience with {companyName}
           </p>
         </div>
 
@@ -185,7 +185,7 @@ export default function ShareFeedback() {
                   Thanks for your feedback
                 </h2>
                 <p className="text-xs text-gray-600 mb-4">
-                  It helps us improve your experience with {companyName.toLowerCase()}.
+                  It helps us improve your experience with {companyName}.
                 </p>
                 <button
                   type="button"
