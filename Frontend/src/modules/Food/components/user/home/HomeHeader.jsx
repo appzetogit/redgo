@@ -9,10 +9,6 @@ import {
 } from "@food/components/ui/popover";
 import { Badge } from "@food/components/ui/badge";
 import { Avatar, AvatarFallback } from "@food/components/ui/avatar";
-import foodIcon from "@food/assets/category-icons/food.png";
-import quickIcon from "@food/assets/category-icons/quick.png";
-import taxiIcon from "@food/assets/category-icons/taxi.png";
-import hotelIcon from "@food/assets/category-icons/hotel.png";
 import useNotificationInbox from "@food/hooks/useNotificationInbox";
 
 const ICON_MAP = {
@@ -23,8 +19,6 @@ const ICON_MAP = {
 };
 
 export default function HomeHeader({ 
-  activeTab,
-  setActiveTab,
   location, 
   savedAddressText, 
   handleLocationClick, 
@@ -57,12 +51,6 @@ export default function HomeHeader({
     return () => window.removeEventListener('notificationsUpdated', syncNotifications);
   }, []);
 
-  const festCategories = [
-    { id: "food", name: "Food", icon: foodIcon, bgColor: "bg-white dark:bg-[#1a1a1a]" },
-    { id: "quick", name: "Quick", icon: quickIcon, bgColor: "bg-white dark:bg-[#1a1a1a]" },
-    { id: "taxi", name: "Taxi", icon: taxiIcon, bgColor: "bg-white dark:bg-[#1a1a1a]" },
-    { id: "hotel", name: "Hotel", icon: hotelIcon, bgColor: "bg-white dark:bg-[#1a1a1a]" },
-  ];
 
   const mergedNotifications = useMemo(() => {
     const localItems = Array.isArray(notifications)
@@ -163,7 +151,7 @@ export default function HomeHeader({
                     </Badge>
                   )}
                 </h3>
-                <Link to="/food/user/notifications" className="text-xs font-bold text-orange-600 hover:text-orange-700">
+                <Link to="/notifications" className="text-xs font-bold text-orange-600 hover:text-orange-700">
                   {mergedNotifications.length > 0 ? "View All" : ""}
                 </Link>
               </div>
@@ -213,56 +201,13 @@ export default function HomeHeader({
                 )}
               </div>
               <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
-                <Link to="/food/user/notifications" className="text-xs font-bold text-gray-400 hover:text-gray-600">
+                <Link to="/notifications" className="text-xs font-bold text-gray-400 hover:text-gray-600">
                   {mergedNotifications.length > 0 ? "Manage Settings" : "Check Notifications Page"}
                 </Link>
               </div>
             </div>
           </PopoverContent>
         </Popover>
-      </div>
-
-      {/* Main Category Grid (4 Items) - Compact & Centered */}
-      <div className="relative z-10 flex justify-center pb-1">
-        <div className="grid grid-cols-4 gap-3 w-full max-w-[340px]">
-          {festCategories.map((cat) => (
-            <div 
-              key={cat.id}
-              className={`flex flex-col items-center gap-2 cursor-pointer group relative`}
-              onClick={() => setActiveTab(cat.id)}
-            >
-              <motion.div 
-                whileTap={{ scale: 0.9 }}
-                whileHover={{ scale: 1.05 }}
-                className={`w-full aspect-square ${cat.bgColor} rounded-xl flex items-center justify-center p-0 overflow-hidden transition-all duration-300 ${activeTab === cat.id ? 'bg-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.4)] dark:bg-[#1f1f1f] dark:shadow-[0_0_24px_rgba(255,255,255,0.08)]' : 'bg-white/90 shadow-sm dark:bg-[#161616] dark:shadow-[0_10px_24px_rgba(0,0,0,0.28)]'}`}
-              >
-                <img src={cat.icon} alt={cat.name} className={`w-full h-full object-cover transition-transform duration-700 ${activeTab === cat.id ? 'scale-105' : 'scale-100 group-hover:scale-110'}`} />
-              </motion.div>
-              <span className={`text-[10px] font-bold tracking-wider uppercase transition-all ${activeTab === cat.id ? 'text-white translate-y-0 opacity-100' : 'text-white/40 group-hover:text-white/60'}`}>
-                {cat.name}
-              </span>
-              
-              {activeTab === cat.id && (
-                <>
-                  <motion.div 
-                    layoutId="activeTabBadge"
-                    className="absolute -top-1 -right-0.5 z-30"
-                    initial={{ scale: 0, rotate: -45 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                  >
-                    <div className="bg-yellow-400 text-[6px] font-black text-red-600 w-4 h-4 flex items-center justify-center rounded-full border border-white leading-none shadow-xl dark:border-[#1a1a1a]">
-                      {"\u2605"}
-                    </div>
-                  </motion.div>
-                  <motion.div 
-                    layoutId="indicator"
-                    className="absolute -bottom-1.5 w-1 h-1 bg-yellow-400 rounded-full"
-                  />
-                </>
-              )}
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Search Bar - More Normal & Clean */}

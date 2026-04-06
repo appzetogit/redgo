@@ -5,129 +5,121 @@ const toFoodPath = (value) => {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  if (trimmed.startsWith("/food/")) return trimmed
+  if (trimmed.startsWith("/")) return trimmed
   if (trimmed === "/food") return trimmed
   if (trimmed.startsWith("/user/")) return `/food${trimmed}`
-  if (trimmed === "/user") return "/food/user"
+  if (trimmed === "/user") return ""
   return null
 }
 
-const getNormalizedUserPath = (pathname) => {
-  if (pathname.startsWith("/food")) {
-    return pathname.slice(5) || "/"
-  }
-  return pathname || "/"
-}
-
 const resolveBackPath = ({ pathname, search, state }) => {
-  const normalizedPath = getNormalizedUserPath(pathname)
-  const explicitBackPath = toFoodPath(state?.backTo) || toFoodPath(state?.from)
+  const explicitBackPath = state?.backTo || state?.from
   const searchParams = new URLSearchParams(search || "")
 
   if (
-    normalizedPath === "/user/profile/payments/new" ||
-    /^\/user\/profile\/payments\/[^/]+\/edit$/.test(normalizedPath)
+    pathname === "/profile/payments/new" ||
+    /^\/profile\/payments\/[^/]+\/edit$/.test(pathname)
   ) {
-    return "/food/user/profile/payments"
+    return "/profile/payments"
   }
 
   if (
-    /^\/user\/profile\/(edit|favorites|support|coupons|about|report-safety-emergency|accessibility|logout|refer-earn|payments)$/.test(
-      normalizedPath,
+    /^\/profile\/(edit|favorites|support|coupons|about|report-safety-emergency|accessibility|logout|refer-earn|payments)$/.test(
+      pathname,
     )
   ) {
-    return "/food/user/profile"
+    return "/profile"
   }
 
   if (
-    /^\/user\/profile\/(terms|privacy|refund|shipping|cancellation)$/.test(
-      normalizedPath,
+    /^\/profile\/(terms|privacy|refund|shipping|cancellation)$/.test(
+      pathname,
     )
   ) {
-    return explicitBackPath || "/food/user/profile"
+    return explicitBackPath || "/profile"
   }
 
-  if (normalizedPath === "/user/wallet") {
-    return "/food/user/profile"
+  if (pathname === "/wallet") {
+    return "/profile"
   }
 
-  if (normalizedPath === "/user/notifications") {
-    return explicitBackPath || "/food/user"
+  if (pathname === "/notifications") {
+    return explicitBackPath || "/"
   }
 
-  if (/^\/user\/restaurants\/[^/]+$/.test(normalizedPath)) {
+  if (/^\/restaurants\/[^/]+$/.test(pathname)) {
     if (searchParams.get("under250") === "true") {
-      return "/food/user/under-250"
+      return "/under-250"
     }
-    return explicitBackPath || "/food/user"
+    return explicitBackPath || "/"
   }
 
-  if (/^\/user\/dining\/book(\/|$)/.test(normalizedPath)) {
-    return explicitBackPath || "/food/user/dining"
+  if (/^\/dining\/book(\/|$)/.test(pathname)) {
+    return explicitBackPath || "/dining"
   }
 
-  if (/^\/user\/dining\/[^/]+\/[^/]+$/.test(normalizedPath)) {
-    return explicitBackPath || "/food/user/dining"
-  }
-
-  if (
-    normalizedPath === "/user/dining/restaurants" ||
-    normalizedPath === "/user/dining/explore/upto50" ||
-    normalizedPath === "/user/dining/explore/near-rated" ||
-    normalizedPath === "/user/dining/coffee"
-  ) {
-    return "/food/user/dining"
-  }
-
-  if (/^\/user\/dining\/[^/]+$/.test(normalizedPath)) {
-    return "/food/user/dining"
-  }
-
-  if (/^\/user\/orders\/[^/]+(\/invoice|\/details)?$/.test(normalizedPath)) {
-    return "/food/user/orders"
+  if (/^\/dining\/[^/]+\/[^/]+$/.test(pathname)) {
+    return explicitBackPath || "/dining"
   }
 
   if (
-    normalizedPath === "/user/cart/checkout" ||
-    normalizedPath === "/user/cart/select-address" ||
-    normalizedPath === "/user/cart/address-selector"
+    pathname === "/dining/restaurants" ||
+    pathname === "/dining/explore/upto50" ||
+    pathname === "/dining/explore/near-rated" ||
+    pathname === "/dining/coffee"
   ) {
-    return "/food/user/cart"
+    return "/dining"
   }
 
-  if (/^\/user\/collections\/[^/]+$/.test(normalizedPath)) {
-    return "/food/user/collections"
+  if (/^\/dining\/[^/]+$/.test(pathname)) {
+    return "/dining"
   }
 
-  if (normalizedPath === "/user/categories") {
-    return "/food/user"
-  }
-
-  if (/^\/user\/category\/[^/]+$/.test(normalizedPath)) {
-    return "/food/user/categories"
+  if (/^\/orders\/[^/]+(\/invoice|\/details)?$/.test(pathname)) {
+    return "/orders"
   }
 
   if (
-    normalizedPath === "/user/offers" ||
-    normalizedPath === "/user/gourmet" ||
-    normalizedPath === "/user/coffee"
+    pathname === "/cart/checkout" ||
+    pathname === "/cart/select-address" ||
+    pathname === "/cart/address-selector"
   ) {
-    return "/food/user"
+    return "/cart"
   }
 
-  if (/^\/user\/product\/[^/]+$/.test(normalizedPath)) {
-    return explicitBackPath || "/food/user"
+  if (/^\/collections\/[^/]+$/.test(pathname)) {
+    return "/collections"
   }
 
-  if (/^\/user\/complaints(\/|$)/.test(normalizedPath)) {
-    return explicitBackPath || "/food/user/orders"
+  if (pathname === "/categories") {
+    return "/"
+  }
+
+  if (/^\/category\/[^/]+$/.test(pathname)) {
+    return "/categories"
+  }
+
+  if (
+    pathname === "/offers" ||
+    pathname === "/gourmet" ||
+    pathname === "/coffee"
+  ) {
+    return "/"
+  }
+
+  if (/^\/product\/[^/]+$/.test(pathname)) {
+    return explicitBackPath || "/"
+  }
+
+  if (/^\/complaints(\/|$)/.test(pathname)) {
+    return explicitBackPath || "/orders"
   }
 
   if (explicitBackPath && explicitBackPath !== pathname) {
     return explicitBackPath
   }
 
-  return "/food/user"
+  return "/"
 }
 
 export default function useAppBackNavigation() {

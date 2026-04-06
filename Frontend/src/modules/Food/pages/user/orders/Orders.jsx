@@ -443,7 +443,7 @@ export default function Orders() {
 
     replaceCart(reorderItems)
     toast.success("Items added to cart")
-    navigate(`/food/user/restaurants/${restaurantTarget}`)
+    navigate(`/restaurants/${restaurantTarget}`)
   }
 
   // Three-dots menu handlers
@@ -542,8 +542,8 @@ export default function Orders() {
       `${order.address?.city || ""}, ${order.address?.state || ""}`.trim()
     const restaurantPath = order.restaurantSlug || order.restaurantId
     const shareUrl = restaurantPath
-      ? `${window.location.origin}/food/user/restaurants/${restaurantPath}`
-      : `${window.location.origin}/food/user/orders/${order.id}`
+      ? `${window.location.origin}/restaurants/${restaurantPath}`
+      : `${window.location.origin}/orders/${order.id}`
 
     const shareText = `Check out ${order.restaurant} on ${companyName}.
 Location: ${location || "Location not available"}

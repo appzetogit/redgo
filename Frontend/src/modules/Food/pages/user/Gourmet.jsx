@@ -46,7 +46,7 @@ export default function Gourmet() {
       try {
         setLoading(true)
         setError(null)
-        const response = await api.get('/food/hero-banners/gourmet/public')
+        const response = await api.get('/hero-banners/gourmet/public')
         const data = response?.data?.data
         const list = data?.restaurants ?? (Array.isArray(data) ? data : [])
         setGourmetRestaurants(list)

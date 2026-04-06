@@ -6,16 +6,16 @@ const toDeliveryPath = (value) => {
   const trimmed = value.trim()
 
   if (!trimmed) return null
-  if (trimmed.startsWith("/food/delivery")) return trimmed
-  if (trimmed === "/delivery") return "/food/delivery"
+  if (trimmed.startsWith("/delivery")) return trimmed
+  if (trimmed === "/delivery") return "/delivery"
   if (trimmed.startsWith("/delivery/")) return `/food${trimmed}`
 
   return null
 }
 
 const getNormalizedDeliveryPath = (pathname) => {
-  if (pathname.startsWith("/food/delivery")) {
-    return pathname.slice("/food/delivery".length) || "/"
+  if (pathname.startsWith("/delivery")) {
+    return pathname.slice("/delivery".length) || "/"
   }
 
   return pathname || "/"
@@ -25,10 +25,10 @@ const resolveDeliveryBackPath = ({ pathname, state }) => {
   const normalizedPath = getNormalizedDeliveryPath(pathname)
   const explicitBackPath = toDeliveryPath(state?.backTo) || toDeliveryPath(state?.from)
 
-  if (normalizedPath === "/signup/details") return "/food/delivery/signup"
-  if (normalizedPath === "/signup/documents") return "/food/delivery/signup/details"
-  if (normalizedPath === "/otp") return explicitBackPath || "/food/delivery/login"
-  if (normalizedPath === "/terms") return explicitBackPath || "/food/delivery/signup"
+  if (normalizedPath === "/signup/details") return "/delivery/signup"
+  if (normalizedPath === "/signup/documents") return "/delivery/signup/details"
+  if (normalizedPath === "/otp") return explicitBackPath || "/delivery/login"
+  if (normalizedPath === "/terms") return explicitBackPath || "/delivery/signup"
 
   if (
     normalizedPath === "/profile/details" ||
@@ -39,14 +39,14 @@ const resolveDeliveryBackPath = ({ pathname, state }) => {
     normalizedPath === "/help/id-card" ||
     normalizedPath === "/help/tickets"
   ) {
-    return explicitBackPath || "/food/delivery/profile"
+    return explicitBackPath || "/delivery/profile"
   }
 
   if (
     normalizedPath === "/help/tickets/create" ||
     /^\/help\/tickets\/[^/]+$/.test(normalizedPath)
   ) {
-    return explicitBackPath || "/food/delivery/help/tickets"
+    return explicitBackPath || "/delivery/help/tickets"
   }
 
   if (
@@ -58,14 +58,14 @@ const resolveDeliveryBackPath = ({ pathname, state }) => {
     normalizedPath === "/pocket/cash-limit" ||
     normalizedPath === "/pocket/details"
   ) {
-    return explicitBackPath || "/food/delivery/pocket"
+    return explicitBackPath || "/delivery/pocket"
   }
 
   if (explicitBackPath && explicitBackPath !== pathname) {
     return explicitBackPath
   }
 
-  return "/food/delivery"
+  return "/delivery"
 }
 
 export default function useDeliveryBackNavigation() {

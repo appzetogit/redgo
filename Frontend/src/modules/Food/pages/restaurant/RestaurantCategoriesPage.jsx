@@ -54,7 +54,7 @@ export default function RestaurantCategoriesPage() {
   }, [])
 
   const handleCategoryClick = (categoryName) => {
-    navigate(`/restaurant/food/all?category=${categoryName}`)
+    navigate(`/restaurant/all?category=${categoryName}`)
   }
 
   return (

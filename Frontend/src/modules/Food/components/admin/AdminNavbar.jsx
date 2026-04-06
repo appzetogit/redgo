@@ -262,7 +262,7 @@ export default function AdminNavbar({ onMenuClick }) {
   const notificationCount = adminNotifications.length;
   const openNotificationsPage = () => {
     setNotificationsOpen(false);
-    navigate("/admin/food/notifications");
+    navigate("/admin/notifications");
   };
 
   return (
@@ -465,14 +465,14 @@ export default function AdminNavbar({ onMenuClick }) {
                 <DropdownMenuGroup>
                   <DropdownMenuItem
                     className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100"
-                    onClick={() => navigate("/admin/food/profile")}
+                    onClick={() => navigate("/admin/profile")}
                   >
                     <User className="mr-2 w-4 h-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100"
-                    onClick={() => navigate("/admin/food/settings")}
+                    onClick={() => navigate("/admin/settings")}
                   >
                     <Settings className="mr-2 w-4 h-4" />
                     <span>Settings</span>
@@ -518,10 +518,10 @@ export default function AdminNavbar({ onMenuClick }) {
                 <div className="text-sm text-neutral-500 mb-4">Quick Actions</div>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { icon: Package, label: "Orders", path: "/admin/food/orders/all" },
-                    { icon: Users, label: "Users", path: "/admin/food/customers" },
-                    { icon: UtensilsCrossed, label: "Products", path: "/admin/food/foods" },
-                    { icon: FileText, label: "Reports", path: "/admin/food/transaction-report" },
+                    { icon: Package, label: "Orders", path: "/admin/orders/all" },
+                    { icon: Users, label: "Users", path: "/admin/customers" },
+                    { icon: UtensilsCrossed, label: "Products", path: "/admin/foods" },
+                    { icon: FileText, label: "Reports", path: "/admin/transaction-report" },
                   ].map((action, idx) => (
                     <button
                       key={idx}

@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightCircle } from 'lucide-react';
-import bannerFood1 from "@food/assets/category-icons/food.png"; // Burger
+const burgerImg = "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=200&h=200&fit=crop";
+
 // Using placeholders for variety as in image
 const tacoImg = "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=200&h=200&fit=crop";
 const platterImg = "https://images.unsplash.com/photo-1544025162-d76694265947?w=200&h=200&fit=crop";
@@ -68,7 +69,7 @@ export default function FestBanner() {
             whileHover={{ y: -5, rotate: 5 }}
             className="w-24 h-24 rotate-[12deg] translate-y-3 z-10 transition-all duration-300"
           >
-            <img src={bannerFood1} alt="burger" className="w-full h-full object-contain p-2 rounded-2xl border-[3px] border-white bg-white shadow-xl" />
+            <img src={burgerImg} alt="burger" className="w-full h-full object-contain p-2 rounded-2xl border-[3px] border-white bg-white shadow-xl" />
           </motion.div>
         </div>
       </div>

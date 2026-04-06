@@ -525,7 +525,7 @@ export default function ExploreMore() {
 
       // Small delay for UX, then navigate to welcome page
       setTimeout(() => {
-        navigate("/food/restaurant/login", { replace: true })
+        navigate("/restaurant/login", { replace: true })
       }, 300)
     } catch (error) {
       // Even if there's an error, we should still clear local data and logout
@@ -592,7 +592,7 @@ export default function ExploreMore() {
 
       // Small delay for UX, then navigate to welcome page
       setTimeout(() => {
-        navigate("/food/restaurant/login", { replace: true })
+        navigate("/restaurant/login", { replace: true })
       }, 300)
     } catch (error) {
       // Even if there's an error, we should still clear local data and logout
@@ -889,7 +889,7 @@ export default function ExploreMore() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1">
             <button
-              onClick={() => navigate("/food/restaurant")}
+              onClick={() => navigate("/restaurant")}
               className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Go back"
             >
@@ -906,7 +906,7 @@ export default function ExploreMore() {
               <Search className="w-5 h-5 text-gray-900" />
             </button>
             <button
-              onClick={() => navigate("/food/restaurant/onboarding?step=1")}
+              onClick={() => navigate("/restaurant/onboarding?step=1")}
               className="p-2 hover:bg-gray-100 bg-gray-200 rounded-full transition-colors"
               aria-label="Profile"
             >
@@ -1230,7 +1230,7 @@ export default function ExploreMore() {
                 <button 
                   onClick={() => {
                     setProfileOpen(false)
-                    navigate("/food/restaurant/onboarding?step=1")
+                    navigate("/restaurant/onboarding?step=1")
                   }}
                   className="w-full flex items-start gap-4 text-left p-2 -m-2 hover:bg-gray-50 rounded-xl transition-colors group"
                 >

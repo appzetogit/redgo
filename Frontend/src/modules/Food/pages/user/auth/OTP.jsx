@@ -30,7 +30,7 @@ export default function OTP() {
     // Redirect to home if already authenticated
     const isAuthenticated = localStorage.getItem("user_authenticated") === "true"
     if (isAuthenticated) {
-      navigate("/food/user", { replace: true })
+      navigate("", { replace: true })
       return
     }
 
@@ -38,7 +38,7 @@ export default function OTP() {
     const stored = sessionStorage.getItem("userAuthData")
     if (!stored) {
       // No auth data, redirect to sign in
-      navigate("/user/auth/login", { replace: true })
+      navigate("/auth/login", { replace: true })
       return
     }
     const data = JSON.parse(stored)
@@ -256,7 +256,7 @@ export default function OTP() {
 
       // Redirect to user home after short delay
       setTimeout(() => {
-        navigate("/food/user")
+        navigate("")
       }, 500)
     } catch (err) {
       const status = err?.response?.status
@@ -342,7 +342,7 @@ export default function OTP() {
       setSuccess(true)
 
       setTimeout(() => {
-        navigate("/food/user")
+        navigate("")
       }, 500)
     } catch (err) {
       const message =
@@ -416,7 +416,7 @@ export default function OTP() {
         {/* Header */}
         <div className="flex items-center px-6 py-4 border-b border-gray-100 dark:border-gray-800">
           <button
-            onClick={() => navigate("/food/user/auth/login")}
+            onClick={() => navigate("/auth/login")}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
             aria-label="Go back"
           >

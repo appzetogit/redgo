@@ -96,7 +96,7 @@ export default function RestaurantLogin() {
         module: "restaurant",
       }
       sessionStorage.setItem("restaurantAuthData", JSON.stringify(authData))
-      navigate("/food/restaurant/otp")
+      navigate("/restaurant/otp")
     } catch (apiErr) {
       const message =
         apiErr?.response?.data?.message ||
@@ -196,7 +196,7 @@ export default function RestaurantLogin() {
               By logging in, you agree to our <br />
               <button
                 type="button"
-                onClick={() => navigate("/food/restaurant/terms")}
+                onClick={() => navigate("/restaurant/terms")}
                 className="bg-transparent border-0 p-0 text-[#ef4f5f] font-bold hover:underline cursor-pointer"
               >
                 Terms
@@ -204,7 +204,7 @@ export default function RestaurantLogin() {
               and{" "}
               <button
                 type="button"
-                onClick={() => navigate("/food/restaurant/privacy")}
+                onClick={() => navigate("/restaurant/privacy")}
                 className="bg-transparent border-0 p-0 text-[#ef4f5f] font-bold hover:underline cursor-pointer"
               >
                 Privacy Policy

@@ -82,7 +82,7 @@ export default function Logout() {
 
       // Small delay for UX, then navigate to sign in
       setTimeout(() => {
-        navigate("/user/auth/login", { replace: true })
+        navigate("/auth/login", { replace: true })
       }, 500)
     } catch (err) {
       // Even if there's an error, we should still clear local data and logout
@@ -101,7 +101,7 @@ export default function Logout() {
       
       // Still navigate after showing error
       setTimeout(() => {
-        navigate("/user/auth/login", { replace: true })
+        navigate("/auth/login", { replace: true })
       }, 2000)
     }
   }

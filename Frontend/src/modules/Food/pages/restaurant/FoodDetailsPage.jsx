@@ -571,7 +571,7 @@ export default function FoodDetailsPage() {
           <Button
             type="button"
             disabled={!foodData}
-            onClick={() => navigate(`/restaurant/food/${id}/edit`)}
+            onClick={() => navigate(`/restaurant/${id}/edit`)}
             className="flex-1 bg-[#ff8100] hover:bg-[#e67300] text-white font-semibold py-3"
           >
             Edit

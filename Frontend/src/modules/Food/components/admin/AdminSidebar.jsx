@@ -351,8 +351,8 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     const matchesPath = (candidatePath) =>
       currentPath === candidatePath || currentPath.startsWith(`${candidatePath}/`)
 
-    if (targetPath === "/admin" || targetPath === "/admin/food") {
-      return currentPath === targetPath
+    if (targetPath === "/admin" || targetPath === "/admin/food" || targetPath === "/admin/dashboard") {
+      return currentPath === "/admin" || currentPath === "/admin/food" || currentPath === "/admin/dashboard"
     }
 
     // For subItems, check if this is the most specific match

@@ -488,11 +488,11 @@ export default function RestaurantOnboarding() {
       await clearAllFilesFromDB()
       
       window.dispatchEvent(new Event("restaurantAuthChanged"))
-      navigate("/food/restaurant/login", { replace: true })
+      navigate("/restaurant/login", { replace: true })
     } catch (error) {
       debugError("Logout failed:", error)
       clearModuleAuth("restaurant")
-      navigate("/food/restaurant/login", { replace: true })
+      navigate("/restaurant/login", { replace: true })
     } finally {
       setIsLoggingOut(false)
     }
@@ -1446,7 +1446,7 @@ export default function RestaurantOnboarding() {
           await clearAllFilesFromDB()
 
           toast.success("Profile updated successfully", { duration: 4000 })
-          navigate("/food/restaurant/explore", { replace: true })
+          navigate("/restaurant/explore", { replace: true })
           return
         }
 
@@ -1534,7 +1534,7 @@ export default function RestaurantOnboarding() {
         } catch {}
 
         toast.success("Registration submitted. Awaiting admin approval.", { duration: 4000 })
-        navigate("/food/restaurant/pending-verification", {
+        navigate("/restaurant/pending-verification", {
           replace: true,
           state: {
             phone: normalizePhoneDigits(step1.ownerPhone),
@@ -2770,7 +2770,7 @@ export default function RestaurantOnboarding() {
         <header className="px-4 py-4 sm:px-6 sm:py-5 bg-white flex items-center justify-between border-b">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate("/food/restaurant/explore")}
+              onClick={() => navigate("/restaurant/explore")}
               className="p-1 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="Close onboarding"
             >

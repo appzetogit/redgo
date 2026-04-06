@@ -38,18 +38,18 @@ function isNativeLikeShell() {
 }
 
 function resolveNativeInitialRoute() {
-  if (typeof window === 'undefined') return '/food/user'
+  if (typeof window === 'undefined') return ''
 
   const rawPathname = String(window.location?.pathname || '')
   const pathname = rawPathname.replace(/\/index\.html$/i, '') || '/'
   const storedRoute = String(localStorage.getItem(NATIVE_LAST_ROUTE_KEY) || '').trim()
 
-  if (pathname.startsWith('/food/')) return pathname
+  if (pathname.startsWith('/')) return pathname
   if (pathname.startsWith('/restaurant')) return `/food${pathname}`
   if (pathname.startsWith('/delivery')) return `/food${pathname}`
   if (pathname.startsWith('/user')) return `/food${pathname}`
   if (pathname.startsWith('/admin')) return pathname
-  if (storedRoute.startsWith('/food/') || storedRoute.startsWith('/admin')) {
+  if (storedRoute.startsWith('/') || storedRoute.startsWith('/admin')) {
     return storedRoute
   }
 

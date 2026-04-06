@@ -35,7 +35,7 @@ export default function TableBookingSuccess() {
     }, [])
 
     if (!booking) {
-        navigate("/food/user/dining")
+        navigate("/dining")
         return null
     }
 
@@ -149,14 +149,14 @@ export default function TableBookingSuccess() {
                 className="mt-12 w-full max-w-sm space-y-3"
             >
                 <Button
-                    onClick={() => navigate("/food/user/bookings")}
+                    onClick={() => navigate("/bookings")}
                     className="w-full h-14 bg-red-500 hover:bg-red-600 text-white font-bold text-lg rounded-2xl shadow-xl shadow-red-100 flex items-center justify-center gap-2"
                 >
                     <List className="w-5 h-5" />
                     View My Bookings
                 </Button>
                 <Button
-                    onClick={() => navigate("/food/user")}
+                    onClick={() => navigate("")}
                     variant="outline"
                     className="w-full h-14 bg-white border-2 border-slate-100 text-slate-600 font-bold text-lg rounded-2xl hover:bg-slate-50 flex items-center justify-center gap-2"
                 >

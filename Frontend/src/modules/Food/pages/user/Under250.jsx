@@ -232,7 +232,7 @@ export default function Under250() {
   useEffect(() => {
     let cancelled = false
     setLoadingBanner(true)
-    api.get('/food/hero-banners/under-250/public')
+    api.get('/hero-banners/under-250/public')
       .then((res) => {
         if (cancelled) return
         const data = res?.data?.data
@@ -609,7 +609,7 @@ export default function Under250() {
     // Check authentication
     if (!isModuleAuthenticated('user')) {
       toast.error("Please login to add items to cart")
-      navigate('/user/auth/login', { state: { from: location.pathname } })
+      navigate('/auth/login', { state: { from: location.pathname } })
       return
     }
 

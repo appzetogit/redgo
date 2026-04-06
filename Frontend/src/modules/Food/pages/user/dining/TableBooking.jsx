@@ -242,7 +242,7 @@ export default function TableBooking() {
       sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify(bookingDraft))
     } catch {}
 
-    navigate("/food/user/dining/book-confirmation", { state: bookingDraft })
+    navigate("/dining/book-confirmation", { state: bookingDraft })
   }
 
   return (

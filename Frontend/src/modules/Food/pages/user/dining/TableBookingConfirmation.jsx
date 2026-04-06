@@ -36,7 +36,7 @@ export default function TableBookingConfirmation() {
 
     useEffect(() => {
         if (!restaurant) {
-            navigate("/food/user/dining")
+            navigate("/dining")
             return
         }
 
@@ -93,7 +93,7 @@ export default function TableBookingConfirmation() {
                     sessionStorage.removeItem(BOOKING_DRAFT_KEY)
                 } catch {}
                 // Navigate to success page with booking details
-                navigate("/food/user/dining/book-success", { state: { booking: response.data.data } })
+                navigate("/dining/book-success", { state: { booking: response.data.data } })
             }
         } catch (error) {
             debugError("Booking error:", error)

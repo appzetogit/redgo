@@ -248,7 +248,7 @@ export default function AllFoodPage() {
             whileHover={{ y: -4, scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
             className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => navigate(`/restaurant/food/${food.id}`)}
+            onClick={() => navigate(`/restaurant/${food.id}`)}
           >
             <div className="flex gap-3 p-3">
               {/* Food Image */}
@@ -313,7 +313,7 @@ export default function AllFoodPage() {
         transition={{ type: "spring", stiffness: 200, damping: 15 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        onClick={() => navigate("/restaurant/food/new")}
+        onClick={() => navigate("/restaurant/new")}
         className="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 bg-[#ff8100] hover:bg-[#e67300] text-white rounded-full shadow-lg flex items-center justify-center z-50 transition-colors"
       >
         <Plus className="w-6 h-6" />

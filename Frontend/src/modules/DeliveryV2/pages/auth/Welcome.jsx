@@ -155,7 +155,7 @@ export default function DeliveryWelcome() {
            <button
              onClick={() => {
                // Navigate directly to delivery home page (map with hotspots)
-               navigate("/food/delivery", { replace: true })
+               navigate("/delivery", { replace: true })
              }}
              className="w-full bg-[#00B761] hover:bg-[#00A055] text-white font-bold py-4 rounded-lg mt-4 flex items-center justify-center gap-2 transition-colors"
            >

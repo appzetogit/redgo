@@ -272,7 +272,7 @@ export default function Profile() {
   const refId =
     userProfile?._id || userProfile?.id || userProfile?.referralCode || "";
   const referralLink = refId
-    ? `${window.location.origin}/food/user/auth/login?ref=${encodeURIComponent(String(refId))}`
+    ? `${window.location.origin}/auth/login?ref=${encodeURIComponent(String(refId))}`
     : "";
 
   const handleShareReferral = async () => {
@@ -378,7 +378,7 @@ export default function Profile() {
       window.dispatchEvent(new Event("userAuthChanged"));
 
       // Navigate to sign in page
-      navigate("/user/auth/login", { replace: true });
+      navigate("/auth/login", { replace: true });
     } catch (err) {
       // Even if there's an error, we should still clear local data and logout
       debugError("Error during logout:", err);
@@ -396,7 +396,7 @@ export default function Profile() {
       window.dispatchEvent(new Event("userAuthChanged"));
 
       // Still navigate to login page
-      navigate("/user/auth/login", { replace: true });
+      navigate("/auth/login", { replace: true });
     } finally {
       setIsLoggingOut(false);
     }

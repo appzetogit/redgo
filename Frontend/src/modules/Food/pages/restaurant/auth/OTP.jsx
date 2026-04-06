@@ -47,7 +47,7 @@ export default function RestaurantOTP() {
         }
       }
     } else {
-      navigate("/food/restaurant/login")
+      navigate("/restaurant/login")
       return
     }
 
@@ -226,7 +226,7 @@ export default function RestaurantOTP() {
         setRestaurantPendingPhone(normalizedPhone)
         sessionStorage.removeItem("restaurantAuthData")
         sessionStorage.removeItem("restaurantLoginPhone")
-        navigate("/food/restaurant/onboarding", { replace: true })
+        navigate("/restaurant/onboarding", { replace: true })
         return
       }
 
@@ -242,20 +242,20 @@ export default function RestaurantOTP() {
 
         setTimeout(async () => {
           if (authData?.isSignUp) {
-            navigate("/food/restaurant/onboarding", { replace: true })
+            navigate("/restaurant/onboarding", { replace: true })
           } else {
             try {
               const onboardingComplete = isRestaurantOnboardingComplete(restaurant)
               if (!onboardingComplete) {
                 const incompleteStep = await checkOnboardingStatus()
                 if (incompleteStep) {
-                  navigate(`/food/restaurant/onboarding?step=${incompleteStep}`, { replace: true })
+                  navigate(`/restaurant/onboarding?step=${incompleteStep}`, { replace: true })
                   return
                 }
               }
-              navigate("/food/restaurant", { replace: true })
+              navigate("/restaurant", { replace: true })
             } catch (err) {
-              navigate("/food/restaurant", { replace: true })
+              navigate("/restaurant", { replace: true })
             }
           }
         }, 500)
@@ -274,7 +274,7 @@ export default function RestaurantOTP() {
         }
         sessionStorage.removeItem("restaurantAuthData")
         sessionStorage.removeItem("restaurantLoginPhone")
-        navigate("/food/restaurant/pending-verification", {
+        navigate("/restaurant/pending-verification", {
           replace: true,
           state: { phone: pendingPhone || "" },
         })
@@ -354,7 +354,7 @@ export default function RestaurantOTP() {
         
         {/* Back Button */}
         <button
-          onClick={() => navigate("/food/restaurant/login")}
+          onClick={() => navigate("/restaurant/login")}
           className="absolute top-10 sm:top-12 left-6 sm:left-8 p-2.5 sm:p-3 bg-white shadow-xl rounded-full text-[#ef4f5f] hover:scale-110 active:scale-95 transition-all"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />

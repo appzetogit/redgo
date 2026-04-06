@@ -51,7 +51,7 @@ export default function MenuOverlay({ showMenu, setShowMenu }) {
   // Get menu options based on authentication state
   const getMenuOptions = () => {
     const baseOptions = [
-      { id: 4, name: "All Food", icon: Utensils, route: "/restaurant/food/all" },
+      { id: 4, name: "All Food", icon: Utensils, route: "/restaurant/all" },
       { id: 6, name: "Restaurant Config", icon: Settings, route: "/restaurant/config" },
       { id: 7, name: "Advertisements", icon: Monitor, route: "/restaurant/advertisements" },
       { id: 9, name: "Categories", icon: Grid3x3, route: "/restaurant/categories" },

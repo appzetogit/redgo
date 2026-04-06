@@ -1485,7 +1485,7 @@ export default function Inventory() {
     try {
       if (!categoryId) return
 
-      // Backend source of truth is food_items. Update availability via /food/restaurant/foods/:id.
+      // Backend source of truth is food_items. Update availability via /restaurant/foods/:id.
       if (itemId) {
         await restaurantAPI.updateFood(itemId, { isAvailable: Boolean(isAvailable) })
         return
@@ -1750,9 +1750,9 @@ export default function Inventory() {
   const handleEditItem = (category, item) => {
     if (!item?.id) return
 
-    navigate(`/food/restaurant/hub-menu/item/${item.id}`, {
+    navigate(`/restaurant/hub-menu/item/${item.id}`, {
       state: {
-        backTo: "/food/restaurant/inventory",
+        backTo: "/restaurant/inventory",
         item: {
           ...item,
           category: category?.name || "",
@@ -2719,9 +2719,9 @@ export default function Inventory() {
                 <button
                   onClick={() => {
                     setIsAddPopupOpen(false)
-                    navigate(`/food/restaurant/hub-menu/item/new`, {
+                    navigate(`/restaurant/hub-menu/item/new`, {
                       state: {
-                        backTo: "/food/restaurant/inventory",
+                        backTo: "/restaurant/inventory",
                       },
                     })
                   }}

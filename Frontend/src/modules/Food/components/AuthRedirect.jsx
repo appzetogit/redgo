@@ -10,9 +10,9 @@ export default function AuthRedirect({ children, module, redirectTo = null }) {
 
   const moduleHomePages = {
     user: "/food",
-    restaurant: "/food/restaurant",
-    delivery: "/food/delivery",
-    admin: "/food/admin",
+    restaurant: "/restaurant",
+    delivery: "/delivery",
+    admin: "/admin",
   }
 
   if (isAuthenticated) {

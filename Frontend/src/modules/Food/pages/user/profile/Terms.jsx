@@ -39,7 +39,7 @@ export default function Terms() {
     if (window.history.length > 2) {
       goBack()
     } else {
-      navigate('/food/user')
+      navigate('')
     }
   }
 

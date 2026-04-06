@@ -55,8 +55,8 @@ export default function PromoRow({ handleVegModeChange, navigate, isVegMode, tog
           }`}
           onClick={() => {
             if (promo.id === 'pure-veg') handleVegModeChange(!isVegMode);
-            else if (promo.id === 'offers') navigate('/food/user/offers');
-            else if (promo.id === 'under-250') navigate('/food/user/under-250');
+            else if (promo.id === 'offers') navigate('/offers');
+            else if (promo.id === 'under-250') navigate('/under-250');
           }}
         >
           <div className="py-3 px-1 flex flex-col items-center text-center">

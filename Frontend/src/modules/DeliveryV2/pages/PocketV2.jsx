@@ -210,7 +210,7 @@ export const PocketV2 = () => {
                <p className="text-xs text-black/80 font-medium">PAN & bank details required for payouts</p>
             </div>
             <button 
-              onClick={() => navigate('/food/delivery/profile/details')}
+              onClick={() => navigate('/delivery/profile/details')}
               className="bg-yellow-300 text-black px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm"
             >
                Submit
@@ -222,7 +222,7 @@ export const PocketV2 = () => {
           
           {/* 2. WEEKLY EARNINGS CARD */}
           <div 
-            onClick={() => navigate('/food/delivery/earnings')}
+            onClick={() => navigate('/delivery/earnings')}
             className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 text-center mb-5 transition-all active:scale-[0.98]"
           >
              <p className="text-gray-500 text-[11px] font-bold uppercase tracking-widest mb-2">Earnings: {getCurrentWeekRange()}</p>
@@ -296,7 +296,7 @@ export const PocketV2 = () => {
           {/* 4. POCKET ACTION BUTTONS */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
              <button 
-                onClick={() => navigate('/food/delivery/pocket/balance')}
+                onClick={() => navigate('/delivery/pocket/balance')}
                 className="w-full p-5 border-b border-gray-50 flex items-center justify-between active:bg-gray-50"
              >
                 <div className="flex items-center gap-4">
@@ -315,7 +315,7 @@ export const PocketV2 = () => {
              </button>
 
              <button 
-                onClick={() => navigate('/food/delivery/pocket/cash-limit')}
+                onClick={() => navigate('/delivery/pocket/cash-limit')}
                 className="w-full p-5 border-b border-gray-50 flex items-center justify-between active:bg-gray-50"
              >
                 <div className="flex items-center gap-4">
@@ -346,7 +346,7 @@ export const PocketV2 = () => {
           {/* 5. MORE SERVICES - Vertical List */}
           <div className="space-y-4">
              <div className="grid grid-cols-2 gap-4">
-                <div onClick={() => navigate('/food/delivery/pocket/payout')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50">
+                <div onClick={() => navigate('/delivery/pocket/payout')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50">
                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 mb-4 border border-blue-100">
                       <IndianRupee className="w-5 h-5" />
                    </div>
@@ -355,7 +355,7 @@ export const PocketV2 = () => {
                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">Prev Week Info</p>
                 </div>
 
-                <div onClick={() => navigate('/food/delivery/pocket/limit-settlement')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50 flex flex-col justify-between">
+                <div onClick={() => navigate('/delivery/pocket/limit-settlement')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50 flex flex-col justify-between">
                    <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-[#ff8100] mb-4 border border-orange-100">
                       <Receipt className="w-5 h-5" />
                    </div>
@@ -364,14 +364,14 @@ export const PocketV2 = () => {
              </div>
 
              <div className="grid grid-cols-2 gap-4">
-                <div onClick={() => navigate('/food/delivery/pocket/deductions')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50 flex flex-col justify-between">
+                <div onClick={() => navigate('/delivery/pocket/deductions')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50 flex flex-col justify-between">
                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 mb-4 border border-red-100">
                       <FileText className="w-5 h-5" />
                    </div>
                    <p className="text-sm font-bold text-gray-800 leading-tight">Deduction List</p>
                 </div>
 
-                <div onClick={() => navigate('/food/delivery/pocket/details')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50 flex flex-col justify-between">
+                <div onClick={() => navigate('/delivery/pocket/details')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:bg-gray-50 flex flex-col justify-between">
                    <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 mb-4 border border-purple-100">
                       <LayoutGrid className="w-5 h-5" />
                    </div>

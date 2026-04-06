@@ -6,7 +6,7 @@ const debugError = (...args) => {}
 
 // ---- Cross-hook caching & in-flight de-dupe (module-level) ----
 // Multiple screens/components call useZone(location). Without shared caching,
-// we spam /food/zones/detect with the same coords.
+// we spam /zones/detect with the same coords.
 const ZONE_CACHE_TTL_MS = 30 * 1000
 const zoneCache = new Map() // key -> { ts, payload }
 const zoneInFlight = new Map() // key -> Promise<payload>

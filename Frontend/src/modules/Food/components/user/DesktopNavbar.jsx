@@ -51,15 +51,15 @@ export default function DesktopNavbar({ showLogo = true }) {
     }
 
     // Check active routes - support both /user/* and /* paths
-    const isDining = location.pathname === "/food/user/dining" || location.pathname === "/food/dining"
-    const isUnder250 = location.pathname === "/food/user/under-250" || location.pathname === "/food/under-250"
-    const isProfile = location.pathname.startsWith("/food/user/profile") || location.pathname.startsWith("/food/profile")
-    const isDelivery = !isDining && !isUnder250 && !isProfile && (location.pathname === "/food/user" || location.pathname === "/food" || (location.pathname.startsWith("/food/user") && !location.pathname.includes("/dining") && !location.pathname.includes("/under-250") && !location.pathname.includes("/profile")))
+    const isDining = location.pathname === "/dining" || location.pathname === "/dining"
+    const isUnder250 = location.pathname === "/under-250" || location.pathname === "/under-250"
+    const isProfile = location.pathname.startsWith("/profile") || location.pathname.startsWith("/profile")
+    const isDelivery = !isDining && !isUnder250 && !isProfile && (location.pathname === "" || location.pathname === "/food" || (location.pathname.startsWith("") && !location.pathname.includes("/dining") && !location.pathname.includes("/under-250") && !location.pathname.includes("/profile")))
     const isBannerRoute =
-        location.pathname === "/food/user" ||
+        location.pathname === "" ||
         location.pathname === "/food" ||
-        location.pathname === "/food/user/under-250" ||
-        location.pathname === "/food/under-250"
+        location.pathname === "/under-250" ||
+        location.pathname === "/under-250"
 
     // Load business settings logo
     useEffect(() => {
@@ -157,7 +157,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                         <div className="flex items-center gap-4 lg:gap-6 flex-shrink-0">
                             {/* Logo */}
                             {showLogo && (
-                                <Link to="/food/user" className="flex items-center justify-center flex-shrink-0">
+                                <Link to="" className="flex items-center justify-center flex-shrink-0">
                                     {logoUrl || companyName ? (
                                         <img
                                             src={logoUrl || quickSpicyLogo}
@@ -225,7 +225,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                                             }}
                                             onKeyDown={(e) => {
                                                 if (e.key === "Enter" && heroSearch.trim()) {
-                                                    navigate(`/food/search?q=${encodeURIComponent(heroSearch.trim())}`)
+                                                    navigate(`/search?q=${encodeURIComponent(heroSearch.trim())}`)
                                                 }
                                             }}
                                             className="h-6 p-0 border-0 bg-transparent text-sm font-medium placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -263,7 +263,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                         {/* Right: Wallet and Cart Icons */}
                         <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
                             {/* Wallet Icon */}
-                            <Link to="/food/user/wallet">
+                            <Link to="/wallet">
                                 <Button
                                     variant="ghost"
                                     className="h-12 w-12 lg:h-14 lg:w-14 rounded-full p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -274,7 +274,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                             </Link>
 
                             {/* Cart Icon */}
-                            <Link to="/food/user/cart">
+                            <Link to="/cart">
                                 <Button
                                     variant="ghost"
                                     className="relative h-12 w-12 lg:h-14 lg:w-14 rounded-full p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -301,7 +301,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                         <div className="flex items-center space-x-24">
                             {/* Delivery Tab */}
                             <Link
-                                to="/food/user"
+                                to=""
                                 className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors relative group ${isDelivery
                                     ? "text-orange-600 dark:text-orange-500"
                                     : "text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500"
@@ -321,7 +321,7 @@ export default function DesktopNavbar({ showLogo = true }) {
 
                             {/* Under 250 Tab */}
                             <Link
-                                to="/food/user/under-250"
+                                to="/under-250"
                                 className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors relative group ${isUnder250
                                     ? "text-orange-600 dark:text-orange-500"
                                     : "text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500"
@@ -341,7 +341,7 @@ export default function DesktopNavbar({ showLogo = true }) {
 
                             {/* Dining Tab */}
                             <Link
-                                to="/food/user/dining"
+                                to="/dining"
                                 className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors relative group ${isDining
                                     ? "text-orange-600 dark:text-orange-500"
                                     : "text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500"
@@ -361,7 +361,7 @@ export default function DesktopNavbar({ showLogo = true }) {
 
                             {/* Profile Tab */}
                             <Link
-                                to="/food/user/profile"
+                                to="/profile"
                                 className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors relative group ${isProfile
                                     ? "text-orange-600 dark:text-orange-500"
                                     : "text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500"

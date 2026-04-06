@@ -93,7 +93,6 @@ import { API_BASE_URL } from "@food/api/config";
 import OptimizedImage from "@food/components/OptimizedImage";
 import { getRestaurantAvailabilityStatus } from "@food/utils/restaurantAvailability";
 import HomeHeader from "@food/components/user/home/HomeHeader";
-import QuickSection from "@food/components/user/home/QuickSection";
 import PromoRow from "@food/components/user/home/PromoRow";
 import FestBanner from "@food/components/user/home/FestBanner";
 
@@ -673,19 +672,19 @@ export default function Home() {
         id: "offers",
         label: "Offers",
         image: exploreOffers,
-        href: "/food/user/offers",
+        href: "/offers",
       },
       {
         id: "gourmet",
         label: "Gourmet",
         image: exploreGourmet,
-        href: "/food/user/gourmet",
+        href: "/gourmet",
       },
       {
         id: "collection",
         label: "Collections",
         image: exploreCollection,
-        href: "/food/user/profile/favorites",
+        href: "/profile/favorites",
       },
     ];
 
@@ -833,7 +832,7 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
     setLoadingBanners(true);
-    publicGetOnce("/food/hero-banners/public")
+    publicGetOnce("/hero-banners/public")
       .then((response) => {
         if (cancelled) return;
         const data = response?.data?.data;
@@ -875,9 +874,9 @@ export default function Home() {
     let cancelled = false;
     setLoadingLandingConfig(true);
     Promise.all([
-      publicGetOnce("/food/explore-icons/public")
+      publicGetOnce("/explore-icons/public")
         .catch(() => ({ data: { data: {} } })),
-      publicGetOnce("/food/landing/settings/public")
+      publicGetOnce("/landing/settings/public")
         .catch(() => ({ data: { data: {} } })),
     ])
       .then(([exploreRes, settingsRes]) => {
@@ -1275,7 +1274,6 @@ export default function Home() {
   const userPoints = 99;
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState("food");
 
 
   // Simple filter toggle function
@@ -2162,7 +2160,7 @@ export default function Home() {
   }, [openLocationSelector]);
 
   const handleSearchFocus = useCallback(() => {
-    navigate("/food/user/search");
+    navigate("/search");
   }, [navigate]);
 
   const handleSearchClose = useCallback(() => {
@@ -2309,7 +2307,7 @@ export default function Home() {
             displayCategories.slice(0, 12).map((category, index) => (
               <Link
                 key={category.id || index}
-                to={`/food/user/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, "-")}`}
+                to={`/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, "-")}`}
                 className="flex-shrink-0 flex flex-col items-center gap-2 group transition-all duration-300 hover:-translate-y-1"
                 style={{ animation: `fade-in-up 0.5s ease-out forwards ${index * 0.05}s`, opacity: 0 }}
               >
@@ -2331,7 +2329,7 @@ export default function Home() {
           {displayCategories.length > 12 && !showCategorySkeleton && (
             <div 
               className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group"
-              onClick={() => navigate("/food/user/categories")}
+              onClick={() => navigate("/categories")}
             >
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-orange-50 dark:bg-orange-950 flex items-center justify-center border border-orange-100 group-hover:border-[#EB590E] transition-all">
                 <Plus className="w-6 h-6 text-[#EB590E]" />
@@ -2479,8 +2477,6 @@ export default function Home() {
 
         <div className="md:hidden relative overflow-x-clip">
           <HomeHeader 
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
             location={location}
             handleLocationClick={handleLocationClick}
             handleSearchFocus={handleSearchFocus}
@@ -2488,16 +2484,6 @@ export default function Home() {
             placeholders={placeholders}
           />
 
-          <AnimatePresence mode="wait">
-            {activeTab === "food" ? (
-              <motion.div
-                key="food-content"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-white dark:bg-[#0a0a0a]"
-              >
                 {/* Flavour Fest Banner */}
                 <FestBanner />
 
@@ -2516,7 +2502,7 @@ export default function Home() {
                   <div className="flex items-center gap-2 min-w-0">
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>
                     <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
-                    <Link to="/food/user/categories" className="text-sm font-bold text-gray-400 dark:text-gray-500 flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                    <Link to="/categories" className="text-sm font-bold text-gray-400 dark:text-gray-500 flex items-center gap-0.5 whitespace-nowrap shrink-0">
                       View All <ArrowDownUp className="h-3 w-3 rotate-90" />
                     </Link>
                   </div>
@@ -2525,7 +2511,7 @@ export default function Home() {
                     {displayCategories.slice(0, 8).map((category, index) => (
                       <Link 
                         key={category.id || index}
-                        to={`/food/user/category/${category.slug}`}
+                        to={`/category/${category.slug}`}
                         className="flex flex-col items-center gap-2 group"
                       >
                         <div className="relative w-full aspect-square rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
@@ -2627,20 +2613,6 @@ export default function Home() {
                     })}
                   </div>
                 </section>
-
-              </motion.div>
-            ) : (
-              <motion.div
-                key="quick-content"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-              >
-                <QuickSection />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
           {recommendedForYouRestaurants.length > 0 && (

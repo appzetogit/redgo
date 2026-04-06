@@ -102,7 +102,8 @@ const RefundPolicy = lazy(() => import("@food/pages/admin/settings/RefundPolicy"
 const ShippingPolicy = lazy(() => import("@food/pages/admin/settings/ShippingPolicy"));
 const CancellationPolicy = lazy(() => import("@food/pages/admin/settings/CancellationPolicy"));
 const ReactRegistration = lazy(() => import("@food/pages/admin/settings/ReactRegistration"));
-// System Settings
+
+// System Settings (Correct paths)
 const ThirdParty = lazy(() => import("@food/pages/admin/system/ThirdParty"));
 const FirebaseNotification = lazy(() => import("@food/pages/admin/system/FirebaseNotification"));
 const OfflinePaymentSetup = lazy(() => import("@food/pages/admin/system/OfflinePaymentSetup"));
@@ -110,9 +111,9 @@ const JoinUsPageSetup = lazy(() => import("@food/pages/admin/system/JoinUsPageSe
 const AnalyticsScript = lazy(() => import("@food/pages/admin/system/AnalyticsScript"));
 const AISetup = lazy(() => import("@food/pages/admin/system/AISetup"));
 const AppWebSettings = lazy(() => import("@food/pages/admin/system/AppWebSettings"));
-const NotificationChannels = lazy(() => import("@food/pages/admin/system/NotificationChannels"));
-const NotificationBroadcast = lazy(() => import("@food/pages/admin/system/NotificationBroadcast"));
 const AdminNotifications = lazy(() => import("@food/pages/admin/system/AdminNotifications"));
+const NotificationBroadcast = lazy(() => import("@food/pages/admin/system/NotificationBroadcast"));
+const NotificationChannels = lazy(() => import("@food/pages/admin/system/NotificationChannels"));
 const LandingPageSettings = lazy(() => import("@food/pages/admin/system/LandingPageSettings"));
 const PageMetaData = lazy(() => import("@food/pages/admin/system/PageMetaData"));
 const ReactSite = lazy(() => import("@food/pages/admin/system/ReactSite"));
@@ -121,22 +122,13 @@ const AddonActivation = lazy(() => import("@food/pages/admin/system/AddonActivat
 const LandingPageManagement = lazy(() => import("@food/pages/admin/system/LandingPageManagement"));
 const DiningManagement = lazy(() => import("@food/pages/admin/system/DiningManagement"));
 const DiningList = lazy(() => import("@food/pages/admin/system/DiningList"));
+
 const EditRestaurant = lazy(() => import("@food/pages/admin/restaurant/EditRestaurant"));
-const AdminLogin = lazy(() => import("@food/pages/admin/auth/AdminLogin"));
-const AdminSignup = lazy(() => import("@food/pages/admin/auth/AdminSignup"));
-const AdminForgotPassword = lazy(() => import("@food/pages/admin/auth/AdminForgotPassword"));
 
 export default function AdminRouter() {
   return (
     <Suspense fallback={<Loader />}>
       <Routes>
-        {/* Protected Routes - With Layout */}
-        {/* Admin Login - Same as earlier */}
-        <Route path="login" element={<AdminLogin />} />
-        <Route path="forgot-password" element={<AdminForgotPassword />} />
-        <Route path="signup" element={<AdminSignup />} />
-
-        {/* Protected Routes - With Layout */}
         <Route
           element={
             <ProtectedRoute>
@@ -145,161 +137,158 @@ export default function AdminRouter() {
           }
         >
           {/* Default Admin Redirect */}
-          <Route path="/" element={<Navigate to="food" replace />} />
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminHome />} />
+          <Route path="food" element={<Navigate to="/admin/dashboard" replace />} />
 
-          {/* FOOD ADMIN - All food related routes nested here */}
-          <Route path="food/*">
-            <Route index element={<AdminHome />} />
-            <Route path="point-of-sale" element={<PointOfSale />} />
-            <Route path="profile" element={<AdminProfile />} />
-            <Route path="settings" element={<AdminSettings />} />
-            
-            {/* ORDER MANAGEMENT */}
-            <Route path="orders/all" element={<OrdersPage statusKey="all" />} />
-            <Route path="orders/scheduled" element={<OrdersPage statusKey="scheduled" />} />
-            <Route path="orders/pending" element={<OrdersPage statusKey="pending" />} />
-            {/* ... other order routes ... */}
-            <Route path="orders/accepted" element={<OrdersPage statusKey="accepted" />} />
-            <Route path="orders/processing" element={<OrdersPage statusKey="processing" />} />
-            <Route path="orders/food-on-the-way" element={<OrdersPage statusKey="food-on-the-way" />} />
-            <Route path="orders/delivered" element={<OrdersPage statusKey="delivered" />} />
-            <Route path="orders/canceled" element={<OrdersPage statusKey="canceled" />} />
-            <Route path="orders/restaurant-cancelled" element={<OrdersPage statusKey="restaurant-cancelled" />} />
-            <Route path="orders/payment-failed" element={<OrdersPage statusKey="payment-failed" />} />
-            <Route path="orders/refunded" element={<OrdersPage statusKey="refunded" />} />
-            <Route path="orders/offline-payments" element={<OrdersPage statusKey="offline-payments" />} />
-            <Route path="order-detect-delivery" element={<OrderDetectDelivery />} />
-            <Route path="order-refunds/new" element={<NewRefundRequests />} />
+          {/* Point of Sale */}
+          <Route path="point-of-sale" element={<PointOfSale />} />
+          <Route path="profile" element={<AdminProfile />} />
+          <Route path="settings" element={<AdminSettings />} />
+          
+          {/* ORDER MANAGEMENT */}
+          <Route path="orders/all" element={<OrdersPage statusKey="all" />} />
+          <Route path="orders/scheduled" element={<OrdersPage statusKey="scheduled" />} />
+          <Route path="orders/pending" element={<OrdersPage statusKey="pending" />} />
+          <Route path="orders/accepted" element={<OrdersPage statusKey="accepted" />} />
+          <Route path="orders/processing" element={<OrdersPage statusKey="processing" />} />
+          <Route path="orders/food-on-the-way" element={<OrdersPage statusKey="food-on-the-way" />} />
+          <Route path="orders/delivered" element={<OrdersPage statusKey="delivered" />} />
+          <Route path="orders/canceled" element={<OrdersPage statusKey="canceled" />} />
+          <Route path="orders/restaurant-cancelled" element={<OrdersPage statusKey="restaurant-cancelled" />} />
+          <Route path="orders/payment-failed" element={<OrdersPage statusKey="payment-failed" />} />
+          <Route path="orders/refunded" element={<OrdersPage statusKey="refunded" />} />
+          <Route path="orders/offline-payments" element={<OrdersPage statusKey="offline-payments" />} />
+          <Route path="order-detect-delivery" element={<OrderDetectDelivery />} />
+          <Route path="order-refunds/new" element={<NewRefundRequests />} />
 
-            {/* RESTAURANT MANAGEMENT */}
-            <Route path="zone-setup" element={<ZoneSetup />} />
-            <Route path="zone-setup/map" element={<AllZonesMap />} />
-            <Route path="zone-setup/delivery-boy-view" element={<DeliveryBoyViewMap />} />
-            <Route path="zone-setup/add" element={<AddZone />} />
-            <Route path="zone-setup/edit/:id" element={<AddZone />} />
-            <Route path="zone-setup/view/:id" element={<ViewZone />} />
-            <Route path="food-approval" element={<FoodApproval />} />
-            <Route path="restaurants" element={<RestaurantsList />} />
-            <Route path="restaurants/add" element={<AddRestaurant />} />
-            <Route path="restaurants/edit/:id" element={<EditRestaurant />} />
-            <Route path="restaurants/joining-request" element={<JoiningRequest />} />
-            <Route path="restaurants/commission" element={<RestaurantCommission />} />
-            <Route path="restaurants/complaints" element={<RestaurantComplaints />} />
-            <Route path="restaurants/reviews" element={<RestaurantReviews />} />
-            <Route path="restaurants/bulk-import" element={<RestaurantsBulkImport />} />
-            <Route path="restaurants/bulk-export" element={<RestaurantsBulkExport />} />
+          {/* RESTAURANT MANAGEMENT */}
+          <Route path="zone-setup" element={<ZoneSetup />} />
+          <Route path="zone-setup/map" element={<AllZonesMap />} />
+          <Route path="zone-setup/delivery-boy-view" element={<DeliveryBoyViewMap />} />
+          <Route path="zone-setup/add" element={<AddZone />} />
+          <Route path="zone-setup/edit/:id" element={<AddZone />} />
+          <Route path="zone-setup/view/:id" element={<ViewZone />} />
+          <Route path="food-approval" element={<FoodApproval />} />
+          <Route path="restaurants" element={<RestaurantsList />} />
+          <Route path="restaurants/add" element={<AddRestaurant />} />
+          <Route path="restaurants/edit/:id" element={<EditRestaurant />} />
+          <Route path="restaurants/joining-request" element={<JoiningRequest />} />
+          <Route path="restaurants/commission" element={<RestaurantCommission />} />
+          <Route path="restaurants/complaints" element={<RestaurantComplaints />} />
+          <Route path="restaurants/reviews" element={<RestaurantReviews />} />
+          <Route path="restaurants/bulk-import" element={<RestaurantsBulkImport />} />
+          <Route path="restaurants/bulk-export" element={<RestaurantsBulkExport />} />
 
-            {/* FOOD & CATEGORY MANAGEMENT */}
-            <Route path="categories" element={<Category />} />
-            <Route path="fee-settings" element={<FeeSettings />} />
-            <Route path="referral-settings" element={<ReferralSettings />} />
-            <Route path="foods" element={<FoodsList />} />
-            <Route path="food/list" element={<FoodsList />} />
-            <Route path="addons" element={<AddonsList />} />
+          {/* FOOD & CATEGORY MANAGEMENT */}
+          <Route path="categories" element={<Category />} />
+          <Route path="fee-settings" element={<FeeSettings />} />
+          <Route path="referral-settings" element={<ReferralSettings />} />
+          <Route path="foods" element={<FoodsList />} />
+          <Route path="food/list" element={<FoodsList />} />
+          <Route path="addons" element={<AddonsList />} />
 
-            {/* PROMOTIONS, CUSTOMERS, DELIVERYMEN, etc. */}
-            <Route path="campaigns/basic" element={<BasicCampaign />} />
-            <Route path="campaigns/food" element={<FoodCampaign />} />
-            <Route path="coupons" element={<Coupons />} />
-            <Route path="cashback" element={<Cashback />} />
-            <Route path="banners" element={<Banners />} />
-            <Route path="promotional-banner" element={<PromotionalBanner />} />
-            <Route path="advertisement" element={<AdsList />} />
-            <Route path="advertisement/new" element={<NewAdvertisement />} />
-            <Route path="advertisement/requests" element={<AdRequests />} />
-            
-            <Route path="chattings" element={<Chattings />} />
-            <Route path="contact-messages" element={<ContactMessages />} />
-            <Route path="safety-emergency-reports" element={<SafetyEmergencyReports />} />
-            
-            <Route path="customers" element={<Customers />} />
-            <Route path="support-tickets" element={<SupportTickets />} />
-            <Route path="wallet/add-fund" element={<AddFund />} />
-            <Route path="wallet/bonus" element={<Bonus />} />
-            <Route path="loyalty-point/report" element={<LoyaltyPointReport />} />
-            <Route path="subscribed-mail-list" element={<SubscribedMailList />} />
+          {/* PROMOTIONS, CUSTOMERS, DELIVERYMEN, etc. */}
+          <Route path="campaigns/basic" element={<BasicCampaign />} />
+          <Route path="campaigns/food" element={<FoodCampaign />} />
+          <Route path="coupons" element={<Coupons />} />
+          <Route path="cashback" element={<Cashback />} />
+          <Route path="banners" element={<Banners />} />
+          <Route path="promotional-banner" element={<PromotionalBanner />} />
+          <Route path="advertisement" element={<AdsList />} />
+          <Route path="advertisement/new" element={<NewAdvertisement />} />
+          <Route path="advertisement/requests" element={<AdRequests />} />
+          
+          <Route path="chattings" element={<Chattings />} />
+          <Route path="contact-messages" element={<ContactMessages />} />
+          <Route path="safety-emergency-reports" element={<SafetyEmergencyReports />} />
+          
+          <Route path="customers" element={<Customers />} />
+          <Route path="support-tickets" element={<SupportTickets />} />
+          <Route path="wallet/add-fund" element={<AddFund />} />
+          <Route path="wallet/bonus" element={<Bonus />} />
+          <Route path="loyalty-point/report" element={<LoyaltyPointReport />} />
+          <Route path="subscribed-mail-list" element={<SubscribedMailList />} />
 
-            <Route path="delivery-boy-commission" element={<DeliveryBoyCommission />} />
-            <Route path="delivery-cash-limit" element={<DeliveryCashLimit />} />
-            <Route path="cash-limit-settlement" element={<CashLimitSettlement />} />
-            <Route path="delivery-withdrawal" element={<DeliveryWithdrawal />} />
-            <Route path="delivery-boy-wallet" element={<DeliveryBoyWallet />} />
-            <Route path="delivery-emergency-help" element={<DeliveryEmergencyHelp />} />
-            <Route path="delivery-support-tickets" element={<DeliverySupportTickets />} />
-            <Route path="delivery-partners" element={<DeliverymanList />} />
-            <Route path="delivery-partners/add" element={<AddDeliveryman />} />
-            <Route path="delivery-partners/join-request" element={<JoinRequest />} />
-            <Route path="delivery-partners/reviews" element={<DeliverymanReviews />} />
-            <Route path="delivery-partners/bonus" element={<DeliverymanBonus />} />
-            <Route path="delivery-partners/earning-addon" element={<EarningAddon />} />
-            <Route path="delivery-partners/earning-addon-history" element={<EarningAddonHistory />} />
-            <Route path="delivery-partners/earnings" element={<DeliveryEarnings />} />
+          <Route path="delivery-boy-commission" element={<DeliveryBoyCommission />} />
+          <Route path="delivery-cash-limit" element={<DeliveryCashLimit />} />
+          <Route path="cash-limit-settlement" element={<CashLimitSettlement />} />
+          <Route path="delivery-withdrawal" element={<DeliveryWithdrawal />} />
+          <Route path="delivery-boy-wallet" element={<DeliveryBoyWallet />} />
+          <Route path="delivery-emergency-help" element={<DeliveryEmergencyHelp />} />
+          <Route path="delivery-support-tickets" element={<DeliverySupportTickets />} />
+          <Route path="delivery-partners" element={<DeliverymanList />} />
+          <Route path="delivery-partners/add" element={<AddDeliveryman />} />
+          <Route path="delivery-partners/join-request" element={<JoinRequest />} />
+          <Route path="delivery-partners/reviews" element={<DeliverymanReviews />} />
+          <Route path="delivery-partners/bonus" element={<DeliverymanBonus />} />
+          <Route path="delivery-partners/earning-addon" element={<EarningAddon />} />
+          <Route path="delivery-partners/earning-addon-history" element={<EarningAddonHistory />} />
+          <Route path="delivery-partners/earnings" element={<DeliveryEarnings />} />
 
+          {/* REPORTS & SETTINGS */}
+          <Route path="transaction-report" element={<TransactionReport />} />
+          <Route path="expense-report" element={<ExpenseReport />} />
+          <Route path="disbursement-report/restaurants" element={<DisbursementReportRestaurants />} />
+          <Route path="disbursement-report/deliverymen" element={<DisbursementReportDeliverymen />} />
+          <Route path="order-report/regular" element={<RegularOrderReport />} />
+          <Route path="order-report/campaign" element={<CampaignOrderReport />} />
+          <Route path="restaurant-report" element={<RestaurantReport />} />
+          <Route path="customer-report/feedback-experience" element={<FeedbackExperienceReport />} />
+          <Route path="tax-report" element={<TaxReport />} />
+          <Route path="restaurant-vat-report" element={<RestaurantVATReport />} />
+          
+          <Route path="restaurant-withdraws" element={<RestaurantWithdraws />} />
+          <Route path="withdraw-method" element={<WithdrawMethod />} />
+          
+          <Route path="employee-role" element={<EmployeeRole />} />
+          <Route path="employees" element={<EmployeeList />} />
+          <Route path="employees/add" element={<AddEmployee />} />
 
-            {/* REPORTS & SETTINGS */}
-            <Route path="transaction-report" element={<TransactionReport />} />
-            <Route path="expense-report" element={<ExpenseReport />} />
-            <Route path="disbursement-report/restaurants" element={<DisbursementReportRestaurants />} />
-            <Route path="disbursement-report/deliverymen" element={<DisbursementReportDeliverymen />} />
-            <Route path="order-report/regular" element={<RegularOrderReport />} />
-            <Route path="order-report/campaign" element={<CampaignOrderReport />} />
-            <Route path="restaurant-report" element={<RestaurantReport />} />
-            <Route path="customer-report/feedback-experience" element={<FeedbackExperienceReport />} />
-            <Route path="tax-report" element={<TaxReport />} />
-            <Route path="restaurant-vat-report" element={<RestaurantVATReport />} />
-            
-            <Route path="restaurant-withdraws" element={<RestaurantWithdraws />} />
-            <Route path="withdraw-method" element={<WithdrawMethod />} />
-            
-            <Route path="employee-role" element={<EmployeeRole />} />
-            <Route path="employees" element={<EmployeeList />} />
-            <Route path="employees/add" element={<AddEmployee />} />
+          {/* SYSTEM & BUSINESS SETTINGS */}
+          <Route path="business-setup" element={<BusinessSetup />} />
+          <Route path="email-template" element={<EmailTemplate />} />
+          <Route path="theme-settings" element={<ThemeSettings />} />
+          <Route path="gallery" element={<Gallery />} />
+          <Route path="login-setup" element={<LoginSetup />} />
+          <Route path="business-settings/fcm-index" element={<FirebaseNotification />} />
+          <Route path="pages-social-media/terms" element={<TermsAndCondition />} />
+          <Route path="pages-social-media/privacy" element={<PrivacyPolicy />} />
+          <Route path="pages-social-media/about" element={<AboutUs />} />
+          <Route path="pages-social-media/refund" element={<RefundPolicy />} />
+          <Route path="pages-social-media/shipping" element={<ShippingPolicy />} />
+          <Route path="pages-social-media/cancellation" element={<CancellationPolicy />} />
+          <Route path="pages-social-media/react-registration" element={<ReactRegistration />} />
+          
+          <Route path="3rd-party-configurations/party" element={<ThirdParty />} />
+          <Route path="3rd-party-configurations/firebase" element={<FirebaseNotification />} />
+          <Route path="3rd-party-configurations/offline-payment" element={<OfflinePaymentSetup />} />
+          <Route path="3rd-party-configurations/join-us" element={<JoinUsPageSetup />} />
+          <Route path="3rd-party-configurations/analytics" element={<AnalyticsScript />} />
+          <Route path="3rd-party-configurations/ai" element={<AISetup />} />
+          <Route path="app-web-settings" element={<AppWebSettings />} />
+          <Route path="notifications" element={<AdminNotifications />} />
+          <Route path="broadcast-notification" element={<NotificationBroadcast />} />
+          <Route path="notification-channels" element={<NotificationChannels />} />
+          <Route path="landing-page-settings/admin" element={<LandingPageSettings type="admin" />} />
+          <Route path="landing-page-settings/react" element={<LandingPageSettings type="react" />} />
+          <Route path="page-meta-data" element={<PageMetaData />} />
+          <Route path="react-site" element={<ReactSite />} />
+          <Route path="clean-database" element={<CleanDatabase />} />
+          <Route path="addon-activation" element={<AddonActivation />} />
+          <Route path="hero-banner-management" element={<LandingPageManagement />} />
+          <Route path="dining-management" element={<DiningManagement />} />
+          <Route path="dining-list" element={<DiningList />} />
 
-            {/* SYSTEM & BUSINESS SETTINGS */}
-            <Route path="business-setup" element={<BusinessSetup />} />
-            <Route path="email-template" element={<EmailTemplate />} />
-            <Route path="theme-settings" element={<ThemeSettings />} />
-            <Route path="gallery" element={<Gallery />} />
-            <Route path="login-setup" element={<LoginSetup />} />
-            <Route path="business-settings/fcm-index" element={<FirebaseNotification />} />
-            <Route path="pages-social-media/terms" element={<TermsAndCondition />} />
-            <Route path="pages-social-media/privacy" element={<PrivacyPolicy />} />
-            <Route path="pages-social-media/about" element={<AboutUs />} />
-            <Route path="pages-social-media/refund" element={<RefundPolicy />} />
-            <Route path="pages-social-media/shipping" element={<ShippingPolicy />} />
-            <Route path="pages-social-media/cancellation" element={<CancellationPolicy />} />
-            <Route path="pages-social-media/react-registration" element={<ReactRegistration />} />
-            
-            <Route path="3rd-party-configurations/party" element={<ThirdParty />} />
-            <Route path="3rd-party-configurations/firebase" element={<FirebaseNotification />} />
-            <Route path="3rd-party-configurations/offline-payment" element={<OfflinePaymentSetup />} />
-            <Route path="3rd-party-configurations/join-us" element={<JoinUsPageSetup />} />
-            <Route path="3rd-party-configurations/analytics" element={<AnalyticsScript />} />
-            <Route path="3rd-party-configurations/ai" element={<AISetup />} />
-            <Route path="app-web-settings" element={<AppWebSettings />} />
-            <Route path="notifications" element={<AdminNotifications />} />
-            <Route path="broadcast-notification" element={<NotificationBroadcast />} />
-            <Route path="notification-channels" element={<NotificationChannels />} />
-            <Route path="landing-page-settings/admin" element={<LandingPageSettings type="admin" />} />
-            <Route path="landing-page-settings/react" element={<LandingPageSettings type="react" />} />
-            <Route path="page-meta-data" element={<PageMetaData />} />
-            <Route path="react-site" element={<ReactSite />} />
-            <Route path="clean-database" element={<CleanDatabase />} />
-            <Route path="addon-activation" element={<AddonActivation />} />
-            <Route path="hero-banner-management" element={<LandingPageManagement />} />
-            <Route path="dining-management" element={<DiningManagement />} />
-            <Route path="dining-list" element={<DiningList />} />
-          </Route>
-
-          {/* TAXI ADMIN - Placeholder for future implementation */}
+          {/* TAXI ADMIN - Placeholder */}
           <Route path="taxi/*" element={<div className="p-8 text-center text-gray-500 bg-white min-h-[50vh] flex items-center justify-center border rounded-xl m-4">Taxi Administration - Coming Soon</div>} />
 
-          {/* QUICK COMMERCE ADMIN - Placeholder for future implementation */}
+          {/* QUICK COMMERCE ADMIN - Placeholder */}
           <Route path="quick-commerce/*" element={<div className="p-8 text-center text-gray-500 bg-white min-h-[50vh] flex items-center justify-center border rounded-xl m-4">Quick Commerce Administration - Coming Soon</div>} />
         </Route>
 
-        {/* Redirect unknown admin routes to food admin */}
-        <Route path="*" element={<Navigate to="/admin/food" replace />} />
+        {/* Redirect unknown admin routes back to dashboard */}
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </Suspense>
   );

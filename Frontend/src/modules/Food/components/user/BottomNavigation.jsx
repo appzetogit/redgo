@@ -6,17 +6,17 @@ export default function BottomNavigation() {
   const pathname = location.pathname
 
   // Check active routes - support both /user/* and /* paths
-  const isDining = pathname === "/food/dining" || pathname.startsWith("/food/user/dining")
-  const isUnder250 = pathname === "/food/under-250" || pathname.startsWith("/food/user/under-250")
-  const isProfile = pathname.startsWith("/food/profile") || pathname.startsWith("/food/user/profile")
+  const isDining = pathname === "/dining" || pathname.startsWith("/dining")
+  const isUnder250 = pathname === "/under-250" || pathname.startsWith("/under-250")
+  const isProfile = pathname.startsWith("/profile") || pathname.startsWith("/profile")
   const isDelivery =
     !isDining &&
     !isUnder250 &&
     !isProfile &&
     (pathname === "/food" ||
-      pathname === "/food/" ||
-      pathname === "/food/user" ||
-      (pathname.startsWith("/food/user") &&
+      pathname === "/" ||
+      pathname === "" ||
+      (pathname.startsWith("") &&
         !pathname.includes("/dining") &&
         !pathname.includes("/under-250") &&
         !pathname.includes("/profile")))
@@ -28,7 +28,7 @@ export default function BottomNavigation() {
       <div className="flex items-center justify-around h-auto px-2 sm:px-4">
         {/* Delivery Tab */}
         <Link
-          to="/food/user"
+          to=""
           className={`flex flex-1 flex-col items-center gap-1.5 px-2 sm:px-3 py-2 transition-all duration-200 relative ${isDelivery
               ? "text-green-700 dark:text-green-500"
               : "text-gray-600 dark:text-gray-400"
@@ -48,7 +48,7 @@ export default function BottomNavigation() {
 
         {/* Dining Tab */}
         <Link
-          to="/food/user/dining"
+          to="/dining"
           className={`flex flex-1 flex-col items-center gap-1.5 px-2 sm:px-3 py-2 transition-all duration-200 relative ${isDining
               ? "text-green-700 dark:text-green-500"
               : "text-gray-600 dark:text-gray-400"
@@ -68,7 +68,7 @@ export default function BottomNavigation() {
 
         {/* Under 250 Tab */}
         <Link
-          to="/food/user/under-250"
+          to="/under-250"
           className={`flex flex-1 flex-col items-center gap-1.5 px-2 sm:px-3 py-2 transition-all duration-200 relative ${isUnder250
               ? "text-green-700 dark:text-green-500"
               : "text-gray-600 dark:text-gray-400"
@@ -88,7 +88,7 @@ export default function BottomNavigation() {
 
         {/* Profile Tab */}
         <Link
-          to="/food/user/profile"
+          to="/profile"
           className={`flex flex-1 flex-col items-center gap-1.5 px-2 sm:px-3 py-2 transition-all duration-200 relative ${isProfile
               ? "text-green-700 dark:text-green-500"
               : "text-gray-600 dark:text-gray-400"

@@ -45,7 +45,7 @@ export default function DeliverySignup() {
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("delivery_authenticated") === "true"
     if (isAuthenticated) {
-      navigate("/food/delivery", { replace: true })
+      navigate("/delivery", { replace: true })
     }
   }, [navigate])
 
@@ -163,7 +163,7 @@ export default function DeliverySignup() {
       sessionStorage.setItem("deliverySignupDetails", JSON.stringify(signupDetails))
       clearModuleAuth("delivery")
 
-      navigate("/food/delivery/signup/details")
+      navigate("/delivery/signup/details")
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -342,7 +342,7 @@ export default function DeliverySignup() {
             <p>
               <span className="text-gray-600">Already have an account? </span>
               <Link
-                to="/food/delivery/login"
+                to="/delivery/login"
                 className="text-primary-orange hover:underline font-medium"
               >
                 Login
@@ -350,7 +350,7 @@ export default function DeliverySignup() {
             </p>
             <p className="text-xs text-gray-500">
               By continuing, you agree to our{" "}
-              <Link to="/food/delivery/terms" className="text-primary-orange hover:underline">
+              <Link to="/delivery/terms" className="text-primary-orange hover:underline">
                 Terms and Conditions
               </Link>
             </p>

@@ -6,120 +6,111 @@ const toRestaurantPath = (value) => {
   const trimmed = value.trim()
 
   if (!trimmed) return null
-  if (trimmed.startsWith("/food/restaurant")) return trimmed
-  if (trimmed === "/restaurant") return "/food/restaurant"
+  if (trimmed.startsWith("/restaurant")) return trimmed
+  if (trimmed === "/restaurant") return "/restaurant"
   if (trimmed.startsWith("/restaurant/")) return `/food${trimmed}`
 
   return null
 }
 
-const getNormalizedRestaurantPath = (pathname) => {
-  if (pathname.startsWith("/food/restaurant")) {
-    return pathname.slice("/food/restaurant".length) || "/"
-  }
-
-  return pathname || "/"
-}
-
 const resolveRestaurantBackPath = ({ pathname, state }) => {
-  const normalizedPath = getNormalizedRestaurantPath(pathname)
-  const explicitBackPath = toRestaurantPath(state?.backTo) || toRestaurantPath(state?.from)
+  const explicitBackPath = state?.backTo || state?.from
 
   if (
-    normalizedPath === "/orders/all" ||
-    /^\/orders\/[^/]+$/.test(normalizedPath)
+    pathname === "/orders/all" ||
+    /^\/orders\/[^/]+$/.test(pathname)
   ) {
-    return explicitBackPath || "/food/restaurant/orders"
+    return explicitBackPath || "/restaurant/orders"
   }
 
   if (
-    normalizedPath === "/food/all" ||
-    /^\/food\/[^/]+$/.test(normalizedPath) ||
-    /^\/food\/[^/]+\/edit$/.test(normalizedPath)
+    pathname === "/all" ||
+    /^\/food\/[^/]+$/.test(pathname) ||
+    /^\/food\/[^/]+\/edit$/.test(pathname)
   ) {
-    return explicitBackPath || "/food/restaurant/food/all"
+    return explicitBackPath || "/restaurant/all"
   }
 
   if (
-    normalizedPath === "/advertisements/new" ||
-    /^\/advertisements\/[^/]+$/.test(normalizedPath) ||
-    /^\/advertisements\/[^/]+\/edit$/.test(normalizedPath)
+    pathname === "/advertisements/new" ||
+    /^\/advertisements\/[^/]+$/.test(pathname) ||
+    /^\/advertisements\/[^/]+\/edit$/.test(pathname)
   ) {
-    return explicitBackPath || "/food/restaurant/advertisements"
+    return explicitBackPath || "/restaurant/advertisements"
   }
 
   if (
-    normalizedPath === "/coupon/new" ||
-    /^\/coupon\/[^/]+\/edit$/.test(normalizedPath)
+    pathname === "/coupon/new" ||
+    /^\/coupon\/[^/]+\/edit$/.test(pathname)
   ) {
-    return explicitBackPath || "/food/restaurant/coupon"
+    return explicitBackPath || "/restaurant/coupon"
   }
 
   if (
-    normalizedPath === "/edit" ||
-    normalizedPath === "/edit-owner" ||
-    normalizedPath === "/edit-cuisines" ||
-    normalizedPath === "/edit-address" ||
-    normalizedPath === "/phone" ||
-    normalizedPath === "/manage-outlets" ||
-    normalizedPath === "/update-bank-details" ||
-    normalizedPath === "/fssai" ||
-    normalizedPath === "/fssai/update" ||
-    normalizedPath === "/outlet-info" ||
-    normalizedPath === "/outlet-timings" ||
-    /^\/outlet-timings\/[^/]+$/.test(normalizedPath) ||
-    normalizedPath === "/zone-setup"
+    pathname === "/edit" ||
+    pathname === "/edit-owner" ||
+    pathname === "/edit-cuisines" ||
+    pathname === "/edit-address" ||
+    pathname === "/phone" ||
+    pathname === "/manage-outlets" ||
+    pathname === "/update-bank-details" ||
+    pathname === "/fssai" ||
+    pathname === "/fssai/update" ||
+    pathname === "/outlet-info" ||
+    pathname === "/outlet-timings" ||
+    /^\/outlet-timings\/[^/]+$/.test(pathname) ||
+    pathname === "/zone-setup"
   ) {
-    return explicitBackPath || "/food/restaurant/details"
+    return explicitBackPath || "/restaurant/details"
   }
 
   if (
-    normalizedPath === "/settings" ||
-    normalizedPath === "/delivery-settings" ||
-    normalizedPath === "/rush-hour" ||
-    normalizedPath === "/status" ||
-    normalizedPath === "/business-plan" ||
-    normalizedPath === "/config" ||
-    normalizedPath === "/categories" ||
-    normalizedPath === "/menu-categories" ||
-    normalizedPath === "/privacy" ||
-    normalizedPath === "/terms"
+    pathname === "/settings" ||
+    pathname === "/delivery-settings" ||
+    pathname === "/rush-hour" ||
+    pathname === "/status" ||
+    pathname === "/business-plan" ||
+    pathname === "/config" ||
+    pathname === "/categories" ||
+    pathname === "/menu-categories" ||
+    pathname === "/privacy" ||
+    pathname === "/terms"
   ) {
-    return explicitBackPath || "/food/restaurant"
+    return explicitBackPath || "/restaurant"
   }
 
   if (
-    normalizedPath === "/reviews" ||
-    /^\/reviews\/[^/]+\/reply$/.test(normalizedPath) ||
-    normalizedPath === "/ratings-reviews" ||
-    normalizedPath === "/dish-ratings"
+    pathname === "/reviews" ||
+    /^\/reviews\/[^/]+\/reply$/.test(pathname) ||
+    pathname === "/ratings-reviews" ||
+    pathname === "/dish-ratings"
   ) {
-    return explicitBackPath || "/food/restaurant/reviews"
+    return explicitBackPath || "/restaurant/reviews"
   }
 
   if (
-    normalizedPath === "/help-centre/support" ||
-    normalizedPath === "/share-feedback"
+    pathname === "/help-centre/support" ||
+    pathname === "/share-feedback"
   ) {
-    return explicitBackPath || "/food/restaurant/feedback"
+    return explicitBackPath || "/restaurant/feedback"
   }
 
   if (
-    normalizedPath === "/finance-details" ||
-    normalizedPath === "/download-report"
+    pathname === "/finance-details" ||
+    pathname === "/download-report"
   ) {
-    return explicitBackPath || "/food/restaurant/hub-finance"
+    return explicitBackPath || "/restaurant/hub-finance"
   }
 
-  if (/^\/hub-menu\/item\/[^/]+$/.test(normalizedPath)) {
-    return explicitBackPath || "/food/restaurant/explore"
+  if (/^\/hub-menu\/item\/[^/]+$/.test(pathname)) {
+    return explicitBackPath || "/restaurant/explore"
   }
 
   if (explicitBackPath && explicitBackPath !== pathname) {
     return explicitBackPath
   }
 
-  return "/food/restaurant"
+  return "/restaurant"
 }
 
 export default function useRestaurantBackNavigation() {

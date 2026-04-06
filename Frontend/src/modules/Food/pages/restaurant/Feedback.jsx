@@ -397,7 +397,7 @@ export default function Feedback() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate("/food/restaurant/notifications")}
+              onClick={() => navigate("/restaurant/notifications")}
               className="p-1 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
               aria-label="Open notifications"
             >
@@ -405,7 +405,7 @@ export default function Feedback() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/food/restaurant/help-centre/support")}
+              onClick={() => navigate("/restaurant/help-centre/support")}
               className="p-1 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
               aria-label="Open support"
             >
@@ -413,7 +413,7 @@ export default function Feedback() {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/food/restaurant/explore")}
+              onClick={() => navigate("/restaurant/explore")}
               className="p-1 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
               aria-label="Open explore"
             >

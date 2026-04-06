@@ -56,7 +56,7 @@ export const SupportTicketsV2 = () => {
       <div className="pt-24 px-4 space-y-6">
         {/* Create Action */}
         <button 
-          onClick={() => navigate("/food/delivery/help/tickets/create")}
+          onClick={() => navigate("/delivery/help/tickets/create")}
           className="w-full bg-black text-white p-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
         >
           <Plus className="w-5 h-5" />
@@ -82,7 +82,7 @@ export const SupportTicketsV2 = () => {
             {tickets.map((ticket, idx) => (
               <div 
                 key={ticket._id || idx}
-                onClick={() => navigate(`/food/delivery/help/tickets/${ticket._id}`)}
+                onClick={() => navigate(`/delivery/help/tickets/${ticket._id}`)}
                 className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm active:scale-[0.98] transition-all relative overflow-hidden group"
               >
                 <div className="flex justify-between items-start mb-3">

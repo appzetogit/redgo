@@ -5,7 +5,7 @@ import { isModuleAuthenticated } from "@food/utils/auth";
  * Role-based Protected Route Component
  * Only allows access if user is authenticated for the specific module
  */
-export default function ProtectedRoute({ children, requiredRole, loginPath = "/user/auth/login" }) {
+export default function ProtectedRoute({ children, requiredRole, loginPath = "/auth/login" }) {
   const location = useLocation();
 
   // If no role required, allow access

@@ -267,7 +267,7 @@ export default function RestaurantDetailsPage() {
             >
               <Card 
                 className="bg-white shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => navigate(`/restaurant/food/${item.id}`)}
+                onClick={() => navigate(`/restaurant/${item.id}`)}
               >
                 <CardContent className="p-0 py-0 gap-0">
                   <div className="flex gap-2 p-2 md:p-2.5">

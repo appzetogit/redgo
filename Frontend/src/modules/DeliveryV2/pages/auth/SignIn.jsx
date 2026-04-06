@@ -103,7 +103,7 @@ export default function DeliverySignIn() {
       sessionStorage.setItem("deliveryAuthData", JSON.stringify(authData))
 
       // Navigate to OTP page
-      navigate("/food/delivery/otp")
+      navigate("/delivery/otp")
     } catch (err) {
       debugError("Send OTP Error:", err)
       const message =
@@ -222,7 +222,7 @@ export default function DeliverySignIn() {
           {/* Terms and Conditions */}
           <p className="text-xs text-center text-gray-600 px-4">
             By continuing, you agree to our{" "}
-            <Link to="/food/delivery/terms" className="text-blue-600 hover:underline">
+            <Link to="/delivery/terms" className="text-blue-600 hover:underline">
               Terms and Conditions
             </Link>
           </p>

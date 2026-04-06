@@ -762,7 +762,7 @@ export default function Dining() {
             {/* First 2 Restaurants */}
             {filteredRestaurants.slice(0, 2).map((restaurant, index) => {
               const restaurantSlug = restaurant.slug || restaurant.name.toLowerCase().replace(/\s+/g, "-")
-              const diningDetailPath = `/food/user/dining/${restaurant.diningType || "dining"}/${restaurantSlug}`
+              const diningDetailPath = `/dining/${restaurant.diningType || "dining"}/${restaurantSlug}`
               const favorite = isFavorite(restaurantSlug)
 
               const handleToggleFavorite = (e) => {
@@ -992,7 +992,7 @@ export default function Dining() {
             {/* Remaining Restaurants */}
             {filteredRestaurants.slice(2).map((restaurant, index) => {
               const restaurantSlug = restaurant.slug || restaurant.name.toLowerCase().replace(/\s+/g, "-")
-              const diningDetailPath = `/food/user/dining/${restaurant.diningType || "dining"}/${restaurantSlug}`
+              const diningDetailPath = `/dining/${restaurant.diningType || "dining"}/${restaurantSlug}`
               const favorite = isFavorite(restaurantSlug)
 
               const handleToggleFavorite = (e) => {

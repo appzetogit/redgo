@@ -47,7 +47,7 @@ export default function DeliveryOTP() {
             const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
             const now = Math.floor(Date.now() / 1000)
             if (payload.exp && payload.exp > now) {
-              navigate("/food/delivery", { replace: true })
+              navigate("/delivery", { replace: true })
               return
             }
           }
@@ -57,7 +57,7 @@ export default function DeliveryOTP() {
       }
 
       // No auth data, redirect to sign in
-      navigate("/food/delivery/login", { replace: true })
+      navigate("/delivery/login", { replace: true })
       return
     }
 
@@ -252,7 +252,7 @@ export default function DeliveryOTP() {
         }
         sessionStorage.setItem("deliverySignupDetails", JSON.stringify(details))
         setIsLoading(false)
-        navigate("/food/delivery/signup/details", { replace: true })
+        navigate("/delivery/signup/details", { replace: true })
         return
       }
 
@@ -289,7 +289,7 @@ export default function DeliveryOTP() {
         const storedAuth = localStorage.getItem("delivery_authenticated")
 
         if (storedToken && storedAuth === "true") {
-          navigate("/food/delivery", { replace: true })
+          navigate("/delivery", { replace: true })
         } else if (retryCount < maxRetries) {
           retryCount++
           setTimeout(verifyAndNavigate, 100)
@@ -381,7 +381,7 @@ export default function DeliveryOTP() {
         if (storedToken && storedAuth === "true") {
           // Token is stored, navigate to delivery home
           debugLog("Token verified, navigating to /delivery")
-          navigate("/food/delivery", { replace: true })
+          navigate("/delivery", { replace: true })
         } else if (retryCount < maxRetries) {
           // Token not stored yet, retry after short delay
           retryCount++
@@ -481,7 +481,7 @@ export default function DeliveryOTP() {
       {/* Header */}
       <div className="relative flex items-center justify-center py-4 px-4 border-b border-gray-200">
         <button
-          onClick={() => navigate("/food/delivery/login")}
+          onClick={() => navigate("/delivery/login")}
           className="absolute left-4 top-1/2 -translate-y-1/2"
           aria-label="Go back"
         >
@@ -539,7 +539,7 @@ export default function DeliveryOTP() {
                         countryCode: "+91",
                       }
                       sessionStorage.setItem("deliverySignupDetails", JSON.stringify(details))
-                      navigate("/food/delivery/signup/details", { replace: true })
+                      navigate("/delivery/signup/details", { replace: true })
                     }}
                     className="w-full py-3 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 shadow-md transition-all active:scale-95"
                   >
@@ -549,7 +549,7 @@ export default function DeliveryOTP() {
                 
                 <button
                   type="button"
-                  onClick={() => navigate("/food/delivery/login", { replace: true })}
+                  onClick={() => navigate("/delivery/login", { replace: true })}
                   className={`text-sm font-medium underline transition-colors ${isRejected ? "text-red-600 hover:text-red-800" : "text-amber-700 hover:text-amber-900"}`}
                 >
                   Back to login

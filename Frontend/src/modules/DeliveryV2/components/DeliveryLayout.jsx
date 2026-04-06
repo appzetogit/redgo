@@ -52,10 +52,10 @@ export default function DeliveryLayout({
   }, [location.pathname])
 
   const showBottomNav = [
-    "/food/delivery",
-    "/food/delivery/requests",
-    "/food/delivery/trip-history",
-    "/food/delivery/profile"
+    "/delivery",
+    "/delivery/requests",
+    "/delivery/trip-history",
+    "/delivery/profile"
   ].includes(location.pathname)
 
   if (approvalStatus === "loading") {

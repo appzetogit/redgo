@@ -425,9 +425,9 @@ export default function EditFoodPage() {
         window.dispatchEvent(new CustomEvent("foodsChanged"))
         if (created) {
           window.dispatchEvent(new CustomEvent("foodAdded", { detail: { food: created } }))
-          navigate(`/restaurant/food/${String(created._id || created.id)}`)
+          navigate(`/restaurant/${String(created._id || created.id)}`)
         } else {
-          navigate(`/food/restaurant/inventory`)
+          navigate(`/restaurant/inventory`)
         }
       } catch {
         alert("Error saving food. Please try again.")
@@ -445,9 +445,9 @@ export default function EditFoodPage() {
       window.dispatchEvent(new CustomEvent("foodsChanged"))
       if (updated) {
         window.dispatchEvent(new CustomEvent("foodUpdated", { detail: { food: updated } }))
-        navigate(`/restaurant/food/${String(updated._id || updated.id || id)}`)
+        navigate(`/restaurant/${String(updated._id || updated.id || id)}`)
       } else {
-        navigate(`/restaurant/food/${String(id)}`)
+        navigate(`/restaurant/${String(id)}`)
       }
     } catch {
       alert("Error saving food. Please try again.")
@@ -460,7 +460,7 @@ export default function EditFoodPage() {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center gap-4">
           <button 
-            onClick={() => navigate(`/restaurant/food/${id}`)}
+            onClick={() => navigate(`/restaurant/${id}`)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />

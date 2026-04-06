@@ -127,7 +127,7 @@ export default function UnifiedOTPFastLogin() {
 
       setAuthData("user", accessToken, user, refreshToken)
       toast.success("Login successful!")
-      navigate("/user/auth/portal", { replace: true })
+      navigate("/", { replace: true })
     } catch (err) {
       const status = err?.response?.status
       let msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Invalid OTP. Please try again."
@@ -340,7 +340,7 @@ export default function UnifiedOTPFastLogin() {
         <div className="mt-6 text-center space-y-2">
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
             By continuing, you agree to our <br />
-            <Link to="/food/user/profile/terms" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Terms of Service</Link> & <Link to="/food/user/profile/privacy" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Privacy Policy</Link>
+            <Link to="/profile/terms" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Terms of Service</Link> & <Link to="/profile/privacy" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Privacy Policy</Link>
           </p>
         </div>
       </div>

@@ -41,7 +41,7 @@ const AppRoutes = () => {
     if (!isNativeLikeShell) return
 
     const route = `${location.pathname || ''}${location.search || ''}`
-    if (route.startsWith('/food/') || route.startsWith('/admin')) {
+    if (route && route !== '/') {
       localStorage.setItem(NATIVE_LAST_ROUTE_KEY, route)
     }
   }, [location.pathname, location.search])
@@ -49,7 +49,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Auth Module */}
-      <Route path="/user/auth/*" element={<AuthApp />} />
+      <Route path="/auth/*" element={<AuthApp />} />
 
       {/* Admin Portal */}
       <Route
@@ -61,8 +61,13 @@ const AppRoutes = () => {
         }
       />
 
+      {/* Legacy /food/ cleanup: Redirect /food/* back to root /* */}
+      <Route
+        path="/food/*"
+        element={<Navigate to={location.pathname.replace(/^\/food/, "") || "/"} replace />}
+      />
+
       {/* Main App - Food module handles root and everything else */}
-      <Route path="/food/*" element={<FoodAppWrapper />} />
       <Route path="/*" element={<FoodAppWrapper />} />
 
     </Routes>

@@ -40,7 +40,7 @@ function RestaurantGlobalNotificationListenerInner() {
 function RestaurantGlobalNotificationListener() {
   const location = useLocation()
   const isRestaurantRoute =
-    location.pathname.startsWith("/food/restaurant") ||
+    location.pathname.startsWith("/restaurant") ||
     location.pathname.startsWith("/restaurant")
 
   const isRestaurantAuthRoute =

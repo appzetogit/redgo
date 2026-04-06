@@ -199,7 +199,7 @@ export default function DiningCategory() {
               return (
                 <Link
                   key={restaurant.id}
-                  to={`/food/user/dining/${category}/${restaurant.slug}`}
+                  to={`/dining/${category}/${restaurant.slug}`}
                   state={{ restaurant }}
                 >
                   <Card className="group overflow-hidden rounded-[30px] border border-[#f0dfca] bg-white py-0 shadow-[0_18px_60px_rgba(17,24,39,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(17,24,39,0.14)] dark:border-gray-800 dark:bg-[#141414] dark:shadow-[0_18px_60px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_24px_80px_rgba(0,0,0,0.45)]">

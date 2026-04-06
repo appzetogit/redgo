@@ -1146,7 +1146,7 @@ export default function Cart() {
     // Priority: slug > restaurantId (both work for the restaurant details route)
     const idOrSlug = restaurantData?.slug || restaurantId
     if (idOrSlug) {
-      navigate(`/food/user/restaurants/${idOrSlug}`)
+      navigate(`/restaurants/${idOrSlug}`)
     } else {
       goBack()
     }

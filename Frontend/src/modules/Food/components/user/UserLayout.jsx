@@ -82,7 +82,7 @@ function LocationSelectorProvider({ children }) {
 
   const openLocationSelector = () => {
     // Navigate to the standalone address selector page
-    navigate("/food/user/cart/address-selector")
+    navigate("/cart/address-selector")
   }
 
   const closeLocationSelector = () => { }

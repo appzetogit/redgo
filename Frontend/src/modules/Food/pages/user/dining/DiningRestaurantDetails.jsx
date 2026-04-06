@@ -222,11 +222,11 @@ export default function DiningRestaurantDetails() {
     }
 
     if (category) {
-      navigate(`/food/user/dining/${category}`)
+      navigate(`/dining/${category}`)
       return
     }
 
-    navigate("/food/user/dining")
+    navigate("/dining")
   }
 
   const handleToggleFavorite = () => {
@@ -247,7 +247,7 @@ export default function DiningRestaurantDetails() {
   const handleContinueBooking = () => {
     if (!isDiningEnabled) return
     setIsBookingSheetOpen(false)
-    navigate(`/food/user/dining/book/${slug}`, {
+    navigate(`/dining/book/${slug}`, {
       state: {
         guestCount: selectedGuests,
         restaurant,

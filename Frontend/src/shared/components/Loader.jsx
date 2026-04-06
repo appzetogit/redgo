@@ -1,2 +1,2 @@
-export { default } from '../modules/food/components/Loader.jsx'
+export { default } from '../modules/components/Loader.jsx'
 
