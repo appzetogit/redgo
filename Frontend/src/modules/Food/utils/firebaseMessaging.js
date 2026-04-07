@@ -27,10 +27,8 @@ let pushSoundContext = null;
 const PUSH_DEBUG_PREFIX = "[push-debug]";
 const notificationDedupWindowMs = 8000;
 const pushDebugLog = (prefix, message, data = {}) => {
-  console.log(`${prefix} ${message}`, data);
 };
 const pushDebugWarn = (prefix, message, data = {}) => {
-  console.warn(`${prefix} ${message}`, data);
 };
 
 function normalizeModuleFromPath(pathname = window.location.pathname) {

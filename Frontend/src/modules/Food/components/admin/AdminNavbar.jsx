@@ -40,7 +40,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@food/components/ui/popover";
-import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png";
+import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png";
 import { adminAPI } from "@food/api";
 import { clearModuleAuth } from "@food/utils/auth";
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings";
@@ -280,12 +280,12 @@ export default function AdminNavbar({ onMenuClick }) {
             </button>
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <div className="w-24 h-12 rounded-lg bg-white flex items-center justify-center ring-neutral-200">
+              <div className="w-20 h-10 rounded-lg bg-white flex items-center justify-center ring-neutral-200">
                 {businessSettings?.logo?.url ? (
                   <img
                     src={businessSettings.logo.url}
                     alt={businessSettings.companyName || "Company"}
-                    className="w-24 h-10 object-contain"
+                    className="w-20 h-8 object-contain"
                     loading="lazy"
                     onError={(e) => {
                       // Fallback to default logo if company logo fails to load
@@ -298,7 +298,7 @@ export default function AdminNavbar({ onMenuClick }) {
                       {businessSettings.companyName}
                     </span>
                   ) : (
-                    <img src={quickSpicyLogo} alt={businessSettings?.companyName || "Company"} className="w-24 h-10 object-contain" loading="lazy" />
+                    <img src={quickSpicyLogo} alt={businessSettings?.companyName || "Company"} className="w-20 h-8 object-contain" loading="lazy" />
                   )
                 )}
               </div>

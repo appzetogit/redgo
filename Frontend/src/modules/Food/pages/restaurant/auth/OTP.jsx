@@ -10,10 +10,6 @@ import {
 import { checkOnboardingStatus, isRestaurantOnboardingComplete } from "@food/utils/onboardingUtils"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 
-const debugLog = (...args) => {}
-const debugWarn = (...args) => {}
-const debugError = (...args) => {}
-
 export default function RestaurantOTP() {
   const companyName = useCompanyName()
   const navigate = useNavigate()
@@ -186,8 +182,6 @@ export default function RestaurantOTP() {
     setOtp(newOtp)
     if (digits.length === 4) {
       handleVerify(newOtp.join(""))
-    } else {
-      inputRefs.current[digits.length]?.focus()
     }
   }
 
@@ -195,7 +189,7 @@ export default function RestaurantOTP() {
     const code = otpValue || otp.join("")
 
     if (hasSubmittedRef.current && !otpValue) {
-      return
+      // Allow only one manual click at a time
     }
 
     if (code.length !== 4) {
@@ -230,12 +224,13 @@ export default function RestaurantOTP() {
         return
       }
 
-      const accessToken = data?.accessToken
+      const accessToken = data?.accessToken || data?.token
       const refreshToken = data?.refreshToken ?? null
-      const restaurant = data?.user ?? data?.restaurant
+      const restaurant = data?.user ?? data?.restaurant ?? data?.owner ?? data?.data?.user
 
       if (accessToken && restaurant) {
         setRestaurantAuthData("restaurant", accessToken, restaurant, refreshToken)
+        
         window.dispatchEvent(new Event("restaurantAuthChanged"))
         sessionStorage.removeItem("restaurantAuthData")
         sessionStorage.removeItem("restaurantLoginPhone")
@@ -246,6 +241,7 @@ export default function RestaurantOTP() {
           } else {
             try {
               const onboardingComplete = isRestaurantOnboardingComplete(restaurant)
+              
               if (!onboardingComplete) {
                 const incompleteStep = await checkOnboardingStatus()
                 if (incompleteStep) {
@@ -259,6 +255,8 @@ export default function RestaurantOTP() {
             }
           }
         }, 500)
+      } else {
+        throw new Error("Invalid response from server. Please try again.")
       }
     } catch (err) {
       const message =

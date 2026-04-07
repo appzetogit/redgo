@@ -124,11 +124,13 @@ const DiningManagement = lazy(() => import("@food/pages/admin/system/DiningManag
 const DiningList = lazy(() => import("@food/pages/admin/system/DiningList"));
 
 const EditRestaurant = lazy(() => import("@food/pages/admin/restaurant/EditRestaurant"));
+const AdminLogin = lazy(() => import("@food/pages/admin/auth/AdminLogin"));
 
 export default function AdminRouter() {
   return (
     <Suspense fallback={<Loader />}>
       <Routes>
+        <Route path="login" element={<AdminLogin />} />
         <Route
           element={
             <ProtectedRoute>

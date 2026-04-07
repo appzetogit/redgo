@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+﻿import { useState, useEffect, useMemo } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
   Search,
@@ -51,7 +51,7 @@ import { cn } from "@food/utils/utils"
 import { Input } from "@food/components/ui/input"
 import { adminSidebarMenu } from "@food/utils/adminSidebarMenu"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
-import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png"
+import quickSpicyLogo from "@food/assets/redgo-sidebar-logo.png"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -625,12 +625,12 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           <div className="flex items-center justify-between mb-3">
             {!isCollapsed && (
               <div className="flex items-center gap-2 animate-[slideIn_0.3s_ease-out]">
-                <div className="w-24 h-12 rounded-lg flex items-center justify-center shadow-black/20">
+                <div className="w-20 h-10 rounded-lg flex items-center justify-center shadow-black/20">
                   {logoUrl ? (
                     <img
                       src={logoUrl || quickSpicyLogo}
                       alt={companyName || "Company"}
-                      className="w-24 h-10 object-contain"
+                      className="w-20 h-8 object-contain"
                       loading="lazy"
                       onError={(e) => {
                         if (e.target.src !== quickSpicyLogo) {
@@ -643,19 +643,19 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                       {companyName}
                     </span>
                   ) : (
-                    <img src={quickSpicyLogo} alt="Company" className="w-24 h-10 object-contain" loading="lazy" />
+                    <img src={quickSpicyLogo} alt="Company" className="w-20 h-8 object-contain" loading="lazy" />
                   )}
                 </div>
               </div>
             )}
             {isCollapsed && (
               <div className="w-full flex items-center justify-center">
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shadow-lg shadow-black/20 ring-1 ring-white/10">
+                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shadow-lg shadow-black/20 ring-1 ring-white/10">
                   {logoUrl || companyName ? (
                     <img
                       src={logoUrl || quickSpicyLogo}
                       alt={companyName || "Company"}
-                      className="w-10 h-10 object-contain"
+                      className="w-8 h-8 object-contain"
                       loading="lazy"
                       onError={(e) => {
                         if (e.target.src !== quickSpicyLogo) {
@@ -664,7 +664,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                       }}
                     />
                   ) : (
-                    <img src={quickSpicyLogo} alt="Company" className="w-10 h-10 object-contain" loading="lazy" />
+                    <img src={quickSpicyLogo} alt="Company" className="w-8 h-8 object-contain" loading="lazy" />
                   )}
                 </div>
               </div>

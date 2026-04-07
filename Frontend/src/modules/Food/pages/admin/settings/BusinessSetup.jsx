@@ -15,8 +15,6 @@ export default function BusinessSetup() {
   const [faviconPreview, setFaviconPreview] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [faviconFile, setFaviconFile] = useState(null);
-  const logoInputRef = useRef(null);
-  const faviconInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     companyName: "",
@@ -28,6 +26,21 @@ export default function BusinessSetup() {
     pincode: "",
     region: "",
   });
+
+  const [initialFormData, setInitialFormData] = useState(null);
+  const logoInputRef = useRef(null);
+  const faviconInputRef = useRef(null);
+
+  // Derived state: check if any changes were made
+  const hasChanges = (() => {
+    if (!initialFormData) return false;
+    
+    // Check if files were uploaded
+    if (logoFile || faviconFile) return true;
+    
+    // Check if text data changed
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  })();
 
   // Fetch business settings on mount
   useEffect(() => {
@@ -41,7 +54,7 @@ export default function BusinessSetup() {
       const settings = response?.data?.data || response?.data;
 
       if (settings) {
-        setFormData({
+        const initialData = {
           companyName: settings.companyName || "",
           email: settings.email || "",
           phoneCountryCode: settings.phone?.countryCode || "+91",
@@ -50,7 +63,9 @@ export default function BusinessSetup() {
           state: settings.state || "",
           pincode: settings.pincode || "",
           region: settings.region || "India",
-        });
+        };
+        setFormData(initialData);
+        setInitialFormData(initialData);
 
         // Set logo and favicon previews if they exist
         if (settings.logo?.url) {
@@ -138,20 +153,33 @@ export default function BusinessSetup() {
       const response = await adminAPI.updateBusinessSettings(dataToSend, files);
       const updatedSettings = response?.data?.data || response?.data;
 
-      if (updatedSettings) {
-        // Update global cache immediately
-        setCachedSettings(updatedSettings);
+        if (updatedSettings) {
+          // Update global cache immediately
+          setCachedSettings(updatedSettings);
 
-        // Update previews with new URLs if files were uploaded
-        if (updatedSettings.logo?.url) {
-          setLogoPreview(updatedSettings.logo.url);
-          setLogoFile(null);
+          const newInitialData = {
+            companyName: updatedSettings.companyName || "",
+            email: updatedSettings.email || "",
+            phoneCountryCode: updatedSettings.phone?.countryCode || "+91",
+            phoneNumber: updatedSettings.phone?.number || "",
+            address: updatedSettings.address || "",
+            state: updatedSettings.state || "",
+            pincode: updatedSettings.pincode || "",
+            region: updatedSettings.region || "India",
+          };
+          setInitialFormData(newInitialData);
+          setFormData(newInitialData);
+
+          // Update previews with new URLs if files were uploaded
+          if (updatedSettings.logo?.url) {
+            setLogoPreview(updatedSettings.logo.url);
+            setLogoFile(null);
+          }
+          if (updatedSettings.favicon?.url) {
+            setFaviconPreview(updatedSettings.favicon.url);
+            setFaviconFile(null);
+          }
         }
-        if (updatedSettings.favicon?.url) {
-          setFaviconPreview(updatedSettings.favicon.url);
-          setFaviconFile(null);
-        }
-      }
 
       toast.success("Business settings saved successfully");
 
@@ -496,7 +524,7 @@ export default function BusinessSetup() {
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || !hasChanges}
                   className="px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {saving ? (

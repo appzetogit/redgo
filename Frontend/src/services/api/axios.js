@@ -141,9 +141,20 @@ apiClient.interceptors.request.use(
       }
     }
 
-    const token = getAccessToken(config);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Skip Authorization header for auth routes to avoid interference from stale tokens
+    const normalizedUrl = (config.url || "").toLowerCase();
+    const isAuthRoute = 
+      normalizedUrl.includes("/auth/") || 
+      normalizedUrl.includes("/login") || 
+      normalizedUrl.includes("/verify-otp") || 
+      normalizedUrl.includes("/request-otp") ||
+      normalizedUrl.includes("/register");
+
+    if (!isAuthRoute) {
+      const token = getAccessToken(config);
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

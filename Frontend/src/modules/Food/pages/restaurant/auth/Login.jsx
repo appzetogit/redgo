@@ -26,6 +26,24 @@ export default function RestaurantLogin() {
   const [keyboardInset, setKeyboardInset] = useState(0)
 
   useEffect(() => {
+    // Clear stale restaurant session data when starting fresh
+    const keysToClear = [
+      "restaurant_accessToken",
+      "restaurant_refreshToken",
+      "restaurant_authenticated",
+      "restaurant_user",
+      "restaurant_pendingPhone",
+    ]
+    keysToClear.forEach((key) => localStorage.removeItem(key))
+    sessionStorage.removeItem("restaurantAuthData")
+    
+    // Clear any pending registration state
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("restaurantAuthChanged"))
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return undefined
 
     const updateKeyboardInset = () => {

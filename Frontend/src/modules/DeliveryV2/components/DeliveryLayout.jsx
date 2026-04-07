@@ -1,100 +1,103 @@
-import { useLocation } from "react-router-dom"
-import { useEffect, useState } from "react"
-import BottomNavigation from "./BottomNavigation"
-import { getUnreadDeliveryNotificationCount } from "@food/utils/deliveryNotifications"
-import { deliveryAPI } from "@food/api"
+import React, { useEffect, useState } from "react"
+import { Outlet, useLocation, useNavigate } from "react-router-dom"
+import { clearModuleAuth } from "@food/utils/auth"
+import { authAPI } from "@food/api"
+import { firebaseAuth, ensureFirebaseInitialized } from "@food/firebase"
+import LogoutConfirmationDialog from "../../Food/components/LogoutConfirmationDialog"
 
-export default function DeliveryLayout({
-  children,
-  showGig = false,
-  showPocket = false,
-  onHomeClick,
-  onGigClick
-}) {
+export default function DeliveryLayout() {
   const location = useLocation()
-  const [requestBadgeCount, setRequestBadgeCount] = useState(() =>
-    getUnreadDeliveryNotificationCount()
-  )
-  const [approvalStatus, setApprovalStatus] = useState("loading")
+  const navigate = useNavigate()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
+  // Block back button on Home to show logout confirmation
   useEffect(() => {
-    let cancelled = false
-    deliveryAPI
-      .getMe()
-      .then((res) => {
-        if (cancelled) return
-        const user = res?.data?.data?.user ?? res?.data?.user
-        const status = user?.status ?? "approved"
-        setApprovalStatus(status)
-        if (user && typeof localStorage !== "undefined") {
-          try {
-            localStorage.setItem("delivery_user", JSON.stringify(user))
-          } catch (_) {}
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setApprovalStatus("pending")
-      })
-    return () => { cancelled = true }
-  }, [])
+    // Only intercept when on the Delivery Home page
+    const isAtRoot = location.pathname === "/delivery" || location.pathname === "/delivery/"
+    
+    if (!isAtRoot) return;
 
-  useEffect(() => {
-    setRequestBadgeCount(getUnreadDeliveryNotificationCount())
-    const handleNotificationUpdate = () => {
-      setRequestBadgeCount(getUnreadDeliveryNotificationCount())
-    }
-    window.addEventListener("deliveryNotificationsUpdated", handleNotificationUpdate)
-    window.addEventListener("storage", handleNotificationUpdate)
+    // Trap the back button
+    window.history.pushState({ trap: true }, "", window.location.href);
+
+    const handlePopState = () => {
+      // If we are on the Home page and user hit back, show logout confirm
+      if (location.pathname === "/delivery" || location.pathname === "/delivery/") {
+        setShowLogoutConfirm(true);
+        window.history.pushState({ trap: true }, "", window.location.href);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    
     return () => {
-      window.removeEventListener("deliveryNotificationsUpdated", handleNotificationUpdate)
-      window.removeEventListener("storage", handleNotificationUpdate)
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [location.pathname]);
+
+  const handleConfirmLogout = async () => {
+    setShowLogoutConfirm(false)
+    setIsLoggingOut(true)
+
+    try {
+      // Clear data locally
+      clearModuleAuth("delivery")
+      
+      // Sign out from Firebase if needed
+      try {
+        const { signOut } = await import("firebase/auth")
+        ensureFirebaseInitialized({ enableAuth: true, enableRealtimeDb: false })
+        if (firebaseAuth.currentUser) {
+          await signOut(firebaseAuth)
+        }
+      } catch (e) {}
+
+      // Call API logout if possible
+      try {
+        let fcmToken = localStorage.getItem("fcm_web_registered_token_delivery") || null
+        authAPI.logout(null, fcmToken, "web")
+      } catch (e) {}
+
+      // Dispatch event to update other components
+      window.dispatchEvent(new Event("deliveryAuthChanged"))
+
+      // Final redirect
+      navigate("/delivery/login", { replace: true })
+    } catch (err) {
+      console.error("Logout failed:", err)
+      navigate("/delivery/login", { replace: true })
+    } finally {
+      setIsLoggingOut(false)
     }
+  }
+
+  // Auto-scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }, [location.pathname])
 
-  const showBottomNav = [
-    "/delivery",
-    "/delivery/requests",
-    "/delivery/trip-history",
-    "/delivery/profile"
-  ].includes(location.pathname)
-
-  if (approvalStatus === "loading") {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-gray-500">Loading...</div>
-      </main>
-    )
-  }
-
-  if (approvalStatus !== "approved") {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md w-full text-center space-y-4 rounded-xl bg-white p-6 shadow-sm border border-gray-200">
-          <h1 className="text-xl font-semibold text-gray-900">Pending Admin Approval</h1>
-          <p className="text-gray-600 text-sm">
-            Your profile has been submitted. You will get full access once admin approves your account.
-          </p>
-          <p className="text-gray-500 text-xs">You can log out and sign in again to check status.</p>
-        </div>
-      </main>
-    )
-  }
-
   return (
-    <>
+    <div className="min-h-screen bg-white dark:bg-[#0a0a0a]">
       <main>
-        {children}
+        <Outlet />
       </main>
-      {showBottomNav && (
-        <BottomNavigation
-          showGig={showGig}
-          showPocket={showPocket}
-          onHomeClick={onHomeClick}
-          onGigClick={onGigClick}
-          requestBadgeCount={requestBadgeCount}
-        />
+
+      {/* Global Logout Confirmation */}
+      <LogoutConfirmationDialog 
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleConfirmLogout}
+      />
+
+      {/* Loading overlay during logout */}
+      {isLoggingOut && (
+        <div className="fixed inset-0 z-[9999] bg-white/80 dark:bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+          <div className="w-16 h-16 border-4 border-red-100 dark:border-red-900/20 border-t-[#ef4f5f] rounded-full animate-spin mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Signing you out...</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Please wait while we clear your session securely.</p>
+        </div>
       )}
-    </>
+    </div>
   )
 }
-

@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
-import { useEffect, useState, createContext, useContext } from "react"
+import { useEffect, useState, createContext, useContext, useCallback, useMemo } from "react"
 import { ProfileProvider } from "@food/context/ProfileContext"
 import LocationPrompt from "./LocationPrompt"
 import { CartProvider } from "@food/context/CartContext"
@@ -11,7 +11,11 @@ const debugError = (...args) => {}
 import SearchOverlay from "./SearchOverlay"
 import BottomNavigation from "./BottomNavigation"
 import DesktopNavbar from "./DesktopNavbar"
-import { useUserNotifications } from "../../hooks/useUserNotifications"
+import { useUserNotifications } from "@food/hooks/useUserNotifications"
+import LogoutConfirmationDialog from "../LogoutConfirmationDialog"
+import { clearModuleAuth } from "@food/utils/auth"
+import { authAPI } from "@food/api"
+import { firebaseAuth, ensureFirebaseInitialized } from "@food/firebase"
 
 // Create SearchOverlay context with default value
 const SearchOverlayContext = createContext({
@@ -36,17 +40,25 @@ function SearchOverlayProvider({ children }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
 
-  const openSearch = () => {
+  const openSearch = useCallback(() => {
     setIsSearchOpen(true)
-  }
+  }, [])
 
-  const closeSearch = () => {
+  const closeSearch = useCallback(() => {
     setIsSearchOpen(false)
     setSearchValue("")
-  }
+  }, [])
+
+  const value = useMemo(() => ({ 
+    isSearchOpen, 
+    searchValue, 
+    setSearchValue, 
+    openSearch, 
+    closeSearch 
+  }), [isSearchOpen, searchValue, openSearch, closeSearch])
 
   return (
-    <SearchOverlayContext.Provider value={{ isSearchOpen, searchValue, setSearchValue, openSearch, closeSearch }}>
+    <SearchOverlayContext.Provider value={value}>
       {children}
       {isSearchOpen && (
         <SearchOverlay
@@ -61,7 +73,7 @@ function SearchOverlayProvider({ children }) {
 }
 
 // Create LocationSelector context with default value
-const LocationSelectorContext = createContext({
+export const LocationSelectorContext = createContext({
   isLocationSelectorOpen: false,
   openLocationSelector: () => {
     debugWarn("LocationSelectorProvider not available")
@@ -79,19 +91,21 @@ export function useLocationSelector() {
 
 function LocationSelectorProvider({ children }) {
   const navigate = useNavigate()
+  const location = useLocation()
 
-  const openLocationSelector = () => {
+  const openLocationSelector = useCallback(() => {
     // Navigate to the standalone address selector page
-    navigate("/cart/address-selector")
-  }
+    // We pass state.from to ensure the back button returns to the current page
+    navigate("/cart/address-selector", { state: { from: location.pathname || "/" } })
+  }, [navigate, location.pathname])
 
   const closeLocationSelector = () => { }
 
-  const value = {
+  const value = useMemo(() => ({
     isLocationSelectorOpen: false,
     openLocationSelector,
     closeLocationSelector
-  }
+  }), [openLocationSelector])
 
   return (
     <LocationSelectorContext.Provider value={value}>
@@ -102,6 +116,80 @@ function LocationSelectorProvider({ children }) {
 
 export default function UserLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  // Block back button on Home to show logout confirmation
+  useEffect(() => {
+    // Only intercept when on the Home page (root)
+    const isAtRoot = location.pathname === "/" || location.pathname === "/user" || location.pathname === "/food"
+    
+    if (!isAtRoot) return;
+
+    // Push a dummy state to history to "trap" the next back button press
+    // This allows us to catch the popstate event when the user hits back
+    window.history.pushState({ trap: true }, "", window.location.href);
+
+    const handlePopState = (event) => {
+      // If we are on the Home page and user hit back, show logout confirm
+      if (location.pathname === "/" || location.pathname === "/user") {
+        setShowLogoutConfirm(true);
+        // Push state again to keep the "trap" alive if they cancel
+        window.history.pushState({ trap: true }, "", window.location.href);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [location.pathname]);
+
+  const handleConfirmLogout = async () => {
+    setShowLogoutConfirm(false)
+    setIsLoggingOut(true)
+
+    try {
+      // Clear data locally immediately for speed
+      clearModuleAuth("user")
+      
+      // Also clear legacy keys mentioned in Logout.jsx
+      localStorage.removeItem("accessToken")
+      localStorage.removeItem("user_authenticated")
+      localStorage.removeItem("user_user")
+      localStorage.removeItem("cart")
+      sessionStorage.removeItem("userAuthData")
+
+      // Sign out from Firebase if needed
+      try {
+        const { signOut } = await import("firebase/auth")
+        ensureFirebaseInitialized({ enableAuth: true, enableRealtimeDb: false })
+        if (firebaseAuth.currentUser) {
+          await signOut(firebaseAuth)
+        }
+      } catch (e) {}
+
+      // Call API logout if possible (fire and forget)
+      try {
+        let fcmToken = localStorage.getItem("fcm_web_registered_token_user") || null
+        authAPI.logout(null, fcmToken, "web")
+      } catch (e) {}
+
+      // Dispatch event to update other components
+      window.dispatchEvent(new Event("userAuthChanged"))
+
+      // Final redirect
+      navigate("/auth/login", { replace: true })
+    } catch (err) {
+      console.error("Logout failed:", err)
+      // Still redirect as fallback
+      navigate("/auth/login", { replace: true })
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
 
   useEffect(() => {
     // Reset scroll to top whenever location changes (pathname, search, or hash)
@@ -157,8 +245,22 @@ export default function UserLayout() {
           </OrdersProvider>
         </ProfileProvider>
       </CartProvider>
+
+      {/* Global Logout Confirmation */}
+      <LogoutConfirmationDialog 
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleConfirmLogout}
+      />
+
+      {/* Loading overlay during logout */}
+      {isLoggingOut && (
+        <div className="fixed inset-0 z-[9999] bg-white/80 dark:bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+          <div className="w-16 h-16 border-4 border-red-100 dark:border-red-900/20 border-t-[#ef4f5f] rounded-full animate-spin mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Signing you out...</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Please wait while we clear your session securely.</p>
+        </div>
+      )}
     </div>
   )
 }
-
-

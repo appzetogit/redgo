@@ -84,6 +84,9 @@ const resolveBackPath = ({ pathname, search, state }) => {
     pathname === "/cart/select-address" ||
     pathname === "/cart/address-selector"
   ) {
+    // If we have an explicit back path (like from the Home page), use it.
+    // Otherwise fallback to /cart.
+    if (explicitBackPath) return explicitBackPath;
     return "/cart"
   }
 

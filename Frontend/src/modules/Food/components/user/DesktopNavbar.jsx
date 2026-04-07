@@ -10,7 +10,7 @@ import { useLocationSelector, useSearchOverlay } from "./UserLayout"
 import { useProfile } from "@food/context/ProfileContext"
 import { FaLocationDot } from "react-icons/fa6"
 import { AnimatePresence, motion } from "framer-motion"
-import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png"
+import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -157,12 +157,12 @@ export default function DesktopNavbar({ showLogo = true }) {
                         <div className="flex items-center gap-4 lg:gap-6 flex-shrink-0">
                             {/* Logo */}
                             {showLogo && (
-                                <Link to="" className="flex items-center justify-center flex-shrink-0">
+                                <Link to="/" className="flex items-center justify-center flex-shrink-0">
                                     {logoUrl || companyName ? (
                                         <img
                                             src={logoUrl || quickSpicyLogo}
                                             alt={companyName || "Company Logo"}
-                                            className="h-10 w-auto md:h-14 lg:h-16 object-contain"
+                                            className="h-8 w-auto md:h-10 lg:h-12 object-contain"
                                             onError={(e) => {
                                                 if (e.target.src !== quickSpicyLogo) {
                                                     e.target.src = quickSpicyLogo
@@ -170,7 +170,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                                             }}
                                         />
                                     ) : (
-                                        <img src={quickSpicyLogo} alt={companyName || "Logo"} className="h-10 w-auto md:h-14 lg:h-16 object-contain" />
+                                        <img src={quickSpicyLogo} alt={companyName || "Logo"} className="h-8 w-auto md:h-10 lg:h-12 object-contain" />
                                     )}
                                 </Link>
                             )}
@@ -301,7 +301,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                         <div className="flex items-center space-x-24">
                             {/* Delivery Tab */}
                             <Link
-                                to=""
+                                to="/"
                                 className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors relative group ${isDelivery
                                     ? "text-orange-600 dark:text-orange-500"
                                     : "text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500"

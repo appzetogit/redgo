@@ -220,9 +220,9 @@ export default function SignupStep1() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 font-inter">
       {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center gap-4 border-b border-gray-200">
+      <div className="bg-white px-4 py-3 flex items-center gap-4 border-b border-gray-200 sticky top-0 z-10">
         <button
           onClick={goBack}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -234,12 +234,37 @@ export default function SignupStep1() {
 
       {/* Content */}
       <div className="px-4 py-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Basic Details</h2>
-          <p className="text-sm text-gray-600">Please provide your information to continue</p>
+        <div className="mb-6 flex justify-between items-start">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Basic Details</h2>
+            <p className="text-sm text-gray-500">Please provide your information to continue</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFormData({
+                ...formData,
+                name: "Prince Bangar",
+                email: "princeb@redgo.test",
+                address: "123 RedGo Tower, Vijay Nagar",
+                city: "Indore",
+                state: "Madhya Pradesh",
+                vehicleType: "bike",
+                vehicleName: "Honda Activa",
+                vehicleNumber: "MP13AB1234",
+                drivingLicenseNumber: "MP1320110012345",
+                panNumber: "ABCDE1234F",
+                aadharNumber: "123456789012"
+              });
+              toast.success("Dummy data filled!");
+            }}
+            className="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-orange-100 transition-colors"
+          >
+            Fill Dummy Data
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pb-12">
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -251,11 +276,10 @@ export default function SignupStep1() {
               value={formData.name}
               onChange={handleChange}
               inputMode="text"
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.name ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.name ? "border-red-500" : "border-gray-300"}`}
               placeholder="Enter your full name"
             />
-            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>
 
           {/* Email */}
@@ -272,11 +296,10 @@ export default function SignupStep1() {
               autoCorrect="off"
               autoComplete="email"
               inputMode="email"
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.email ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.email ? "border-red-500" : "border-gray-300"}`}
               placeholder="Enter your email"
             />
-            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
           {/* Address */}
@@ -289,11 +312,10 @@ export default function SignupStep1() {
               value={formData.address}
               onChange={handleChange}
               rows={3}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.address ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.address ? "border-red-500" : "border-gray-300"}`}
               placeholder="Enter your address"
             />
-            {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
           </div>
 
           {/* City and State */}
@@ -307,11 +329,10 @@ export default function SignupStep1() {
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.city ? "border-red-500" : "border-gray-300"
-                  }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.city ? "border-red-500" : "border-gray-300"}`}
                 placeholder="City"
               />
-              {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+              {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -322,11 +343,10 @@ export default function SignupStep1() {
                 name="state"
                 value={formData.state}
                 onChange={handleChange}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.state ? "border-red-500" : "border-gray-300"
-                  }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.state ? "border-red-500" : "border-gray-300"}`}
                 placeholder="State"
               />
-              {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
+              {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state}</p>}
             </div>
           </div>
 
@@ -374,11 +394,10 @@ export default function SignupStep1() {
               value={formData.vehicleNumber}
               onChange={handleChange}
               maxLength={10}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.vehicleNumber ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.vehicleNumber ? "border-red-500" : "border-gray-300"}`}
               placeholder="e.g., MH12AB1234"
             />
-            {errors.vehicleNumber && <p className="text-red-500 text-sm mt-1">{errors.vehicleNumber}</p>}
+            {errors.vehicleNumber && <p className="text-red-500 text-xs mt-1">{errors.vehicleNumber}</p>}
           </div>
 
           {/* Driving License Number */}
@@ -392,11 +411,10 @@ export default function SignupStep1() {
               value={formData.drivingLicenseNumber}
               onChange={handleChange}
               maxLength={16}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 uppercase ${errors.drivingLicenseNumber ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 uppercase ${errors.drivingLicenseNumber ? "border-red-500" : "border-gray-300"}`}
               placeholder="e.g., MH1220110012345"
             />
-            {errors.drivingLicenseNumber && <p className="text-red-500 text-sm mt-1">{errors.drivingLicenseNumber}</p>}
+            {errors.drivingLicenseNumber && <p className="text-red-500 text-xs mt-1">{errors.drivingLicenseNumber}</p>}
           </div>
 
           {/* PAN Number */}
@@ -410,11 +428,10 @@ export default function SignupStep1() {
               value={formData.panNumber}
               onChange={handleChange}
               maxLength={10}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 uppercase ${errors.panNumber ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 uppercase ${errors.panNumber ? "border-red-500" : "border-gray-300"}`}
               placeholder="ABCDE1234F"
             />
-            {errors.panNumber && <p className="text-red-500 text-sm mt-1">{errors.panNumber}</p>}
+            {errors.panNumber && <p className="text-red-500 text-xs mt-1">{errors.panNumber}</p>}
           </div>
 
           {/* Aadhar Number */}
@@ -429,21 +446,19 @@ export default function SignupStep1() {
               onChange={handleChange}
               maxLength={12}
               inputMode="numeric"
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.aadharNumber ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${errors.aadharNumber ? "border-red-500" : "border-gray-300"}`}
               placeholder="123456789012"
             />
-            {errors.aadharNumber && <p className="text-red-500 text-sm mt-1">{errors.aadharNumber}</p>}
+            {errors.aadharNumber && <p className="text-red-500 text-xs mt-1">{errors.aadharNumber}</p>}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-4 rounded-lg font-bold text-white text-base transition-colors mt-6 ${isSubmitting
+            className={`w-full py-4 rounded-lg font-bold text-white text-base transition-all mt-6 ${isSubmitting
               ? "bg-gray-400 cursor-not-allowed"
-              : "bg-[#00B761] hover:bg-[#00A055]"
-              }`}
+              : "bg-[#00B761] shadow-lg shadow-green-500/30 active:scale-[0.98]"}`}
           >
             {isSubmitting ? "Saving..." : "Continue"}
           </button>
@@ -452,5 +467,3 @@ export default function SignupStep1() {
     </div>
   )
 }
-
-

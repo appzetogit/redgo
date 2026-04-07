@@ -5,7 +5,7 @@ import AnimatedPage from "@food/components/user/AnimatedPage"
 import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
 import { authAPI } from "@food/api"
-import loginBanner from "@food/assets/loginbanner.png"
+import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -109,25 +109,41 @@ export default function SignIn() {
   }
 
   return (
-    <AnimatedPage className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] flex items-center justify-center p-4">
+    <AnimatedPage className="min-h-screen bg-white dark:bg-[#0a0a0a] flex flex-col md:items-center md:justify-center md:p-4">
       {/* Background decoration (desktop only) */}
-      <div className="fixed inset-0 z-0 hidden md:block opacity-40">
-        <img src={loginBanner} alt="" className="w-full h-full object-cover blur-sm" />
-        <div className="absolute inset-0 bg-white/60 dark:bg-black/80" />
+      <div className="fixed inset-0 z-0 hidden md:block opacity-20">
+        <div className="w-full h-full bg-[#ef4f5f]/10 dark:bg-black/80" />
       </div>
 
-      <div className="w-full max-w-[450px] bg-white dark:bg-[#1a1a1a] rounded-xl shadow-2xl relative z-10 overflow-hidden border border-gray-100 dark:border-gray-800">
-        {/* Banner (Mobile Only) */}
-        <div className="md:hidden w-full h-[180px] relative">
-          <img src={loginBanner} alt="Food Banner" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-[#1a1a1a] to-transparent" />
+      <div className="w-full max-w-[450px] bg-white dark:bg-[#1a1a1a] md:rounded-xl md:shadow-2xl relative z-10 overflow-hidden md:border border-gray-100 dark:border-gray-800 min-h-screen md:min-h-0">
+          {/* Header - Matching User Screenshot */}
+        <div className="relative w-full bg-[#ef4f5f] pt-12 pb-14 px-6 rounded-b-[40px] shadow-lg overflow-hidden">
+          {/* Decorative elements */}
+          <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-[-10%] left-[-5%] w-32 h-32 bg-yellow-400/10 rounded-full blur-2xl" />
+          
+          <div className="flex flex-col items-center justify-center space-y-4 relative z-10">
+            {/* Logo */}
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center p-2 shadow-2xl">
+              <img src={quickSpicyLogo} alt="RedGo Logo" className="w-full h-full object-contain" />
+            </div>
+            
+            <div className="text-center space-y-1">
+              <h1 className="text-3xl font-black text-white tracking-tight">RedGo</h1>
+              <p className="text-[10px] sm:text-xs font-bold text-white/90 uppercase tracking-[0.2em]">
+                TASTE THE BEST, FORGET THE REST
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="p-6 sm:p-8 md:p-10 space-y-6 md:space-y-8">
-          <div className="text-center space-y-2 md:space-y-3">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">
-              Login or Signup
-            </h2>
+        <div className="p-6 sm:p-8 md:p-10 space-y-6 md:space-y-8 -mt-6">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-t-3xl pt-2">
+            <div className="text-center space-y-2 md:space-y-3 mb-8">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight inline-block relative after:content-[''] after:absolute after:-bottom-2 after:left-1/2 after:-translate-x-1/2 after:w-12 after:h-1 after:bg-[#ef4f5f] after:rounded-full">
+                Login or Signup
+              </h2>
+            </div>
             <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
               Enter your phone number to continue
             </p>
@@ -165,7 +181,7 @@ export default function SignIn() {
             <Button
               type="submit"
               form="user-signin-form"
-              className="w-full h-12 md:h-14 bg-[#EB590E] hover:bg-[#D94F0C] text-white font-bold text-base md:text-lg rounded-lg transition-all hover:shadow-lg active:scale-[0.98]"
+              className="w-full h-12 md:h-14 bg-[#ef4f5f] hover:bg-[#d43d4c] text-white font-bold text-base md:text-lg rounded-xl transition-all hover:shadow-lg active:scale-[0.98]"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -174,7 +190,7 @@ export default function SignIn() {
                   Sending OTP...
                 </>
               ) : (
-                "Continue"
+                "Get Verification Code"
               )}
             </Button>
           </form>

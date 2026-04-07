@@ -963,6 +963,14 @@ export default function RestaurantOnboarding() {
     const fetchData = async () => {
       try {
         setLoading(true)
+        
+        // Skip fetch if no token exists (e.g. new registration flow)
+        const hasToken = !!localStorage.getItem("restaurant_accessToken")
+        if (!hasToken) {
+          setLoading(false)
+          return
+        }
+
         // Use restaurantAPI.getCurrentRestaurant() to fetch real data
         const res = await restaurantAPI.getCurrentRestaurant()
         const data = res?.data?.data?.restaurant || res?.data?.restaurant
@@ -1565,8 +1573,40 @@ export default function RestaurantOnboarding() {
     })
   }
 
+  const fillStep1Dummy = (e) => {
+    e.preventDefault();
+    setStep1(prev => ({
+      ...prev,
+      restaurantName: "The RedGo Kitchen",
+      ownerName: "Prince Bangar",
+      ownerEmail: "princeb@redgo.test",
+      primaryContactNumber: "9876543210",
+      location: {
+        ...prev.location,
+        addressLine1: "123 RedGo Plaza",
+        area: "Vijay Nagar",
+        city: "Indore",
+        state: "Madhya Pradesh",
+        pincode: "452010",
+        formattedAddress: "123 RedGo Plaza, Vijay Nagar, Indore, MP 452010"
+      },
+      zoneId: zones[0]?._id || zones[0]?.id || prev.zoneId
+    }));
+    toast.success("Step 1 data filled!");
+  };
+
   const renderStep1 = () => (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={fillStep1Dummy}
+          className="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-orange-100 transition-colors h-auto"
+        >
+          Fill Step 1 Dummy Data
+        </Button>
+      </div>
       <section className="bg-white p-4 sm:p-6 rounded-md">
         <h2 className="text-lg font-semibold text-black mb-4">Restaurant information</h2>
         <div className="space-y-3">
@@ -2094,8 +2134,35 @@ export default function RestaurantOnboarding() {
   }, [step])
 
 
+  const fillStep2Dummy = (e) => {
+    e.preventDefault();
+    const dummyBlob = new Blob(["i".repeat(1024)], { type: "image/png" });
+    const dummyFile = new File([dummyBlob], "dummy_image.png", { type: "image/png" });
+
+    setStep2(prev => ({
+      ...prev,
+      openingTime: "09:00",
+      closingTime: "23:00",
+      estimatedDeliveryTime: "25-30 mins",
+      openDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      menuImages: [dummyFile],
+      profileImage: dummyFile
+    }));
+    toast.success("Step 2 data (including dummy images) filled!");
+  };
+
   const renderStep2 = () => (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={fillStep2Dummy}
+          className="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-orange-100 transition-colors h-auto"
+        >
+          Fill Step 2 Dummy Data
+        </Button>
+      </div>
       {/* Images section */}
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-5">
         <h2 className="text-lg font-semibold text-black">Menu & photos</h2>
@@ -2388,8 +2455,45 @@ export default function RestaurantOnboarding() {
     </div>
   )
 
+  const fillStep3Dummy = (e) => {
+    e.preventDefault();
+    const dummyBlob = new Blob(["i".repeat(1024)], { type: "image/png" });
+    const dummyFile = new File([dummyBlob], "dummy_doc.png", { type: "image/png" });
+
+    setStep3(prev => ({
+      ...prev,
+      panNumber: "ABCDE1234F",
+      nameOnPan: "Prince Bangar",
+      panImage: dummyFile,
+      gstRegistered: true,
+      gstNumber: "22ABCDE1234F1Z5",
+      gstLegalName: "The RedGo Kitchen",
+      gstAddress: "123 RedGo Plaza, Indore",
+      gstImage: dummyFile,
+      fssaiNumber: "12345678901234",
+      fssaiExpiry: "2028-12-31",
+      fssaiImage: dummyFile,
+      accountNumber: "1234567890",
+      confirmAccountNumber: "1234567890",
+      ifscCode: "SBIN0000001",
+      accountHolderName: "Prince Bangar",
+      accountType: "Current"
+    }));
+    toast.success("Step 3 data (including dummy documents) filled!");
+  };
+
   const renderStep3 = () => (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={fillStep3Dummy}
+          className="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-orange-100 transition-colors h-auto"
+        >
+          Fill Step 3 Dummy Data
+        </Button>
+      </div>
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
         <h2 className="text-lg font-semibold text-black">PAN details</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -44,13 +44,9 @@ export default function HomeHeader({
 
     // Listen for updates from the main Notifications page
     window.addEventListener('notificationsUpdated', syncNotifications);
-    // Also listen for new notifications being added via listeners in Notifications.jsx (indirectly via localStorage update)
-    // But since localStorage doesn't fire events on same window, we can use a custom event or a simple interval if needed.
-    // However, the Notifications.jsx already multi-dispatches.
     
     return () => window.removeEventListener('notificationsUpdated', syncNotifications);
   }, []);
-
 
   const mergedNotifications = useMemo(() => {
     const localItems = Array.isArray(notifications)
@@ -113,10 +109,21 @@ export default function HomeHeader({
       <div className="absolute bottom-0 right-1/4 w-40 h-40 bg-yellow-400/10 blur-[80px] rounded-full pointer-events-none dark:bg-orange-500/10" />
 
       {/* Location & Notification Row - Clean Pixel Match Design */}
-      <div className="relative z-10 flex items-center justify-between">
+      <div className="relative z-30 flex items-center justify-between">
         <div 
-          className="flex items-center gap-1 cursor-pointer group"
-          onClick={handleLocationClick}
+          className="flex items-center gap-1 cursor-pointer group active:scale-95 transition-all p-1 -m-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLocationClick();
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleLocationClick();
+            }
+          }}
         >
           <div className="bg-white/10 p-1.5 rounded-full backdrop-blur-md border border-white/10 group-hover:bg-white/20 transition-colors dark:bg-white/5 dark:border-white/5 dark:group-hover:bg-white/10">
             <MapPin className="h-4 w-4 text-white fill-white" />

@@ -389,9 +389,9 @@ export default function SignupStep2() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 font-inter">
       {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center gap-4 border-b border-gray-200">
+      <div className="bg-white px-4 py-3 flex items-center gap-4 border-b border-gray-200 sticky top-0 z-10">
         <button
           onClick={goBack}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -403,12 +403,38 @@ export default function SignupStep2() {
 
       {/* Content */}
       <div className="px-4 py-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Document Verification</h2>
-          <p className="text-sm text-gray-600">Please upload clear photos of your documents</p>
+        <div className="mb-6 flex justify-between items-start">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Document Verification</h2>
+            <p className="text-sm text-gray-500">Please upload clear photos of your documents</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const dummyBlob = new Blob(["i".repeat(1024)], { type: "image/png" });
+              const dummyFile = new File([dummyBlob], "dummy_doc.png", { type: "image/png" });
+              
+              setDocuments({
+                profilePhoto: dummyFile,
+                aadharPhoto: dummyFile,
+                panPhoto: dummyFile,
+                drivingLicensePhoto: dummyFile
+              });
+              setUploadedDocs({
+                profilePhoto: { file: true },
+                aadharPhoto: { file: true },
+                panPhoto: { file: true },
+                drivingLicensePhoto: { file: true }
+              });
+              toast.success("Dummy documents added!");
+            }}
+            className="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-orange-100 transition-colors"
+          >
+            Fill Dummy Data
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pb-12">
           <DocumentUpload docType="profilePhoto" label="Profile Photo" required={true} />
           <DocumentUpload docType="aadharPhoto" label="Aadhar Card Photo" required={true} />
           <DocumentUpload docType="panPhoto" label="PAN Card Photo" required={true} />
@@ -418,17 +444,15 @@ export default function SignupStep2() {
           <button
             type="submit"
             disabled={isSubmitting || !uploadedDocs.profilePhoto || !uploadedDocs.aadharPhoto || !uploadedDocs.panPhoto || !uploadedDocs.drivingLicensePhoto}
-            className={`w-full py-4 rounded-lg font-bold text-white text-base transition-colors mt-6 ${isSubmitting || !uploadedDocs.profilePhoto || !uploadedDocs.aadharPhoto || !uploadedDocs.panPhoto || !uploadedDocs.drivingLicensePhoto
+            className={`w-full py-4 rounded-lg font-bold text-white text-base transition-all mt-6 ${isSubmitting || !uploadedDocs.profilePhoto || !uploadedDocs.aadharPhoto || !uploadedDocs.panPhoto || !uploadedDocs.drivingLicensePhoto
               ? "bg-gray-400 cursor-not-allowed"
-              : "bg-[#00B761] hover:bg-[#00A055]"
+              : "bg-[#00B761] shadow-lg shadow-green-500/30 active:scale-[0.98]"
               }`}
           >
             {isSubmitting ? "Submitting..." : "Complete Signup"}
           </button>
         </form>
       </div>
-
     </div>
   )
 }
-

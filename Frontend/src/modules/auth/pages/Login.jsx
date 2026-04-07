@@ -5,6 +5,7 @@ import { Phone, Lock, ArrowRight, ShieldCheck, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { authAPI } from "@food/api"
 import { setAuthData } from "@food/utils/auth"
+import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
 
 export default function UnifiedOTPFastLogin() {
   const RESEND_COOLDOWN_SECONDS = 60
@@ -174,33 +175,33 @@ export default function UnifiedOTPFastLogin() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0a0a0a] flex flex-col pt-0 sm:pt-0">
-      {/* Top Banner section - Zomato Red */}
-      <div className="w-full bg-[#CB202D] dark:bg-[#b01c27] rounded-b-[2.5rem] p-6 text-center text-white relative overflow-hidden shadow-2xl">
-        <div className="absolute inset-0 bg-white/5 opacity-50 blur-3xl rounded-full -top-1/2 -left-1/4 animate-pulse" />
-        <div className="absolute right-0 bottom-0 w-32 h-32 md:w-48 md:h-48 opacity-10 pointer-events-none">
-          <svg viewBox="0 0 200 200" fill="currentColor">
-            <path d="M100 0C44.8 0 0 44.8 0 100s44.8 100 100 100 100-44.8 100-100S155.2 0 100 0zm0 180c-44.1 0-80-35.9-80-80s35.9-80 80-80 80 35.9 80 80-35.9 80-80 80z" />
-          </svg>
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center">
+      {/* Top Banner section - Matching RedGo aesthetic */}
+      <div className="relative w-full bg-[#ef4f5f] dark:bg-[#b01c27] pt-12 pb-14 px-6 rounded-b-[40px] shadow-lg overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-32 h-32 bg-yellow-400/10 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mb-3 shadow-xl"
+            className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center p-2 shadow-2xl"
           >
-            <span className="text-[#CB202D] text-3xl font-black">R</span>
+            <img src={quickSpicyLogo} alt="RedGo Logo" className="w-full h-full object-contain" />
           </motion.div>
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-2xl md:text-5xl font-black tracking-tight mb-1"
-          >
-            RedGo
-          </motion.h1>
-          <p className="text-xs md:text-base font-bold text-white/90 tracking-[0.2em] uppercase">
-            Taste the best, forget the rest
-          </p>
+          
+          <div className="text-center space-y-1">
+            <motion.h1
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-3xl font-black text-white tracking-tight drop-shadow-md"
+            >
+              RedGo
+            </motion.h1>
+            <p className="text-[10px] sm:text-xs font-bold text-white/90 uppercase tracking-[0.2em]">
+              Taste the best, forget the rest
+            </p>
+          </div>
         </div>
       </div>
 
@@ -209,7 +210,7 @@ export default function UnifiedOTPFastLogin() {
         <div className="bg-white dark:bg-[#1a1a1a] rounded-[2rem] p-6 sm:p-8 md:p-12 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-none border border-gray-50 dark:border-gray-800">
           <div className="text-center mb-6 space-y-2">
             <h2 className="text-2xl font-black text-gray-900 dark:text-white">Login or Signup</h2>
-            <div className="h-1 w-12 bg-[#CB202D] mx-auto rounded-full" />
+            <div className="h-1 w-12 bg-[#ef4f5f] mx-auto rounded-full" />
           </div>
 
           <form onSubmit={step === 1 ? handleSendOTP : handleVerifyOTP} className="space-y-5">
@@ -218,7 +219,7 @@ export default function UnifiedOTPFastLogin() {
                 <div className="space-y-4">
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-1 flex items-center pointer-events-none">
-                      <Phone className="w-5 h-5 text-gray-400 group-focus-within:text-[#CB202D] transition-colors" />
+                      <Phone className="w-5 h-5 text-gray-400 group-focus-within:text-[#ef4f5f] transition-colors" />
                     </div>
                     <div className="absolute left-8 inset-y-0 flex items-center pointer-events-none">
                       <span className="text-sm font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-800 pr-3">+91</span>
@@ -230,7 +231,7 @@ export default function UnifiedOTPFastLogin() {
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       maxLength={10}
-                      className="block w-full pl-20 pr-4 py-3 bg-transparent text-gray-900 dark:text-white border-b-2 border-gray-100 dark:border-gray-800 focus:border-[#CB202D] outline-none transition-all placeholder:text-gray-300 font-bold text-lg"
+                      className="block w-full pl-20 pr-4 py-3 bg-transparent text-gray-900 dark:text-white border-b-2 border-gray-100 dark:border-gray-800 focus:border-[#ef4f5f] outline-none transition-all placeholder:text-gray-300 font-bold text-lg"
                       placeholder="Phone number"
                     />
                   </div>
@@ -243,14 +244,14 @@ export default function UnifiedOTPFastLogin() {
               <div className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                    <div className="w-10 h-10 bg-[#CB202D]/10 rounded-full flex items-center justify-center">
-                      <ShieldCheck className="w-5 h-5 text-[#CB202D]" />
+                    <div className="w-10 h-10 bg-[#ef4f5f]/10 rounded-full flex items-center justify-center">
+                      <ShieldCheck className="w-5 h-5 text-[#ef4f5f]" />
                     </div>
                     <div className="flex-1">
                       <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-none mb-1">Sent to</p>
                       <p className="text-sm font-black text-gray-900 dark:text-white">+91 {phoneNumber}</p>
                     </div>
-                    <button type="button" onClick={handleEditNumber} className="text-xs text-[#CB202D] font-black underline cursor-pointer">Edit</button>
+                    <button type="button" onClick={handleEditNumber} className="text-xs text-[#ef4f5f] font-black underline cursor-pointer">Edit</button>
                   </div>
 
                   <div className="flex justify-center gap-3 mt-4">
@@ -295,7 +296,7 @@ export default function UnifiedOTPFastLogin() {
                             document.getElementById(`otp-${Math.min(pasteData.length, 3)}`)?.focus();
                           }
                         }}
-                        className="w-14 h-14 sm:w-16 sm:h-16 text-center text-xl sm:text-3xl font-black bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 focus:border-[#CB202D] rounded-xl sm:rounded-2xl outline-none transition-all text-gray-900 dark:text-white"
+                        className="w-14 h-14 sm:w-16 sm:h-16 text-center text-xl sm:text-3xl font-black bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 focus:border-[#ef4f5f] rounded-xl sm:rounded-2xl outline-none transition-all text-gray-900 dark:text-white"
                         placeholder="-"
                       />
                     ))}
@@ -310,7 +311,7 @@ export default function UnifiedOTPFastLogin() {
                         type="button"
                         onClick={handleResendOTP}
                         disabled={loading}
-                        className="text-xs font-black text-[#CB202D] underline disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="text-xs font-black text-[#ef4f5f] underline disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         Resend OTP
                       </button>
@@ -325,7 +326,7 @@ export default function UnifiedOTPFastLogin() {
               disabled={loading}
               className={`w-full py-4 rounded-2xl font-black text-lg transition-all relative overflow-hidden shadow-xl ${loading
                   ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-50"
-                  : "bg-[#CB202D] hover:bg-[#b01c27] text-white hover:shadow-2xl hover:shadow-[#CB202D]/30 active:scale-[0.98] hover:-translate-y-0.5"
+                  : "bg-[#ef4f5f] hover:bg-[#d43d4c] text-white hover:shadow-2xl hover:shadow-[#ef4f5f]/30 active:scale-[0.98] hover:-translate-y-0.5"
                 }`}
             >
               {loading ? (
@@ -340,7 +341,7 @@ export default function UnifiedOTPFastLogin() {
         <div className="mt-6 text-center space-y-2">
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
             By continuing, you agree to our <br />
-            <Link to="/profile/terms" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Terms of Service</Link> & <Link to="/profile/privacy" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#CB202D] transition-colors">Privacy Policy</Link>
+            <Link to="/profile/terms" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#ef4f5f] transition-colors">Terms of Service</Link> & <Link to="/profile/privacy" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#ef4f5f] transition-colors">Privacy Policy</Link>
           </p>
         </div>
       </div>

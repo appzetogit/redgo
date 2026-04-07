@@ -94,7 +94,11 @@ export default function UserRouter() {
   return (
     <Suspense fallback={<Loader />}>
       <Routes>
-        <Route element={<UserLayout />}>
+        <Route element={
+          <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+            <UserLayout />
+          </ProtectedRoute>
+        }>
           {/* Home & Discovery */}
           <Route path="" element={<Home />} />
           <Route path="dining" element={<Dining />} />
@@ -329,6 +333,9 @@ export default function UserRouter() {
               </ProtectedRoute>
             }
           />
+
+          {/* Fallback for unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </Suspense>

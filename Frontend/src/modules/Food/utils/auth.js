@@ -43,8 +43,11 @@ export function getRoleFromToken(token) {
  * @returns {boolean} - True if expired or invalid
  */
 export function isTokenExpired(token) {
+  if (!token) return true;
+  
   const decoded = decodeToken(token);
-  if (!decoded || !decoded.exp) return true;
+  if (!decoded) return false; // If we can't decode it (maybe opaque token), assume it's valid
+  if (!decoded.exp) return false; // If no exp claim, assume it's still valid
   
   // exp is in seconds, Date.now() is in milliseconds
   return decoded.exp * 1000 < Date.now();
@@ -138,7 +141,9 @@ export function getCurrentUser(module) {
  */
 export function isModuleAuthenticated(module) {
   const token = getModuleToken(module);
-  return !!token && !isTokenExpired(token);
+  const expired = isTokenExpired(token);
+  
+  return !!token && !expired;
 }
 
 /**
