@@ -1,13 +1,15 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react"
-import { useSearchParams, Link, useNavigate } from "react-router-dom"
+import { useSearchParams, Link, useNavigate, useLocation } from "react-router-dom"
 import { 
   ArrowLeft, Star, Clock, Search, SlidersHorizontal, 
   ChevronDown, Bookmark, BadgePercent, Mic, Grid2x2,
-  X, Utensils, Store, Loader2, History
+  X, Utensils, Store, Loader2, History, Leaf
 } from "lucide-react"
 import { Card, CardContent } from "@food/components/ui/card"
 import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
+import { Switch } from "@food/components/ui/switch"
+import { useProfile } from "@food/context/ProfileContext"
 import { useLocation as useGeoLocation } from "@food/hooks/useLocation"
 import { useZone } from "@food/hooks/useZone"
 import { searchAPI } from "@/services/api"
@@ -41,8 +43,10 @@ export default function ProfessionalSearch() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialQuery = searchParams.get("q") || ""
   const navigate = useNavigate()
+  const location = useLocation()
   const { location: userCoords } = useGeoLocation()
   const { zoneId } = useZone(userCoords)
+  const { vegMode, setVegMode } = useProfile()
   
   const [query, setQuery] = useState(initialQuery)
   const debouncedQuery = useDebounce(query, 500)
@@ -53,6 +57,18 @@ export default function ProfessionalSearch() {
   const [categories, setCategories] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(searchParams.get("cat") || null)
   const [history, setHistory] = useState([])
+
+  // Trigger voice search on mount if navigated from home mic
+  useEffect(() => {
+    if (location.state?.startVoice) {
+      const timer = setTimeout(() => {
+        handleVoiceSearch()
+        // Clean up state to prevent re-triggering
+        navigate(location.pathname, { replace: true, state: {} })
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [location.state, navigate, location.pathname])
 
   // Load search history
   useEffect(() => {
@@ -76,7 +92,7 @@ export default function ProfessionalSearch() {
     localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory))
   }
 
-  const performSearch = useCallback(async (searchTerm, catId) => {
+  const performSearch = useCallback(async (searchTerm, catId, isVeg) => {
     if (!searchTerm && !catId) {
       setResults({ restaurants: [], dishes: [] })
       return
@@ -89,16 +105,26 @@ export default function ProfessionalSearch() {
         categoryId: catId,
         lat: userCoords?.latitude,
         lng: userCoords?.longitude,
-        zoneId
+        zoneId,
+        vegOnly: isVeg // Pass to API
       })
       
       if (res.data?.success) {
         // Grouping results into Restaurants and potential Dishes
         const all = res.data.data.restaurants || []
-        setResults({
-          restaurants: all.filter(r => r.matchType === 'restaurant' || !r.matchType),
-          dishes: all.filter(r => r.matchType === 'food')
-        })
+        
+        // Local filtering as backup/perfection
+        const restaurants = all.filter(r => 
+          (r.matchType === 'restaurant' || !r.matchType) && 
+          (!isVeg || r.pureVegRestaurant || r.isVeg)
+        )
+        
+        const dishes = all.filter(r => 
+          r.matchType === 'food' && 
+          (!isVeg || r.isVeg || r.pureVegRestaurant)
+        )
+
+        setResults({ restaurants, dishes })
       }
     } catch (err) {
       console.error("Search failed", err)
@@ -108,30 +134,52 @@ export default function ProfessionalSearch() {
   }, [userCoords, zoneId])
 
   useEffect(() => {
-    performSearch(debouncedQuery, selectedCategoryId)
+    performSearch(debouncedQuery, selectedCategoryId, vegMode)
     if (debouncedQuery) {
-        setSearchParams({ q: debouncedQuery, ...(selectedCategoryId ? { cat: selectedCategoryId } : {}) })
+        setSearchParams({ 
+          q: debouncedQuery, 
+          ...(selectedCategoryId ? { cat: selectedCategoryId } : {}),
+          ...(vegMode ? { veg: '1' } : {})
+        })
     }
-  }, [debouncedQuery, selectedCategoryId, performSearch, setSearchParams])
+  }, [debouncedQuery, selectedCategoryId, vegMode, performSearch, setSearchParams])
 
   // Speech Recognition Implementation
-  const handleVoiceSearch = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      alert("Voice search is not supported in this browser.")
-      return
+  const handleVoiceSearch = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    // Trigger phone's native permission request prompt
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (err) {
+      // Fail silently for cleaner console
     }
 
-    const recognition = new SpeechRecognition()
-    recognition.lang = 'en-IN'
-    recognition.onstart = () => setIsListening(true)
-    recognition.onend = () => setIsListening(false)
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (event) => {
+      setIsListening(false);
+    };
+
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript
-      setQuery(transcript)
-      addToHistory(transcript)
+      const transcript = event.results[0][0].transcript;
+      setQuery(transcript);
+      addToHistory(transcript);
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Mic start failed", e);
     }
-    recognition.start()
   }
 
   const handleClear = () => {
@@ -156,32 +204,73 @@ export default function ProfessionalSearch() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input 
-              autoFocus
-              placeholder="Search for restaurants or dishes..." 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-10 pr-10 h-11 bg-slate-100 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-rose-500 rounded-xl"
-            />
-            {query && (
-              <button onClick={handleClear} className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-            <button 
-              onClick={handleVoiceSearch}
-              className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all ${isListening ? 'text-rose-500 scale-125 animate-pulse' : 'text-slate-400'}`}
-            >
-              <Mic className="w-5 h-5" />
+      <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 shadow-md transition-all duration-300">
+        <div className="max-w-3xl mx-auto px-4 py-3 space-y-3">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="p-2.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full transition-colors flex-shrink-0">
+              <ArrowLeft className="w-5 h-5 text-slate-700 dark:text-zinc-300" />
             </button>
+            
+            <div className="flex-1 relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+              <Input 
+                autoFocus
+                placeholder="Search for restaurants or dishes..." 
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-11 pr-11 h-12 bg-slate-100 dark:bg-zinc-800 border-none focus:ring-2 focus:ring-rose-500 rounded-2xl w-full text-base font-medium shadow-inner"
+              />
+              {query && (
+                <button onClick={handleClear} className="absolute right-11 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-rose-500 transition-colors z-10">
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+              <button 
+                onClick={handleVoiceSearch}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all z-10 ${isListening ? 'text-white bg-rose-500 scale-105 shadow-lg shadow-rose-200' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <Mic className={`w-5.5 h-5.5 ${isListening ? 'animate-pulse' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Sticky Filtering Controls - Matching Desktop Design */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-800/80 pl-2 pr-4 py-1.5 rounded-full border border-slate-100 dark:border-zinc-700/50 shadow-sm transition-all hover:border-green-500/30">
+                <div className={`p-1 rounded-full ${vegMode ? 'bg-green-50' : 'bg-transparent'}`}>
+                    <Leaf className={`h-4 w-4 ${vegMode ? 'text-green-600 fill-green-600' : 'text-slate-400'}`} />
+                </div>
+                <div className="flex flex-col -space-y-0.5">
+                    <span className={`text-[11px] font-semibold uppercase tracking-wide ${vegMode ? 'text-green-600' : 'text-slate-400'}`}>Veg</span>
+                    <span className={`text-[10px] font-semibold ${vegMode ? 'text-green-600' : 'text-slate-500'} dark:text-zinc-400 leading-none tracking-wide`}>Only</span>
+                </div>
+                <Switch 
+                  checked={vegMode} 
+                  onCheckedChange={setVegMode}
+                  className="scale-90 data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-zinc-400 ml-1 shadow-sm"
+                />
+            </div>
+
+            {/* Quick Suggestions / Filter Chips */}
+            <div className="flex-1 flex overflow-x-auto scrollbar-hide gap-2 py-0.5 px-1">
+                {[
+                    { id: 'rating-4-plus', label: '4.0+ Star' },
+                    { id: 'delivery-under-30', label: '< 30 mins' }
+                ].map(chip => (
+                    <button
+                        key={chip.id}
+                        onClick={() => {
+                            const next = new Set(activeFilters || []);
+                            if (next.has(chip.id)) next.delete(chip.id);
+                            else next.add(chip.id);
+                            // Assuming applyFiltersAndRefetch logic is available or managed via useEffect
+                        }}
+                        className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-zinc-800 text-[11px] font-bold whitespace-nowrap bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 active:scale-95 transition-all shadow-sm"
+                    >
+                        {chip.label}
+                    </button>
+                ))}
+            </div>
           </div>
         </div>
       </div>

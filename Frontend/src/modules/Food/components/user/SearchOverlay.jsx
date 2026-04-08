@@ -1,25 +1,33 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { X, Search, Clock, Loader2 } from "lucide-react"
+import { X, Search, Clock, Loader2, Mic } from "lucide-react"
 import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
 import { restaurantAPI } from "@food/api"
 
 const SEARCH_HISTORY_KEY = "user_recent_searches_v1"
 
-export default function SearchOverlay({ isOpen, onClose, searchValue, onSearchChange }) {
+export default function SearchOverlay({ isOpen, onClose, searchValue, onSearchChange, autoStartVoice }) {
   const navigate = useNavigate()
   const inputRef = useRef(null)
   const [allFoods, setAllFoods] = useState([])
   const [filteredFoods, setFilteredFoods] = useState([])
   const [recentSuggestions, setRecentSuggestions] = useState([])
   const [loadingFoods, setLoadingFoods] = useState(false)
+  const [isListening, setIsListening] = useState(false)
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus()
+    if (isOpen) {
+      if (inputRef.current) inputRef.current.focus()
+      if (autoStartVoice) {
+        // Delay slightly to ensure focus or other browser transitions are done
+        const timer = setTimeout(() => {
+          handleVoiceSearch()
+        }, 300)
+        return () => clearTimeout(timer)
+      }
     }
-  }, [isOpen])
+  }, [isOpen, autoStartVoice])
 
   useEffect(() => {
     if (!isOpen) return
@@ -145,6 +153,44 @@ export default function SearchOverlay({ isOpen, onClose, searchValue, onSearchCh
     onSearchChange("")
   }
 
+  const handleVoiceSearch = async () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    // Explicitly check/request permission to trigger native browser/phone prompt
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (err) {
+      // Fail silently for cleaner console
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onerror = (event) => {
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      onSearchChange(transcript);
+      saveRecentSearch(transcript);
+      navigate(`/user/search?q=${encodeURIComponent(transcript.trim())}`);
+      onClose();
+      onSearchChange("");
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Recognition start failed:", e);
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -165,8 +211,17 @@ export default function SearchOverlay({ isOpen, onClose, searchValue, onSearchCh
                 value={searchValue}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search for food, restaurants..."
-                className="pl-12 pr-4 h-12 w-full bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-gray-800 focus:border-primary-orange dark:focus:border-primary-orange rounded-full text-lg dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                className="pl-12 pr-12 h-12 w-full bg-white dark:bg-[#1a1a1a] border-gray-100 dark:border-gray-800 focus:border-primary-orange dark:focus:border-primary-orange rounded-full text-lg dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
               />
+              <button
+                type="button"
+                onClick={handleVoiceSearch}
+                className={`absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full transition-all z-10 ${
+                  isListening ? 'text-primary-orange scale-110 animate-pulse bg-orange-50 dark:bg-orange-900/20' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Mic className={`h-5 w-5 ${isListening ? 'fill-current' : ''}`} />
+              </button>
             </div>
             <Button
               type="button"

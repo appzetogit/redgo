@@ -1,18 +1,21 @@
 import React, { useEffect, useState, useRef } from "react"
 import { motion } from "framer-motion"
 import { Routes, Route, Navigate, Link, useNavigate } from "react-router-dom"
-import { Phone, Lock, ArrowRight, ShieldCheck, Loader2 } from "lucide-react"
+import { Phone, Lock, ArrowRight, ShieldCheck, Loader2, User, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
-import { authAPI } from "@food/api"
+import { authAPI, userAPI } from "@food/api"
 import { setAuthData } from "@food/utils/auth"
 import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
+import AnimatedPage from "@food/components/user/AnimatedPage"
 
 export default function UnifiedOTPFastLogin() {
   const RESEND_COOLDOWN_SECONDS = 60
   const [phoneNumber, setPhoneNumber] = useState("")
+  const [fullName, setFullName] = useState("")
   const [otp, setOtp] = useState("")
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [userData, setUserData] = useState(null)
   const [otpSent, setOtpSent] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
   const navigate = useNavigate()
@@ -91,7 +94,6 @@ export default function UnifiedOTPFastLogin() {
     submitting.current = true
     setLoading(true)
     try {
-      // Try to get FCM token before verifying OTP
       let fcmToken = null;
       let platform = "web";
       try {
@@ -126,9 +128,17 @@ export default function UnifiedOTPFastLogin() {
         throw new Error("Invalid response from server")
       }
 
-      setAuthData("user", accessToken, user, refreshToken)
-      toast.success("Login successful!")
-      navigate("/", { replace: true })
+      // Check if user has a name (to decide if we show Step 3)
+      if (!user.name || user.name.trim() === "" || user.isNewUser) {
+        setAuthData("user", accessToken, user, refreshToken) // Save auth first
+        setUserData({ accessToken, user, refreshToken })
+        setStep(3)
+        toast.info("Welcome! Please complete your profile.")
+      } else {
+        setAuthData("user", accessToken, user, refreshToken)
+        toast.success("Login successful!")
+        navigate("/", { replace: true })
+      }
     } catch (err) {
       const status = err?.response?.status
       let msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Invalid OTP. Please try again."
@@ -140,6 +150,32 @@ export default function UnifiedOTPFastLogin() {
         }
       }
       toast.error(msg)
+    } finally {
+      setLoading(false)
+      submitting.current = false
+    }
+  }
+
+  const handleCompleteProfile = async (e) => {
+    e.preventDefault()
+    if (!fullName.trim()) {
+      toast.error("Please enter your full name")
+      return
+    }
+    if (submitting.current) return
+    submitting.current = true
+    setLoading(true)
+    try {
+      await userAPI.updateProfile({ name: fullName.trim() })
+
+      // Update local storage user data with the new name
+      const updatedUser = { ...userData.user, name: fullName.trim() }
+      setAuthData("user", userData.accessToken, updatedUser, userData.refreshToken)
+
+      toast.success("Profile completed!")
+      navigate("/", { replace: true })
+    } catch (err) {
+      toast.error("Failed to update name. Please try again.")
     } finally {
       setLoading(false)
       submitting.current = false
@@ -160,70 +196,117 @@ export default function UnifiedOTPFastLogin() {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
   }
 
-  // Service images (served from public folder)
-  const foodIcon = "/super-app/food.png"
-  const taxiIcon = "/super-app/taxi.png"
-  const groceryIcon = "/super-app/grocery.png"
-  const hotelIcon = "/super-app/hotel.png"
-
-  const services = [
-    { id: 'food', name: 'Food Delivery', icon: foodIcon, label: 'Zomato', color: 'bg-red-500', shadow: 'shadow-red-200' },
-    { id: 'taxi', name: 'Taxi', icon: taxiIcon, label: 'Taxi', color: 'bg-yellow-400', shadow: 'shadow-yellow-200' },
-    { id: 'grocery', name: 'Quick Commerce', icon: groceryIcon, label: 'Blinkit', color: 'bg-green-500', shadow: 'shadow-green-200' },
-    { id: 'hotels', name: 'Hotels', icon: hotelIcon, label: 'Hotels', color: 'bg-blue-500', shadow: 'shadow-blue-200' },
-  ]
+  // Visual Assets
+  const bowl1 = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&q=80"
+  const bowl2 = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80"
+  const bowl3 = "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&q=80"
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0a0a0a] flex flex-col pt-0 sm:pt-0">
-      {/* Top Banner section - Matching RedGo aesthetic */}
-      <div className="relative w-full bg-[#ef4f5f] dark:bg-[#b01c27] pt-12 pb-14 px-6 rounded-b-[40px] shadow-lg overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-32 h-32 bg-yellow-400/10 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center p-2 shadow-2xl"
-          >
-            <img src={quickSpicyLogo} alt="RedGo Logo" className="w-full h-full object-contain" />
-          </motion.div>
-          
-          <div className="text-center space-y-1">
-            <motion.h1
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-3xl font-black text-white tracking-tight drop-shadow-md"
-            >
-              RedGo
-            </motion.h1>
-            <p className="text-[10px] sm:text-xs font-bold text-white/90 uppercase tracking-[0.2em]">
-              Taste the best, forget the rest
-            </p>
+    <AnimatedPage className="min-h-screen bg-[#FFF9F0] flex relative font-sans overflow-hidden">
+
+      {/* Background Lightning Bolts (Only for Steps 1 & 2) */}
+      {step !== 3 && (
+        <>
+          <svg className="absolute top-12 right-[20%] w-6 h-8 text-black opacity-80 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+          <svg className="absolute bottom-[20%] right-[10%] w-6 h-8 text-[#EF4F5F] opacity-80 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+          <svg className="absolute top-[40%] right-[5%] w-4 h-6 text-black opacity-50 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+          <svg className="absolute bottom-[5%] left-[60%] w-5 h-7 text-black opacity-80 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+          <svg className="absolute top-[25%] left-[55%] w-6 h-8 text-black opacity-80 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+
+        </>
+      )}
+
+      {/* Left Panel - Diagonal Graphic (Hidden on Step 3) */}
+      <div
+        className={`hidden lg:block absolute top-0 left-0 bottom-0 w-[55%] bg-[#EF4F5F] z-10 transition-transform duration-700 ${step === 3 ? '-translate-x-full' : 'translate-x-0'}`}
+        style={{ clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0 100%)' }}
+      >
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <path stroke="#000" strokeWidth="2" fill="none" d="M300,100 C400,200 200,400 400,600 C500,700 600,500 700,800" />
+            <path stroke="#000" strokeWidth="2" fill="none" d="M150,50 C50,250 250,550 50,750" />
+            <path stroke="#000" strokeWidth="2" fill="none" d="M800,200 C700,300 900,500 700,700" />
+            <circle cx="200" cy="150" r="40" stroke="#000" strokeWidth="2" fill="none" />
+            <circle cx="600" cy="850" r="60" stroke="#000" strokeWidth="2" fill="none" />
+          </svg>
+        </div>
+        <div className="absolute top-0 left-0 bottom-0 w-[28%] bg-[#1A1A1A] z-20 shadow-2xl" />
+        <div className="absolute top-1/2 left-[14%] -translate-y-[45%] flex flex-col gap-6 z-30">
+          <div className="relative transform -translate-x-6 z-30 hover:scale-105 transition-transform duration-500">
+            <div className="w-[280px] h-[280px] rounded-full overflow-hidden border-[6px] border-[#1A1A1A] shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+              <img src={bowl1} alt="Bowl 1" className="w-full h-full object-cover" />
+            </div>
+          </div>
+          <div className="relative transform translate-x-12 z-20 hover:scale-105 transition-transform duration-500">
+            <div className="w-[220px] h-[220px] rounded-full overflow-hidden border-[6px] border-[#1A1A1A] shadow-[0_15px_35px_rgba(0,0,0,0.3)]">
+              <img src={bowl2} alt="Bowl 2" className="w-full h-full object-cover" />
+            </div>
+          </div>
+          <div className="relative transform -translate-x-2 z-10 hover:scale-105 transition-transform duration-500">
+            <div className="w-[240px] h-[240px] rounded-full overflow-hidden border-[6px] border-[#1A1A1A] shadow-[0_15px_35px_rgba(0,0,0,0.3)]">
+              <img src={bowl3} alt="Bowl 3" className="w-full h-full object-cover" />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 max-w-[480px] mx-auto w-full px-6 py-4 flex flex-col justify-center -mt-8 relative z-20">
-        {/* Main Card */}
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-[2rem] p-6 sm:p-8 md:p-12 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-none border border-gray-50 dark:border-gray-800">
-          <div className="text-center mb-6 space-y-2">
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white">Login or Signup</h2>
-            <div className="h-1 w-12 bg-[#ef4f5f] mx-auto rounded-full" />
-          </div>
+      {/* Main Container */}
+      <div className={`w-full min-h-screen flex flex-col transition-all duration-700 ${step === 3 ? 'bg-white' : 'lg:w-[45%] lg:ml-auto'}`}>
 
-          <form onSubmit={step === 1 ? handleSendOTP : handleVerifyOTP} className="space-y-5">
-            {step === 1 ? (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-1 flex items-center pointer-events-none">
-                      <Phone className="w-5 h-5 text-gray-400 group-focus-within:text-[#ef4f5f] transition-colors" />
-                    </div>
-                    <div className="absolute left-8 inset-y-0 flex items-center pointer-events-none">
-                      <span className="text-sm font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-800 pr-3">+91</span>
-                    </div>
+        {/* Step 3 Header (Matching screenshots exactly) */}
+        {step === 3 && (
+          <header className="w-full bg-white border-b border-gray-100 flex items-center h-20 px-4 shrink-0 relative z-50">
+            <button
+              onClick={() => setStep(2)}
+              className="absolute left-6 p-3 hover:bg-gray-50 rounded-full transition-colors active:scale-90"
+            >
+              <ArrowLeft className="w-6 h-6 text-gray-900" />
+            </button>
+            <div className="flex-1 flex justify-center">
+              <h1 className="text-xl md:text-2xl font-black text-[#1A1A1A] tracking-tight text-center">Complete Your Profile</h1>
+            </div>
+          </header>
+        )}
+
+        <div className={`flex-1 flex flex-col items-center px-6 md:px-12 py-12 relative z-20 ${step === 3 ? 'bg-white justify-start pt-8 md:pt-16' : 'justify-center'}`}>
+
+          <div className="w-full max-w-[420px] flex flex-col pt-0 items-center">
+
+            {/* Step 1 & 2 Logo Section */}
+            {step !== 3 && (
+              <div className="text-center flex flex-col items-center -mt-24 mb-12">
+                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="z-10">
+                  <img src={quickSpicyLogo} alt="RedGo Main Logo" className="w-[240px] md:w-[260px] object-contain drop-shadow-sm" />
+                </motion.div>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-[11px] font-[800] text-gray-500 uppercase tracking-[0.2em] whitespace-nowrap -mt-8 z-20 relative"
+                >
+                  Taste The Best, Forget The Rest
+                </motion.p>
+              </div>
+            )}
+
+            {step === 3 && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-12 text-center w-full">
+                <h2 className="text-4xl md:text-5xl font-black text-[#1A1A1A] tracking-tight">Welcome!</h2>
+              </motion.div>
+            )}
+
+            <form onSubmit={step === 1 ? handleSendOTP : step === 2 ? handleVerifyOTP : handleCompleteProfile} className="space-y-4">
+              {step === 1 && (
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+                  <div className="mb-3 flex flex-col items-start px-2">
+                    <h2 className="text-[28px] font-[900] tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 pb-2 leading-normal">
+                      Login & Signup
+                    </h2>
+                  </div>
+                  <div className="relative flex items-center bg-[#EBEBEB] rounded-full h-[52px] md:h-[56px] px-6 transition-all focus-within:ring-2 focus-within:ring-[#EF4F5F] focus-within:bg-white shadow-sm hover:shadow">
+                    <span className="font-semibold text-gray-600 text-sm md:text-base border-r-2 border-gray-300 pr-3 mr-3 pt-0.5">
+                      +91
+                    </span>
                     <input
                       type="tel"
                       required
@@ -231,30 +314,24 @@ export default function UnifiedOTPFastLogin() {
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       maxLength={10}
-                      className="block w-full pl-20 pr-4 py-3 bg-transparent text-gray-900 dark:text-white border-b-2 border-gray-100 dark:border-gray-800 focus:border-[#ef4f5f] outline-none transition-all placeholder:text-gray-300 font-bold text-lg"
                       placeholder="Phone number"
+                      className="flex-1 bg-transparent border-none outline-none text-gray-800 text-sm md:text-base font-medium placeholder:text-gray-400 h-full w-full"
                     />
                   </div>
-                </div>
-                <p className="text-[11px] text-gray-400 text-center leading-relaxed">
-                  We will send success notifications and order updates via SMS
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                    <div className="w-10 h-10 bg-[#ef4f5f]/10 rounded-full flex items-center justify-center">
-                      <ShieldCheck className="w-5 h-5 text-[#ef4f5f]" />
-                    </div>
+                </motion.div>
+              )}
+
+              {step === 2 && (
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                  <div className="flex items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
                     <div className="flex-1">
-                      <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-none mb-1">Sent to</p>
-                      <p className="text-sm font-black text-gray-900 dark:text-white">+91 {phoneNumber}</p>
+                      <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest leading-none mb-1">Sent to</p>
+                      <p className="text-sm font-bold text-gray-900">+91 {phoneNumber}</p>
                     </div>
-                    <button type="button" onClick={handleEditNumber} className="text-xs text-[#ef4f5f] font-black underline cursor-pointer">Edit</button>
+                    <button type="button" onClick={handleEditNumber} className="text-xs text-[#EF4F5F] font-black hover:underline cursor-pointer">Edit</button>
                   </div>
 
-                  <div className="flex justify-center gap-3 mt-4">
+                  <div className="flex justify-between gap-2 mt-4 px-2">
                     {[0, 1, 2, 3].map((index) => (
                       <input
                         key={index}
@@ -271,8 +348,6 @@ export default function UnifiedOTPFastLogin() {
                           newOtp[index] = val;
                           const combined = newOtp.join("").slice(0, 4);
                           setOtp(combined);
-
-                          // Focus next
                           if (index < 3 && val) {
                             document.getElementById(`otp-${index + 1}`)?.focus();
                           }
@@ -296,14 +371,15 @@ export default function UnifiedOTPFastLogin() {
                             document.getElementById(`otp-${Math.min(pasteData.length, 3)}`)?.focus();
                           }
                         }}
-                        className="w-14 h-14 sm:w-16 sm:h-16 text-center text-xl sm:text-3xl font-black bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 focus:border-[#ef4f5f] rounded-xl sm:rounded-2xl outline-none transition-all text-gray-900 dark:text-white"
+                        className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-black bg-[#EBEBEB] border-2 border-transparent focus:border-[#EF4F5F] rounded-xl outline-none transition-all text-gray-900"
                         placeholder="-"
                       />
                     ))}
                   </div>
+
                   <div className="text-center mt-4">
                     {resendTimer > 0 ? (
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      <p className="text-xs font-semibold text-gray-500">
                         Resend OTP in {formatResendTimer(resendTimer)}
                       </p>
                     ) : (
@@ -311,40 +387,61 @@ export default function UnifiedOTPFastLogin() {
                         type="button"
                         onClick={handleResendOTP}
                         disabled={loading}
-                        className="text-xs font-black text-[#ef4f5f] underline disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="text-xs font-bold text-[#EF4F5F] hover:underline disabled:opacity-60"
                       >
                         Resend OTP
                       </button>
                     )}
                   </div>
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                    <div className="group relative flex items-center bg-white rounded-2xl h-[56px] border border-gray-200 focus-within:ring-2 focus-within:ring-[#EF4F5F] focus-within:border-transparent transition-all shadow-sm">
+                      <div className="pl-4 pr-3 border-r border-gray-100 mr-2 flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-300 group-focus-within:text-[#EF4F5F] transition-colors" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        autoFocus
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="flex-1 bg-transparent border-none outline-none text-gray-900 text-lg font-bold placeholder:text-gray-300 w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
+              )}
+
+              {/* Submit Button */}
+              <div className="pt-4 flex justify-center w-full">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`bg-[#EF4F5F] hover:bg-[#D63948] text-white font-[900] text-sm tracking-wider uppercase h-[52px] px-8 sm:px-12 w-full rounded-[20px] shadow-[0_8px_25px_rgba(239,79,95,0.4)] hover:shadow-[0_12px_30px_rgba(239,79,95,0.6)] hover:-translate-y-1 transition-all flex items-center justify-center whitespace-nowrap ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : (step === 1 ? "Get Verification Code" : step === 2 ? "Verify" : "Complete Profile")}
+                </button>
+              </div>
+            </form>
+
+            {step !== 3 && (
+              <div className="mt-8 text-center space-y-2 relative z-[100] pointer-events-auto">
+                <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
+                  By continuing, you agree to our <br />
+                  <Link to="/profile/terms" className="text-gray-900 underline cursor-pointer hover:text-[#ef4f5f] transition-colors relative z-50">Terms of Service</Link> & <Link to="/profile/privacy" className="text-gray-900 underline cursor-pointer hover:text-[#ef4f5f] transition-colors relative z-50">Privacy Policy</Link>
+                </p>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full py-4 rounded-2xl font-black text-lg transition-all relative overflow-hidden shadow-xl ${loading
-                  ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-50"
-                  : "bg-[#ef4f5f] hover:bg-[#d43d4c] text-white hover:shadow-2xl hover:shadow-[#ef4f5f]/30 active:scale-[0.98] hover:-translate-y-0.5"
-                }`}
-            >
-              {loading ? (
-                <Loader2 className="w-7 h-7 animate-spin mx-auto text-white" />
-              ) : (
-                step === 1 ? "Get Verification Code" : "Continue"
-              )}
-            </button>
-          </form>
-        </div>
-
-        <div className="mt-6 text-center space-y-2">
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
-            By continuing, you agree to our <br />
-            <Link to="/profile/terms" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#ef4f5f] transition-colors">Terms of Service</Link> & <Link to="/profile/privacy" className="text-gray-900 dark:text-white underline cursor-pointer hover:text-[#ef4f5f] transition-colors">Privacy Policy</Link>
-          </p>
+          </div>
         </div>
       </div>
-    </div>
+    </AnimatedPage>
   )
 }

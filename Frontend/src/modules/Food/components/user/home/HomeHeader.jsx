@@ -1,22 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, ChevronDown, Search, Mic, Bell, CheckCircle2, Tag, Gift, AlertCircle, Clock, BellOff, X } from 'lucide-react';
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from "@food/components/ui/popover";
-import { Badge } from "@food/components/ui/badge";
-import { Avatar, AvatarFallback } from "@food/components/ui/avatar";
-import useNotificationInbox from "@food/hooks/useNotificationInbox";
+import { MapPin, ChevronDown, Search, Mic, Wallet } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from "@food/components/ui/avatar";
+import { Switch } from "@food/components/ui/switch";
+import { useProfile } from "@food/context/ProfileContext";
 
-const ICON_MAP = {
-  CheckCircle2,
-  Tag,
-  Gift,
-  AlertCircle
-};
 
 export default function HomeHeader({ 
   location, 
@@ -26,70 +15,19 @@ export default function HomeHeader({
   placeholderIndex, 
   placeholders 
 }) {
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('food_user_notifications');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const {
-    items: broadcastNotifications,
-    unreadCount: broadcastUnreadCount,
-    dismiss: dismissBroadcastNotification,
-  } = useNotificationInbox("user", { limit: 20 });
+  const { userProfile, vegMode, setVegMode } = useProfile();
 
-  useEffect(() => {
-    const syncNotifications = () => {
-      const saved = localStorage.getItem('food_user_notifications');
-      setNotifications(saved ? JSON.parse(saved) : []);
-    };
-
-    // Listen for updates from the main Notifications page
-    window.addEventListener('notificationsUpdated', syncNotifications);
-    
-    return () => window.removeEventListener('notificationsUpdated', syncNotifications);
-  }, []);
-
-  const mergedNotifications = useMemo(() => {
-    const localItems = Array.isArray(notifications)
-      ? notifications.map((item) => ({ ...item, source: "local" }))
-      : [];
-    const broadcastItems = (broadcastNotifications || []).map((item) => ({
-      ...item,
-      source: "broadcast",
-      time: item.createdAt
-        ? new Date(item.createdAt).toLocaleString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          })
-        : "Just now",
-      type: "broadcast",
-      icon: "Bell",
-      iconColor: "text-blue-600",
-    }));
-
-    return [...broadcastItems, ...localItems].sort(
-      (a, b) =>
-        new Date(b.createdAt || b.timestamp || 0).getTime() -
-        new Date(a.createdAt || a.timestamp || 0).getTime()
-    );
-  }, [broadcastNotifications, notifications]);
-
-  const unreadCount = notifications.filter(n => !n.read).length + broadcastUnreadCount;
-
-  const handleDeleteNotification = (id, source = "local") => {
-    if (source === "broadcast") {
-      dismissBroadcastNotification(id);
-      return;
-    }
-    setNotifications((prev) => {
-      const next = prev.filter((notification) => notification.id !== id);
-      localStorage.setItem('food_user_notifications', JSON.stringify(next));
-      window.dispatchEvent(new CustomEvent('notificationsUpdated', { detail: { count: next.filter((n) => !n.read).length } }));
-      return next;
-    });
+  const getInitials = (name) => {
+    if (!name) return "U";
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
+  const profileImageUrl = useMemo(() => {
+    if (!userProfile?.profileImage) return null;
+    if (typeof userProfile.profileImage === 'string') return userProfile.profileImage;
+    return userProfile.profileImage.url || userProfile.profileImage.secure_url;
+  }, [userProfile]);
+
 
   return (
     <div className="relative bg-gradient-to-b from-[#f36371] to-[#ef4f5f] pt-5 pb-5 px-4 space-y-5 shadow-xl overflow-hidden dark:from-[#141414] dark:to-[#0a0a0a] dark:shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
@@ -138,120 +76,74 @@ export default function HomeHeader({
             </span>
           </div>
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <div className="h-11 w-11 relative flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg cursor-pointer active:scale-95 transition-all dark:bg-white/5 dark:border-white/10">
-              <Bell className="h-6 w-6 text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-yellow-400 rounded-full border-2 border-[#ef4f5f] animate-pulse dark:border-[#111111]" />
-              )}
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-0 overflow-hidden border-none shadow-2xl rounded-2xl mt-2" align="end">
-            <div className="bg-white dark:bg-gray-900">
-              <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
-                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  Notifications
-                  {unreadCount > 0 && (
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-600 border-none text-[10px] h-4">
-                      {unreadCount} New
-                    </Badge>
-                  )}
-                </h3>
-                <Link to="/notifications" className="text-xs font-bold text-orange-600 hover:text-orange-700">
-                  {mergedNotifications.length > 0 ? "View All" : ""}
-                </Link>
-              </div>
-              <div className="max-h-96 overflow-y-auto">
-                {mergedNotifications.length > 0 ? (
-                  mergedNotifications.slice(0, 5).map((notif) => {
-                    const Icon = ICON_MAP[notif.icon] || Bell;
-                    return (
-                      <div 
-                        key={notif.id}
-                        className={`p-4 flex items-start gap-3 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer ${!notif.read ? 'bg-orange-50/20' : ''}`}
-                      >
-                        <div className={`mt-1 p-2 rounded-full ${notif.type === "order" ? "bg-green-100/50 text-green-600" : "bg-orange-100/50 text-orange-600"}`}>
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-0.5">
-                            <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{notif.title}</span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-gray-400 whitespace-nowrap">{notif.time}</span>
-                              <button
-                                type="button"
-                                aria-label="Delete notification"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleDeleteNotification(notif.id, notif.source);
-                                }}
-                                className="rounded-full p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
-                            {notif.message}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="p-8 text-center flex flex-col items-center gap-2">
-                    <BellOff className="h-10 w-10 text-gray-200" />
-                    <p className="text-xs text-gray-400 font-medium">All caught up!</p>
-                  </div>
-                )}
-              </div>
-              <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
-                <Link to="/notifications" className="text-xs font-bold text-gray-400 hover:text-gray-600">
-                  {mergedNotifications.length > 0 ? "Manage Settings" : "Check Notifications Page"}
-                </Link>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        <div className="flex items-center gap-3">
+          {/* Wallet Icon */}
+          <Link to="/wallet" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-md border border-white/20 shadow-lg active:scale-95 transition-all">
+            <Wallet className="h-5 w-5 text-white" />
+          </Link>
+
+          {/* Profile Avatar */}
+          <Link to="/profile" className="h-10 w-10 flex items-center justify-center rounded-full bg-white border-2 border-white/30 shadow-lg active:scale-95 transition-all overflow-hidden">
+            <Avatar className="h-full w-full">
+              <AvatarImage src={profileImageUrl} />
+              <AvatarFallback className="bg-orange-100 text-orange-600 font-bold text-sm">
+                {getInitials(userProfile?.name || userProfile?.fullName)}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </div>
       </div>
 
-      {/* Search Bar - More Normal & Clean */}
-      <div 
-        className="relative z-10 bg-white rounded-xl flex items-center px-4 py-3 shadow-md border border-white/20 cursor-pointer active:scale-[0.99] transition-all duration-200 mx-1 dark:bg-[#1a1a1a] dark:border-gray-800 dark:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
-        onClick={handleSearchFocus}
-        onTouchStart={handleSearchFocus}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleSearchFocus();
-          }
-        }}
-      >
-        <Search className="h-4 w-4 text-gray-500 mr-3 dark:text-gray-400" strokeWidth={2.5} />
-        <div className="flex-1 overflow-hidden relative h-5">
-          <input
-            type="text"
-            readOnly
-            aria-label="Search"
-            onFocus={handleSearchFocus}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      <div className="relative z-10 flex items-center gap-3 mx-1">
+        <div 
+          className="flex-1 bg-white rounded-xl flex items-center px-4 py-3 shadow-md border border-white/20 cursor-pointer active:scale-[0.99] transition-all duration-200 dark:bg-[#1a1a1a] dark:border-gray-800 dark:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
+          onClick={handleSearchFocus}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleSearchFocus();
+            }
+          }}
+        >
+          <Search className="h-4 w-4 text-gray-500 mr-3 dark:text-gray-400" strokeWidth={2.5} />
+          <div className="flex-1 overflow-hidden relative h-5">
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={placeholderIndex}
+                initial={{ y: 15, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -15, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="absolute inset-0 text-[13px] font-medium text-gray-400 dark:text-gray-500"
+              >
+                {placeholders?.[placeholderIndex] || 'Search "pizza"'}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+          <div 
+            className="ml-2 border-l border-gray-100 dark:border-gray-800 pl-3 py-1 flex items-center justify-center group/mic"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSearchFocus(true); 
+            }}
+          >
+            <Mic className="h-5 w-5 text-gray-400 group-hover/mic:text-primary-orange transition-colors" />
+          </div>
+        </div>
+
+        {/* Veg Mode Switch */}
+        <div className="flex flex-col items-center justify-center gap-1 min-w-[44px]">
+          <div className="flex flex-col items-center space-y-0.5">
+            <span className="text-[11px] font-semibold text-white leading-none tracking-wide">VEG</span>
+            <span className="text-[10px] font-semibold text-white/90 leading-none tracking-wide">MODE</span>
+          </div>
+          <Switch 
+            checked={vegMode} 
+            onCheckedChange={setVegMode}
+            className="scale-[0.8] data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-zinc-400 transition-transform active:scale-90"
           />
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={placeholderIndex}
-              initial={{ y: 15, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -15, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="absolute inset-0 text-[13px] font-medium text-gray-400 dark:text-gray-500"
-            >
-              {placeholders?.[placeholderIndex] || 'Search "pizza"'}
-            </motion.span>
-          </AnimatePresence>
         </div>
       </div>
     </div>

@@ -747,7 +747,7 @@ export async function registerWebPushForCurrentModule(pathname = window.location
       await attachForegroundListener(app);
     })()
     .catch((e) => {
-      console.error("FCM web registration failed:", e);
+      pushDebugWarn(PUSH_DEBUG_PREFIX, "FCM web registration failed:", { error: e?.message || e });
     })
     .finally(() => {
       registrationInFlight = null;

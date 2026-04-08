@@ -94,6 +94,13 @@ export default function UserRouter() {
   return (
     <Suspense fallback={<Loader />}>
       <Routes>
+        {/* Public Legal Policies (stay public) */}
+        <Route path="profile/terms" element={<Terms />} />
+        <Route path="profile/privacy" element={<Privacy />} />
+        <Route path="profile/refund" element={<Refund />} />
+        <Route path="profile/shipping" element={<Shipping />} />
+        <Route path="profile/cancellation" element={<Cancellation />} />
+
         <Route element={
           <ProtectedRoute requiredRole="user" loginPath="/auth/login">
             <UserLayout />
@@ -287,12 +294,7 @@ export default function UserRouter() {
             }
           />
 
-          {/* Public Legal Policies (stay public) */}
-          <Route path="profile/terms" element={<Terms />} />
-          <Route path="profile/privacy" element={<Privacy />} />
-          <Route path="profile/refund" element={<Refund />} />
-          <Route path="profile/shipping" element={<Shipping />} />
-          <Route path="profile/cancellation" element={<Cancellation />} />
+
 
           {/* Auth - User login is centralized at /auth/login */}
           <Route path="auth/login" element={<Navigate to="/auth/login" replace />} />

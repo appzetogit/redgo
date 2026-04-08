@@ -11,8 +11,10 @@ import { API_ENDPOINTS } from "@food/api/config"
 export default function Privacy() {
   const navigate = useNavigate()
   const goBack = useAppBackNavigation()
-  const [loading, setLoading] = useState(true)
-  const [privacyData, setPrivacyData] = useState({
+  
+  // Optimized Cache for instant loading if already visited
+  const [loading, setLoading] = useState(!window._privacyCache)
+  const [privacyData, setPrivacyData] = useState(window._privacyCache || {
     title: 'Privacy Policy',
     content: ''
   })
@@ -23,10 +25,11 @@ export default function Privacy() {
 
   const fetchPrivacyData = async () => {
     try {
-      setLoading(true)
       const response = await api.get(API_ENDPOINTS.ADMIN.PRIVACY_PUBLIC)
       if (response.data.success) {
-        setPrivacyData(response.data.data || { title: 'Privacy Policy', content: '' })
+        const data = response.data.data || { title: 'Privacy Policy', content: '' }
+        setPrivacyData(data)
+        window._privacyCache = data // Instant cache store
       }
     } catch (error) {
       console.error('Error fetching privacy data:', error)
@@ -39,19 +42,8 @@ export default function Privacy() {
     if (window.history.length > 2) {
       goBack()
     } else {
-      navigate('')
+      navigate('/auth/login')
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-[#0a0a0a] flex items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-[#CB202D]" />
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -82,14 +74,16 @@ export default function Privacy() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-[#111] rounded-[2rem] p-6 md:p-10 shadow-sm border border-gray-50 dark:border-gray-900"
         >
-          {privacyData.content ? (
+          {loading && !privacyData.content ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-10 h-10 text-[#EF4F5F] animate-spin mb-4" />
+              <p className="text-gray-400 font-bold text-xs uppercase tracking-widest animate-pulse">Loading Privacy...</p>
+            </div>
+          ) : privacyData.content ? (
             <div
               className="prose prose-slate dark:prose-invert max-w-none
                 prose-headings:font-black prose-headings:text-gray-900 dark:prose-headings:text-white
-                prose-p:text-gray-600 dark:prose-p:text-gray-400 prose-p:leading-relaxed
-                prose-strong:text-gray-900 dark:prose-strong:text-white
-                prose-a:text-[#CB202D] dark:prose-a:text-[#EB590E]
-                prose-li:text-gray-600 dark:prose-li:text-gray-400"
+                prose-p:text-gray-600 dark:prose-p:text-gray-400 prose-p:leading-relaxed"
               dangerouslySetInnerHTML={{ __html: privacyData.content }}
             />
           ) : (
@@ -108,5 +102,3 @@ export default function Privacy() {
     </AnimatedPage>
   )
 }
-
-

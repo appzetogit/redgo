@@ -38,14 +38,17 @@ export function useSearchOverlay() {
 
 function SearchOverlayProvider({ children }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isVoiceRequested, setIsVoiceRequested] = useState(false)
   const [searchValue, setSearchValue] = useState("")
 
-  const openSearch = useCallback(() => {
+  const openSearch = useCallback((shouldStartVoice = false) => {
     setIsSearchOpen(true)
+    setIsVoiceRequested(shouldStartVoice === true)
   }, [])
 
   const closeSearch = useCallback(() => {
     setIsSearchOpen(false)
+    setIsVoiceRequested(false)
     setSearchValue("")
   }, [])
 
@@ -66,6 +69,7 @@ function SearchOverlayProvider({ children }) {
           onClose={closeSearch}
           searchValue={searchValue}
           onSearchChange={setSearchValue}
+          autoStartVoice={isVoiceRequested}
         />
       )}
     </SearchOverlayContext.Provider>

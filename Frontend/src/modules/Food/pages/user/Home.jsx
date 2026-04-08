@@ -831,7 +831,7 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
     setLoadingBanners(true);
-    publicGetOnce("/hero-banners/public")
+    publicGetOnce("/food/hero-banners/public")
       .then((response) => {
         if (cancelled) return;
         const data = response?.data?.data;
@@ -873,9 +873,9 @@ export default function Home() {
     let cancelled = false;
     setLoadingLandingConfig(true);
     Promise.all([
-      publicGetOnce("/explore-icons/public")
+      publicGetOnce("/food/explore-icons/public")
         .catch(() => ({ data: { data: {} } })),
-      publicGetOnce("/landing/settings/public")
+      publicGetOnce("/food/landing/settings/public")
         .catch(() => ({ data: { data: {} } })),
     ])
       .then(([exploreRes, settingsRes]) => {
@@ -2158,8 +2158,8 @@ export default function Home() {
     openLocationSelector();
   }, [openLocationSelector]);
 
-  const handleSearchFocus = useCallback(() => {
-    navigate("/search");
+  const handleSearchFocus = useCallback((startVoice = false) => {
+    navigate("/search", { state: { startVoice } });
   }, [navigate]);
 
   const handleSearchClose = useCallback(() => {

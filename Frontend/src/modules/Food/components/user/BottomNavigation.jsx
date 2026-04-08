@@ -82,26 +82,6 @@ export default function BottomNavigation() {
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-green-700 dark:bg-green-500 rounded-b-full" />
           )}
         </Link>
-
-        {/* Divider */}
-        <div className="h-8 w-px bg-gray-300 dark:bg-gray-700" />
-
-        {/* Profile Tab */}
-        <Link
-          to="/profile"
-          className={`flex flex-1 flex-col items-center gap-1.5 px-2 sm:px-3 py-2 transition-all duration-200 relative ${isProfile
-              ? "text-green-700 dark:text-green-500"
-              : "text-gray-600 dark:text-gray-400"
-            }`}
-        >
-          <User className={`h-5 w-5 ${isProfile ? "text-green-700 dark:text-green-500 fill-green-700 dark:fill-green-500" : "text-gray-600 dark:text-gray-400"}`} />
-          <span className={`text-xs sm:text-sm font-medium ${isProfile ? "text-green-700 dark:text-green-500 font-semibold" : "text-gray-600 dark:text-gray-400"}`}>
-            Profile
-          </span>
-          {isProfile && (
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-green-700 dark:bg-green-500 rounded-b-full" />
-          )}
-        </Link>
       </div>
     </div>
   )

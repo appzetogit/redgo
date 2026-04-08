@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect } from 'react'
-import { AppShellSkeleton } from '@food/components/ui/loading-skeletons'
+
 
 const NATIVE_LAST_ROUTE_KEY = 'native_last_route'
 
@@ -8,7 +8,14 @@ const NATIVE_LAST_ROUTE_KEY = 'native_last_route'
 const FoodApp = lazy(() => import('../modules/Food/routes'))
 const AuthApp = lazy(() => import('../modules/auth/routes'))
 
-const PageLoader = () => <AppShellSkeleton />
+import { Loader2 } from 'lucide-react'
+
+const PageLoader = () => (
+  <div className="min-h-screen w-full flex flex-col items-center justify-center bg-white">
+    <Loader2 className="w-10 h-10 text-[#EF4F5F] animate-spin mb-4" />
+    <p className="text-gray-400 font-bold text-xs uppercase tracking-widest animate-pulse">Loading RedGo...</p>
+  </div>
+)
 
 /**
  * FoodAppWrapper — Quick-spicy App. को / root या /food prefix के साथ render करता है.
