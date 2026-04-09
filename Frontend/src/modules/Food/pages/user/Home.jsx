@@ -398,7 +398,7 @@ export default function Home() {
   const { openSearch, closeSearch, searchValue, setSearchValue } =
     useSearchOverlay();
   const { openLocationSelector } = useLocationSelector();
-  const { vegMode, setVegMode: setVegModeContext } = useProfile();
+  const { vegMode, setVegMode: setVegModeContext, orderType } = useProfile();
   const [prevVegMode, setPrevVegMode] = useState(vegMode);
   const [showVegModePopup, setShowVegModePopup] = useState(false);
   const [showSwitchOffPopup, setShowSwitchOffPopup] = useState(false);
@@ -1338,6 +1338,10 @@ export default function Home() {
         // Build query parameters from filters
         const params = {};
 
+        if (orderType === "takeaway") {
+          params.isTakeaway = "true";
+        }
+
         // Always send user coordinates when available so backend can compute distance/sort.
         if (
           Number.isFinite(location?.latitude) &&
@@ -1703,7 +1707,7 @@ export default function Home() {
         }
       }
     },
-    [extractImages, buildRestaurantImageCandidates, location?.latitude, location?.longitude],
+    [extractImages, buildRestaurantImageCandidates, location?.latitude, location?.longitude, orderType],
   );
 
   const applyFiltersAndRefetch = useCallback(
@@ -1735,7 +1739,7 @@ export default function Home() {
   // Fetch restaurants when appliedFilters change
   useEffect(() => {
     fetchRestaurants(appliedFilters);
-  }, [appliedFilters, fetchRestaurants]);
+  }, [appliedFilters, fetchRestaurants, orderType]);
 
   // Recalculate distances when user location updates
   useEffect(() => {
@@ -2006,8 +2010,19 @@ export default function Home() {
   const filteredRestaurants = useMemo(() => {
     // Rely on API data which is already filtered and sorted by the backend.
     // We only apply client-side Veg Mode filtering here.
-    return (restaurantsData || []).filter(matchesVegMode);
-  }, [restaurantsData, matchesVegMode]);
+    return (restaurantsData || []).filter(restaurant => {
+      // Apply Veg Mode filter
+      const vegMatch = matchesVegMode(restaurant);
+      if (!vegMatch) return false;
+
+      // Apply Takeaway filter if orderType is takeaway
+      if (orderType === "takeaway") {
+        return restaurant?.takeawaySettings?.isEnabled === true;
+      }
+
+      return true;
+    });
+  }, [restaurantsData, matchesVegMode, orderType]);
 
   const restaurantLazyLoadResetKey = useMemo(() => {
     const activeFilterKey = Array.from(activeFilters).sort().join("|");
@@ -2480,71 +2495,98 @@ export default function Home() {
             handleSearchFocus={handleSearchFocus}
             placeholderIndex={placeholderIndex}
             placeholders={placeholders}
+            orderType={orderType}
           />
 
-          {/* Flavour Fest Banner */}
-          <FestBanner />
+          {orderType !== "takeaway" && (
+            <>
+              {/* Flavour Fest Banner */}
+              <FestBanner />
 
-          {/* Promo Row */}
-          <div className="relative z-20 -mt-4">
-            <PromoRow
-              handleVegModeChange={handleVegModeChange}
-              navigate={navigate}
-              isVegMode={vegMode}
-              toggleRef={vegModeToggleRef}
-            />
-          </div>
+              {/* Promo Row */}
+              <div className="relative z-20 -mt-4">
+                <PromoRow
+                  handleVegModeChange={handleVegModeChange}
+                  navigate={navigate}
+                  isVegMode={vegMode}
+                  toggleRef={vegModeToggleRef}
+                />
+              </div>
+            </>
+          )}
 
-          {/* "What's on your mind today?" Section */}
-          <div className="px-4 py-6 space-y-6 bg-white dark:bg-[#0a0a0a]">
-            <div className="flex items-center gap-2 min-w-0">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>
-              <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
-              <Link to="/categories" className="text-sm font-bold text-gray-400 dark:text-gray-500 flex items-center gap-0.5 whitespace-nowrap shrink-0">
-                View All <ArrowDownUp className="h-3 w-3 rotate-90" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-4 gap-y-8 gap-x-4">
-              {displayCategories.slice(0, 8).map((category, index) => (
-                <Link
-                  key={category.id || index}
-                  to={`/category/${category.slug}`}
-                  className="flex flex-col items-center gap-2 group"
-                >
-                  <div className="relative w-full aspect-square rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
-                    {/* Shining Glint Effect */}
-                    <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
-                      <motion.div
-                        animate={{
-                          x: ['-200%', '200%'],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatDelay: 3 + index * 0.5,
-                          ease: "easeInOut"
-                        }}
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%] h-full"
-                      />
-                    </div>
-
-                    <OptimizedImage
-                      src={category.image}
-                      alt={category.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                  </div>
-                  <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center leading-tight">
-                    {category.name}
+          {orderType === "takeaway" && (
+            <div className="px-4 pt-6 pb-2">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-gray-950 dark:text-white flex items-center gap-2 tracking-tight">
+                  <span className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                    <ShoppingBag className="h-6 w-6 text-green-600" />
                   </span>
-                </Link>
-              ))}
+                  Self-Pickup Restaurants
+                </h1>
+                <p className="text-[13px] text-gray-500 font-medium flex items-center gap-1.5 ml-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                  Fresh food, ready for pick up at your convenience
+                </p>
+              </div>
+              <div className="h-[1px] bg-gradient-to-r from-gray-100 via-gray-200 to-transparent dark:from-gray-800 dark:via-gray-700 dark:to-transparent mt-5 mb-2"></div>
             </div>
-          </div>
+          )}
 
-          {/* Admin Hero Banners Section - Now below categories */}
-          {HeroBannerSection}
+          {orderType !== "takeaway" && (
+            <>
+              {/* "What's on your mind today?" Section */}
+              <div className="px-4 py-6 space-y-6 bg-white dark:bg-[#0a0a0a]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>
+                  <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
+                  <Link to="/categories" className="text-sm font-bold text-gray-400 dark:text-gray-500 flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                    View All <ArrowDownUp className="h-3 w-3 rotate-90" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-4 gap-y-8 gap-x-4">
+                  {displayCategories.slice(0, 8).map((category, index) => (
+                    <Link
+                      key={category.id || index}
+                      to={`/category/${category.slug}`}
+                      className="flex flex-col items-center gap-2 group"
+                    >
+                      <div className="relative w-full aspect-square rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
+                        {/* Shining Glint Effect */}
+                        <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                          <motion.div
+                            animate={{
+                              x: ['-200%', '200%'],
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              repeatDelay: 3 + index * 0.5,
+                              ease: "easeInOut"
+                            }}
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%] h-full"
+                          />
+                        </div>
+
+                        <OptimizedImage
+                          src={category.image}
+                          alt={category.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      </div>
+                      <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center leading-tight">
+                        {category.name}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Admin Hero Banners Section - Now below categories */}
+              {HeroBannerSection}
+            </>
+          )}
 
           {/* Filters Sticky Sidebar Header */}
           <section className="py-3 px-4 bg-white sticky top-[0px] z-[40] -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 shadow-sm">
@@ -2612,7 +2654,7 @@ export default function Home() {
           </section>
         </div>
 
-        {recommendedForYouRestaurants.length > 0 && (
+        {orderType !== "takeaway" && recommendedForYouRestaurants.length > 0 && (
           <motion.section
             className="content-auto pt-1 sm:pt-2"
             initial={false}
@@ -2643,7 +2685,7 @@ export default function Home() {
                           className="h-24 sm:h-28 md:h-32"
                           roundedClass="rounded-t-[20px]"
                         />
-                        <div className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-lg ${Number(restaurant.rating) > 0 ? "bg-black/80 backdrop-blur-md text-white font-medium" : "bg-gray-200/90 text-gray-600 font-medium"} text-[10px] shadow-lg border border-white/10`}>
+                        <div className={`absolute bottom-2 left-2 px-3 py-0.5 rounded-lg ${Number(restaurant.rating) > 0 ? "bg-black/80 backdrop-blur-md text-white font-medium" : "bg-gray-200/90 text-gray-600 font-medium"} text-[10px] shadow-lg border border-white/10`}>
                           {Number(restaurant.rating) > 0 ? Number(restaurant.rating).toFixed(1) : "NEW"}
                         </div>
                       </div>
@@ -2665,71 +2707,73 @@ export default function Home() {
         )}
 
         {/* Explore More Section */}
-        <motion.section
-          className="content-auto pt-2 sm:pt-3 lg:pt-4"
-          initial={false}
-          animate={{ opacity: 1, y: 0 }}>
-          <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 sm:mb-3 lg:mb-4 px-4">
-            {exploreMoreHeading}
-          </h2>
-          <div
-            className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 lg:pb-3 min-h-[132px] w-full px-4"
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-            }}>
-            {showExploreSkeleton ? (
-              <div className="w-full min-w-full shrink-0">
-                <ExploreGridSkeleton />
-              </div>
-            ) : (
-              finalExploreItems.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{
-                    duration: 0.4,
-                    delay: index * 0.08,
-                  }}
-                  whileHover={{ y: -5 }}
-                  whileTap={{ scale: 0.95 }}>
-                  <Link
-                    to={item.href}
-                    className="flex-shrink-0">
-                    <div className="flex flex-col items-center gap-3 w-24 sm:w-28 group">
-                      <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white dark:bg-[#1a1a1a] flex items-center justify-center shadow-[0_4px_15px_-3px_rgba(0,0,0,0.08)] group-hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.12)] transition-all duration-500 overflow-hidden p-3 border border-gray-100 dark:border-gray-800 group-hover:border-orange-500/30">
-                        {/* Colorful Glow Background */}
-                        <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br ${index % 3 === 0 ? 'from-orange-500 to-red-500' : index % 3 === 1 ? 'from-blue-500 to-purple-500' : 'from-green-500 to-teal-500'}`} />
+        {orderType !== "takeaway" && (
+          <motion.section
+            className="content-auto pt-2 sm:pt-3 lg:pt-4"
+            initial={false}
+            animate={{ opacity: 1, y: 0 }}>
+            <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 sm:mb-3 lg:mb-4 px-4">
+              {exploreMoreHeading}
+            </h2>
+            <div
+              className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 lg:pb-3 min-h-[132px] w-full px-4"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}>
+              {showExploreSkeleton ? (
+                <div className="w-full min-w-full shrink-0">
+                  <ExploreGridSkeleton />
+                </div>
+              ) : (
+                finalExploreItems.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{
+                      duration: 0.4,
+                      delay: index * 0.08,
+                    }}
+                    whileHover={{ y: -5 }}
+                    whileTap={{ scale: 0.95 }}>
+                    <Link
+                      to={item.href}
+                      className="flex-shrink-0">
+                      <div className="flex flex-col items-center gap-3 w-24 sm:w-28 group">
+                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white dark:bg-[#1a1a1a] flex items-center justify-center shadow-[0_4px_15px_-3px_rgba(0,0,0,0.08)] group-hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.12)] transition-all duration-500 overflow-hidden p-3 border border-gray-100 dark:border-gray-800 group-hover:border-orange-500/30">
+                          {/* Colorful Glow Background */}
+                          <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br ${index % 3 === 0 ? 'from-orange-500 to-red-500' : index % 3 === 1 ? 'from-blue-500 to-purple-500' : 'from-green-500 to-teal-500'}`} />
 
-                        {/* Shine Effect */}
-                        <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
-                          <motion.div
-                            animate={{ x: ['-200%', '200%'] }}
-                            transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 + index * 0.5 }}
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%]"
+                          {/* Shine Effect */}
+                          <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                            <motion.div
+                              animate={{ x: ['-200%', '200%'] }}
+                              transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 + index * 0.5 }}
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%]"
+                            />
+                          </div>
+
+                          <OptimizedImage
+                            src={item.image}
+                            alt={item.label}
+                            className="w-full h-full object-contain relative z-10 transition-transform duration-500 group-hover:scale-110"
+                            width={112}
+                            height={112}
                           />
                         </div>
-
-                        <OptimizedImage
-                          src={item.image}
-                          alt={item.label}
-                          className="w-full h-full object-contain relative z-10 transition-transform duration-500 group-hover:scale-110"
-                          width={112}
-                          height={112}
-                        />
+                        <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors text-center tracking-wide">
+                          {item.label}
+                        </span>
                       </div>
-                      <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors text-center tracking-wide">
-                        {item.label}
-                      </span>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </motion.section>
+                    </Link>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </motion.section>
+        )}
 
         {/* Featured Foods - Horizontal Scroll */}
 
@@ -2740,11 +2784,19 @@ export default function Home() {
           animate={{ opacity: 1 }}>
           <div className="px-4 mb-3 lg:mb-4">
             <div className="flex flex-col gap-0.5 lg:gap-1">
-              <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 tracking-widest uppercase">
-                {filteredRestaurants.length} Restaurants Delivering to You
+              <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
+                {orderType === "takeaway" ? "Self-Pickup" : "Restaurants delivering to you"}
               </h2>
-              <span className="text-base sm:text-lg lg:text-2xl text-gray-500 font-normal">
-                Featured
+              <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+                {orderType === "takeaway" ? (
+                  <>
+                    <span className="text-[#EF4F5F]">{filteredRestaurants.length}</span> Restaurants for Pickup
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[#EF4F5F]">{filteredRestaurants.length}</span> Featured Restaurants
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -2938,7 +2990,7 @@ export default function Home() {
                                   strokeWidth={1.5}
                                 />
                                 <span className="font-medium dark:text-gray-300 text-gray-700">
-                                  {restaurant.deliveryTime}
+                                  {orderType === "takeaway" ? (restaurant.preparationTime || "20-25 mins") : restaurant.deliveryTime}
                                 </span>
                                 <span className="mx-1">|</span>
                                 <span className="font-medium dark:text-gray-300 text-gray-700">
@@ -3119,7 +3171,7 @@ export default function Home() {
                     data-section-id="time"
                     className="space-y-4 mb-8">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                      Estimated Time
+                      {orderType === "takeaway" ? "Estimated Readiness" : "Estimated Time"}
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
                       <button
@@ -3134,7 +3186,7 @@ export default function Home() {
                         />
                         <span
                           className={`text-sm font-medium ${activeFilters.has("delivery-under-30") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
-                          Under 30 mins
+                          {orderType === "takeaway" ? "Within 30 mins" : "Under 30 mins"}
                         </span>
                       </button>
                       <button
@@ -3149,7 +3201,7 @@ export default function Home() {
                         />
                         <span
                           className={`text-sm font-medium ${activeFilters.has("delivery-under-45") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
-                          Under 45 mins
+                          {orderType === "takeaway" ? "Within 45 mins" : "Under 45 mins"}
                         </span>
                       </button>
                     </div>

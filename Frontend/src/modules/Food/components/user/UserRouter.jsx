@@ -1,8 +1,29 @@
-import { Routes, Route, Navigate } from "react-router-dom"
+import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import UserLayout from "./UserLayout"
-import { Suspense, lazy } from "react"
+import { Suspense, lazy, useEffect } from "react"
 import Loader from "@food/components/Loader"
 import ProtectedRoute from "@food/components/ProtectedRoute"
+import { useProfile } from "@food/context/ProfileContext"
+
+// Sync orderType with route
+function RouteSyncHandler() {
+  const location = useLocation()
+  const { setOrderType, orderType } = useProfile()
+
+  useEffect(() => {
+    const path = location.pathname
+    
+    if (path === "/" || path === "" || path === "/food") {
+      if (orderType !== "delivery") setOrderType("delivery")
+    } else if (path === "/dining" || path.startsWith("/dining")) {
+      if (orderType !== "dining") setOrderType("dining")
+    } else if (path === "/takeaway" || path.startsWith("/takeaway")) {
+      if (orderType !== "takeaway") setOrderType("takeaway")
+    }
+  }, [location.pathname, orderType, setOrderType])
+
+  return null
+}
 
 // Lazy Loading Pages
 
@@ -93,6 +114,7 @@ const SubmitComplaint = lazy(() => import("@food/pages/user/complaints/SubmitCom
 export default function UserRouter() {
   return (
     <Suspense fallback={<Loader />}>
+      <RouteSyncHandler />
       <Routes>
         {/* Public Legal Policies (stay public) */}
         <Route path="profile/terms" element={<Terms />} />
@@ -109,6 +131,7 @@ export default function UserRouter() {
           {/* Home & Discovery */}
           <Route path="" element={<Home />} />
           <Route path="dining" element={<Dining />} />
+          <Route path="takeaway" element={<Home />} />
           <Route path="dining/restaurants" element={<DiningRestaurants />} />
           <Route path="dining/:category" element={<DiningCategory />} />
           <Route path="dining/explore/upto50" element={<DiningExplore50 />} />

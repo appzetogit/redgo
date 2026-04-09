@@ -11,6 +11,7 @@ import { ValidationError, ForbiddenError, NotFoundError } from '../../../../core
 import { buildPaginationOptions, buildPaginatedResult } from '../../../../utils/helpers.js';
 import { FoodOffer } from '../../admin/models/offer.model.js';
 import { FoodOfferUsage } from '../../admin/models/offerUsage.model.js';
+import { FoodSystemConfig } from '../../admin/models/systemConfig.model.js';
 import { FoodDeliveryCommissionRule } from '../../admin/models/deliveryCommissionRule.model.js';
 import { FoodRestaurantCommission } from '../../admin/models/restaurantCommission.model.js';
 import { FoodTransaction } from '../models/foodTransaction.model.js';
@@ -128,7 +129,7 @@ export async function calculateOrder(userId, dto) {
 // ----- Create order -----
 export async function createOrder(userId, dto) {
   const restaurant = await FoodRestaurant.findById(dto.restaurantId)
-    .select("status restaurantName zoneId location isAcceptingOrders")
+    .select("status restaurantName zoneId location isAcceptingOrders takeawaySettings")
     .lean();
   if (!restaurant) throw new ValidationError("Restaurant not found");
   if (restaurant.status !== "approved")
@@ -155,8 +156,17 @@ export async function createOrder(userId, dto) {
       : undefined,
   };
 
+  const orderType = dto.orderType || "delivery";
   const paymentMethod =
     dto.paymentMethod === "card" ? "razorpay" : dto.paymentMethod;
+
+  if (orderType === "takeaway" && paymentMethod === "cash") {
+    const isCodEnabled = restaurant.takeawaySettings?.isEnabled && restaurant.takeawaySettings?.codEnabled;
+    if (!isCodEnabled) {
+      throw new ValidationError("Cash on Delivery is not available for Takeaway orders at this restaurant");
+    }
+  }
+
   const isCash = paymentMethod === "cash";
   const isWallet = paymentMethod === "wallet";
 
@@ -167,35 +177,30 @@ export async function createOrder(userId, dto) {
     if (!Number.isFinite(price) || !Number.isFinite(qty)) return sum;
     return sum + Math.max(0, price) * Math.max(0, qty);
   }, 0);
+
+  const deliveryFee = orderType === "takeaway" ? 0 : Number(dto.pricing?.deliveryFee ?? 0);
+
   const normalizedPricing = {
     subtotal: Number(dto.pricing?.subtotal ?? computedSubtotal),
     tax: Number(dto.pricing?.tax ?? 0),
     packagingFee: Number(dto.pricing?.packagingFee ?? 0),
-    deliveryFee: Number(dto.pricing?.deliveryFee ?? 0),
+    deliveryFee,
     platformFee: Number(dto.pricing?.platformFee ?? 0),
     discount: Number(dto.pricing?.discount ?? 0),
     total: Number(dto.pricing?.total ?? 0),
     currency: String(dto.pricing?.currency || "INR"),
   };
+
   const computedTotal = Math.max(
     0,
-    (Number.isFinite(normalizedPricing.subtotal)
-      ? normalizedPricing.subtotal
-      : 0) +
-      (Number.isFinite(normalizedPricing.tax) ? normalizedPricing.tax : 0) +
-      (Number.isFinite(normalizedPricing.packagingFee)
-        ? normalizedPricing.packagingFee
-        : 0) +
-      (Number.isFinite(normalizedPricing.deliveryFee)
-        ? normalizedPricing.deliveryFee
-        : 0) +
-      (Number.isFinite(normalizedPricing.platformFee)
-        ? normalizedPricing.platformFee
-        : 0) -
-      (Number.isFinite(normalizedPricing.discount)
-        ? normalizedPricing.discount
-        : 0),
+    normalizedPricing.subtotal +
+      normalizedPricing.tax +
+      normalizedPricing.packagingFee +
+      normalizedPricing.deliveryFee +
+      normalizedPricing.platformFee -
+      normalizedPricing.discount,
   );
+  
   if (
     !Number.isFinite(normalizedPricing.total) ||
     normalizedPricing.total <= 0
@@ -213,6 +218,7 @@ export async function createOrder(userId, dto) {
 
   let distanceKm = null;
   if (
+    orderType !== "takeaway" &&
     restaurant.location?.coordinates?.length === 2 &&
     dto.address?.location?.coordinates?.length === 2
   ) {
@@ -220,13 +226,9 @@ export async function createOrder(userId, dto) {
     const [dLng, dLat] = dto.address.location.coordinates;
     const d = haversineKm(rLat, rLng, dLat, dLng);
     distanceKm = Number.isFinite(d) ? d : null;
-  } else {
-    console.warn(
-      `Food order: distance not available, rider earning set to 0`,
-    );
   }
 
-  const riderEarning = await getRiderEarning(distanceKm);
+  const riderEarning = orderType === "takeaway" ? 0 : await getRiderEarning(distanceKm);
   
   // Calculate restaurant commission from subtotal
   const { commissionAmount: restaurantCommission } = await foodTransactionService.getRestaurantCommissionSnapshot({
@@ -251,7 +253,8 @@ export async function createOrder(userId, dto) {
       ? new mongoose.Types.ObjectId(dto.zoneId)
       : restaurant.zoneId,
     items: dto.items,
-    deliveryAddress,
+    deliveryAddress: orderType === "takeaway" ? undefined : deliveryAddress,
+    orderType,
     customerName: dto.customerName || deliveryAddress.fullName || "",
     customerPhone: dto.customerPhone || deliveryAddress.phone || "",
     pricing: normalizedPricing,
@@ -370,6 +373,7 @@ export async function createOrder(userId, dto) {
 
   if (
     dispatchMode === "auto" &&
+    orderType !== "takeaway" &&
     (isCash ||
       order.payment.status === "paid" ||
       order.payment.status === "cod_pending")

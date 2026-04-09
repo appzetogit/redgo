@@ -250,8 +250,15 @@ export async function updateRestaurantCategory(restaurantId, id, body = {}) {
         throw new ValidationError('Invalid category id');
     }
 
-    const doc = await FoodCategory.findOne({ _id: id, restaurantId: context.restaurantId });
+    const doc = await FoodCategory.findById(id);
     if (!doc) return null;
+
+    if (!doc.restaurantId || String(doc.restaurantId) !== String(context.restaurantId)) {
+        if (!doc.restaurantId) {
+            throw new ValidationError("Admin has made this category global. It can no longer be edited by restaurants.");
+        }
+        throw new ValidationError("Category not found or permission denied.");
+    }
 
     const nextFoodTypeScope = body.foodTypeScope !== undefined
         ? normalizeCategoryFoodTypeScope(body.foodTypeScope, '')
@@ -304,8 +311,15 @@ export async function deleteRestaurantCategory(restaurantId, id) {
         throw new ValidationError('Invalid category id');
     }
 
-    const category = await FoodCategory.findOne({ _id: id, restaurantId: context.restaurantId }).select('_id').lean();
+    const category = await FoodCategory.findById(id).select("_id restaurantId").lean();
     if (!category?._id) return null;
+
+    if (!category.restaurantId || String(category.restaurantId) !== String(context.restaurantId)) {
+        if (!category.restaurantId) {
+            throw new ValidationError("Global categories cannot be deleted by restaurants.");
+        }
+        throw new ValidationError("Category not found or permission denied.");
+    }
 
     const inUse = await FoodItem.countDocuments({ categoryId: id, restaurantId: context.restaurantId });
     if (inUse > 0) {

@@ -36,7 +36,10 @@ export async function calculateOrderPricing(userId, dto) {
 
   const freeThreshold = Number(feeSettings.freeDeliveryThreshold || 0);
   let deliveryFee = 0;
-  if (
+  
+  if (dto.orderType === "takeaway") {
+    deliveryFee = 0;
+  } else if (
     Number.isFinite(freeThreshold) &&
     freeThreshold > 0 &&
     subtotal >= freeThreshold

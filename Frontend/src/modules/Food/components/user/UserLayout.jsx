@@ -220,6 +220,8 @@ export default function UserLayout() {
     normalizedPath === "/user" ||
     normalizedPath === "/dining" ||
     normalizedPath === "/user/dining" ||
+    normalizedPath === "/takeaway" ||
+    normalizedPath === "/user/takeaway" ||
     normalizedPath === "/under-250" ||
     normalizedPath === "/user/under-250" ||
     isProfileRoot ||

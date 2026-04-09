@@ -198,6 +198,12 @@ const orderSchema = new mongoose.Schema(
             sparse: true,
             index: true
         },
+        orderType: {
+            type: String,
+            enum: ['delivery', 'dining', 'takeaway'],
+            default: 'delivery',
+            index: true
+        },
         userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'FoodUser',
@@ -225,7 +231,7 @@ const orderSchema = new mongoose.Schema(
         },
         deliveryAddress: {
             type: deliveryAddressSchema,
-            required: true
+            required: false
         },
         customerName: { type: String, default: '', trim: true },
         customerPhone: { type: String, default: '', trim: true },

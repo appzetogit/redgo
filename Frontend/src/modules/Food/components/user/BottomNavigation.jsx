@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { Tag, User, Truck, UtensilsCrossed } from "lucide-react"
+import { Tag, User, Truck, UtensilsCrossed, ShoppingBag } from "lucide-react"
 
 export default function BottomNavigation() {
   const location = useLocation()
@@ -8,10 +8,12 @@ export default function BottomNavigation() {
   // Check active routes - support both /user/* and /* paths
   const isDining = pathname === "/dining" || pathname.startsWith("/dining")
   const isUnder250 = pathname === "/under-250" || pathname.startsWith("/under-250")
-  const isProfile = pathname.startsWith("/profile") || pathname.startsWith("/profile")
+  const isTakeaway = pathname === "/takeaway" || pathname.startsWith("/takeaway")
+  const isProfile = pathname.startsWith("/profile")
   const isDelivery =
     !isDining &&
     !isUnder250 &&
+    !isTakeaway &&
     !isProfile &&
     (pathname === "/food" ||
       pathname === "/" ||
@@ -19,6 +21,7 @@ export default function BottomNavigation() {
       (pathname.startsWith("") &&
         !pathname.includes("/dining") &&
         !pathname.includes("/under-250") &&
+        !pathname.includes("/takeaway") &&
         !pathname.includes("/profile")))
 
   return (
@@ -79,6 +82,26 @@ export default function BottomNavigation() {
             Under 250
           </span>
           {isUnder250 && (
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-green-700 dark:bg-green-500 rounded-b-full" />
+          )}
+        </Link>
+
+        {/* Divider */}
+        <div className="h-8 w-px bg-gray-300 dark:bg-gray-700" />
+
+        {/* Takeaway Tab */}
+        <Link
+          to="/takeaway"
+          className={`flex flex-1 flex-col items-center gap-1.5 px-2 sm:px-3 py-2 transition-all duration-200 relative ${isTakeaway
+              ? "text-green-700 dark:text-green-500"
+              : "text-gray-600 dark:text-gray-400"
+            }`}
+        >
+          <ShoppingBag className={`h-5 w-5 ${isTakeaway ? "text-green-700 dark:text-green-500 fill-green-700 dark:fill-green-500" : "text-gray-600 dark:text-gray-400"}`} strokeWidth={2} />
+          <span className={`text-xs sm:text-sm font-medium ${isTakeaway ? "text-green-700 dark:text-green-500 font-semibold" : "text-gray-600 dark:text-gray-400"}`}>
+            Takeaway
+          </span>
+          {isTakeaway && (
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-green-700 dark:bg-green-500 rounded-b-full" />
           )}
         </Link>

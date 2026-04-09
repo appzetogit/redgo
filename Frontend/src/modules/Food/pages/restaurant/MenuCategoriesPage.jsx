@@ -56,11 +56,27 @@ export default function MenuCategoriesPage() {
   const [imagePreview, setImagePreview] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false)
+  const [isPureVeg, setIsPureVeg] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchCategories()
+    fetchRestaurantContext()
   }, [])
+
+  const fetchRestaurantContext = async () => {
+    try {
+      const response = await restaurantAPI.getCurrentRestaurant()
+      const restaurant = response?.data?.data?.restaurant || response?.data?.restaurant || {}
+      const pureVeg = restaurant.pureVegRestaurant === true
+      setIsPureVeg(pureVeg)
+      if (pureVeg) {
+        setFormData((prev) => ({ ...prev, foodTypeScope: "Veg" }))
+      }
+    } catch (error) {
+      console.error("Failed to fetch restaurant context:", error)
+    }
+  }
 
   useEffect(() => {
     const draftCategoryName = String(location.state?.draftCategoryName || "").trim()
@@ -104,7 +120,10 @@ export default function MenuCategoriesPage() {
 
   const openCreateModal = () => {
     setEditingCategory(null)
-    setFormData(defaultFormData)
+    setFormData({
+      ...defaultFormData,
+      foodTypeScope: isPureVeg ? "Veg" : "Both",
+    })
     setSelectedImageFile(null)
     setImagePreview(null)
     setShowModal(true)
@@ -187,9 +206,11 @@ export default function MenuCategoriesPage() {
       resetModal()
       fetchCategories()
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to save category")
+      const msg = error?.response?.data?.error || error?.response?.data?.message || "Failed to save category"
+      toast.error(msg)
     } finally {
       setUploadingImage(false)
+      setLoading(false)
     }
   }
 
@@ -328,23 +349,35 @@ export default function MenuCategoriesPage() {
                   <div className="mt-4 flex items-center gap-2">
                     <button
                       onClick={() => handleToggleActive(category)}
-                      className="rounded-xl bg-slate-100 p-2 text-slate-700 disabled:opacity-50"
+                      className="group relative rounded-xl bg-slate-100 p-2 text-slate-700 transition-all hover:bg-slate-200 disabled:opacity-50"
                       disabled={!isEditable}
-                      title={category?.isActive !== false ? "Deactivate" : "Activate"}
+                      title={!isEditable ? "System-wide category cannot be toggled" : (category?.isActive !== false ? "Deactivate" : "Activate")}
                     >
                       {category?.isActive !== false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      {!isEditable && (
+                        <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max -translate-x-1/2 rounded bg-slate-800 px-2 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          System category
+                        </span>
+                      )}
                     </button>
                     <button
                       onClick={() => openEditModal(category)}
-                      className="rounded-xl bg-blue-50 p-2 text-blue-700 disabled:opacity-50"
+                      className="group relative rounded-xl bg-blue-50 p-2 text-blue-700 transition-all hover:bg-blue-100 disabled:opacity-50"
                       disabled={!isEditable}
+                      title={!isEditable ? "System-wide category cannot be edited" : "Edit"}
                     >
                       <Edit2 className="h-4 w-4" />
+                      {!isEditable && (
+                        <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max -translate-x-1/2 rounded bg-slate-800 px-2 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          Read-only
+                        </span>
+                      )}
                     </button>
                     <button
                       onClick={() => handleDeleteCategory(category)}
-                      className="rounded-xl bg-rose-50 p-2 text-rose-700 disabled:opacity-50"
+                      className="group relative rounded-xl bg-rose-50 p-2 text-rose-700 transition-all hover:bg-rose-100 disabled:opacity-50"
                       disabled={!category?.canDelete}
+                      title={!category?.canDelete ? "In-use or system category cannot be deleted" : "Delete"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -405,12 +438,20 @@ export default function MenuCategoriesPage() {
                   <select
                     value={formData.foodTypeScope}
                     onChange={(e) => setFormData((prev) => ({ ...prev, foodTypeScope: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-900"
+                    disabled={isPureVeg}
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
                   >
                     <option value="Veg">Veg</option>
-                    <option value="Non-Veg">Non-Veg</option>
-                    <option value="Both">Both</option>
+                    {!isPureVeg && (
+                      <>
+                        <option value="Non-Veg">Non-Veg</option>
+                        <option value="Both">Both</option>
+                      </>
+                    )}
                   </select>
+                  {isPureVeg && (
+                    <p className="mt-1 text-[10px] text-amber-600">Pure veg restaurants are restricted to Veg categories.</p>
+                  )}
                 </div>
 
                 <div>
@@ -468,7 +509,16 @@ export default function MenuCategoriesPage() {
                   disabled={uploadingImage}
                   className="flex-1 rounded-xl bg-slate-900 py-3 font-medium text-white disabled:opacity-60"
                 >
-                  {uploadingImage ? "Uploading..." : editingCategory ? "Save & Resubmit" : "Create"}
+                  {uploadingImage ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {selectedImageFile ? "Uploading image..." : "Saving..."}
+                    </div>
+                  ) : editingCategory ? (
+                    "Save & Resubmit"
+                  ) : (
+                    "Create Category"
+                  )}
                 </button>
               </div>
             </motion.div>

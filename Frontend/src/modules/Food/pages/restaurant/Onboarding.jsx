@@ -537,6 +537,8 @@ export default function RestaurantOnboarding() {
     openingTime: "",
     closingTime: "",
     openDays: [],
+    isTakeawayEnabled: false,
+    isTakeawayCodEnabled: false,
   })
 
   const [step3, setStep3] = useState({
@@ -920,26 +922,34 @@ export default function RestaurantOnboarding() {
     if (!isOnboardingHydrated) return
     saveOnboardingToLocalStorage(step1, step2, step3, step)
     
-    // Save images to IndexedDB
-    const saveFiles = async () => {
-      if (step2.profileImage && isUploadableFile(step2.profileImage)) {
-        await saveFileToDB("profileImage", step2.profileImage)
-      } else if (!step2.profileImage) {
-        await deleteFileFromDB("profileImage")
+    // Save images to IndexedDB - debounced to prevent lag on every keystroke/toggle
+    const timeoutId = setTimeout(() => {
+      const saveFiles = async () => {
+        try {
+          if (step2.profileImage && isUploadableFile(step2.profileImage)) {
+            await saveFileToDB("profileImage", step2.profileImage)
+          } else if (!step2.profileImage) {
+            await deleteFileFromDB("profileImage")
+          }
+          if (step3.panImage && isUploadableFile(step3.panImage)) {
+            await saveFileToDB("panImage", step3.panImage)
+          }
+          if (step3.gstImage && isUploadableFile(step3.gstImage)) {
+            await saveFileToDB("gstImage", step3.gstImage)
+          }
+          if (step3.fssaiImage && isUploadableFile(step3.fssaiImage)) {
+            await saveFileToDB("fssaiImage", step3.fssaiImage)
+          }
+          
+          await persistMenuImagesToDB(step2.menuImages || [])
+        } catch (err) {
+          debugError("Auto-save files failed:", err)
+        }
       }
-      if (step3.panImage && isUploadableFile(step3.panImage)) {
-        await saveFileToDB("panImage", step3.panImage)
-      }
-      if (step3.gstImage && isUploadableFile(step3.gstImage)) {
-        await saveFileToDB("gstImage", step3.gstImage)
-      }
-      if (step3.fssaiImage && isUploadableFile(step3.fssaiImage)) {
-        await saveFileToDB("fssaiImage", step3.fssaiImage)
-      }
-      
-      await persistMenuImagesToDB(step2.menuImages || [])
-    }
-    saveFiles()
+      saveFiles()
+    }, 1000) // 1 second debounce
+    
+    return () => clearTimeout(timeoutId)
   }, [isOnboardingHydrated, step1, step2, step3, step])
 
   useEffect(() => {
@@ -1500,6 +1510,8 @@ export default function RestaurantOnboarding() {
           throw new Error("Restaurant profile image is required")
         }
         formData.append("profileImage", step2.profileImage)
+        formData.append("isTakeawayEnabled", step2.isTakeawayEnabled ? "true" : "false")
+        formData.append("isTakeawayCodEnabled", step2.isTakeawayCodEnabled ? "true" : "false")
 
         // Step 3
         formData.append("panNumber", step3.panNumber || "")
@@ -2363,6 +2375,61 @@ export default function RestaurantOnboarding() {
             }}
           />
         </div>
+      </section>
+
+      {/* Takeaway Service Toggle */}
+      <section className="bg-white p-4 sm:p-6 rounded-md">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <span>🛍️</span>
+              <span>Takeaway (Pickup) order</span>
+            </Label>
+            <p className="text-[11px] text-gray-500 leading-relaxed">
+              Allow customers to place orders online and pick them up from your restaurant.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStep2(prev => ({ ...prev, isTakeawayEnabled: !prev.isTakeawayEnabled }))}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-100 ease-in-out focus:outline-none ${
+              step2.isTakeawayEnabled ? "bg-green-500" : "bg-gray-200"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-100 ease-in-out ${
+                step2.isTakeawayEnabled ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {step2.isTakeawayEnabled && (
+          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="space-y-0.5">
+              <Label className="text-[13px] font-semibold text-gray-800 flex items-center gap-1.5">
+                <span>💸</span>
+                <span>Accept Cash on Delivery</span>
+              </Label>
+              <p className="text-[10px] text-gray-500">
+                Customers can pay in cash when they arrive to pick up their order.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep2(prev => ({ ...prev, isTakeawayCodEnabled: !prev.isTakeawayCodEnabled }))}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-100 ease-in-out focus:outline-none ${
+                step2.isTakeawayCodEnabled ? "bg-green-500" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-100 ease-in-out ${
+                  step2.isTakeawayCodEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Operational details */}

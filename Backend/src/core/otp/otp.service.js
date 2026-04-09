@@ -69,7 +69,11 @@ const sendSmsViaIndiaHub = async (phone, otp) => {
     }
 };
 
-export const createOrUpdateOtp = async (phone) => {
+export const createOrUpdateOtp = async (phoneRaw) => {
+    // Normalize phone for consistent DB lookup
+    const phone = String(phoneRaw || '').replace(/\D/g, '');
+    if (!phone) throw new ValidationError("Valid phone number is required");
+
     const existing = await FoodOtp.findOne({ phone });
     const now = new Date();
 
@@ -133,8 +137,11 @@ export const createOrUpdateOtp = async (phone) => {
     return otp;
 };
 
-export const verifyOtp = async (phone, otp) => {
+export const verifyOtp = async (phoneRaw, otp) => {
+    // Normalize phone for consistent DB lookup
+    const phone = String(phoneRaw || '').replace(/\D/g, '');
     const record = await FoodOtp.findOne({ phone });
+
     if (!record) {
         return { valid: false, reason: 'OTP not found' };
     }

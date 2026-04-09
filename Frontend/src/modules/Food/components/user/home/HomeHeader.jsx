@@ -13,7 +13,8 @@ export default function HomeHeader({
   handleLocationClick, 
   handleSearchFocus, 
   placeholderIndex, 
-  placeholders 
+  placeholders,
+  orderType
 }) {
   const { userProfile, vegMode, setVegMode } = useProfile();
 
@@ -68,7 +69,9 @@ export default function HomeHeader({
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-              <span className="text-xs font-bold text-white/80 uppercase tracking-wider">Deliver to</span>
+              <span className="text-xs font-bold text-white/80 uppercase tracking-wider">
+                {orderType === "takeaway" ? "Your Location" : "Deliver to"}
+              </span>
               <ChevronDown className="h-3 w-3 text-white/80" />
             </div>
             <span className="text-sm font-bold text-white truncate max-w-[200px] drop-shadow-sm">

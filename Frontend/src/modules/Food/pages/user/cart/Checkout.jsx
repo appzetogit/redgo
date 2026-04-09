@@ -13,16 +13,30 @@ import { Badge } from "@food/components/ui/badge"
 import { useCart } from "@food/context/CartContext"
 import { useProfile } from "@food/context/ProfileContext"
 import { useOrders } from "@food/context/OrdersContext"
+import { orderAPI } from "@food/api"
 
 export default function Checkout() {
   const navigate = useNavigate()
   const { cart, clearCart } = useCart()
-  const { getDefaultAddress, getDefaultPaymentMethod, setDefaultAddress, addresses, paymentMethods } = useProfile()
+  const { getDefaultAddress, getDefaultPaymentMethod, setDefaultAddress, addresses, paymentMethods, orderType } = useProfile()
   const { createOrder } = useOrders()
   const getAddressId = (address) => address?.id || address?._id || ""
   const [selectedAddressId, setSelectedAddressId] = useState(getAddressId(getDefaultAddress()))
   const [selectedPayment, setSelectedPayment] = useState(getDefaultPaymentMethod()?.id || "")
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  const [isCodEnabled, setIsCodEnabled] = useState(true)
+  const [restaurantData, setRestaurantData] = useState(null)
+
+  useEffect(() => {
+    // Fetch Takeaway COD status if needed
+    if (orderType === "takeaway") {
+      orderAPI.getTakeawayCodStatus()
+        .then(res => {
+          setIsCodEnabled(res.data?.data?.takeaway_cod_enabled !== false)
+        })
+        .catch(() => setIsCodEnabled(false))
+    }
+  }, [orderType])
 
   const selectedAddress = addresses.find(addr => getAddressId(addr) === selectedAddressId) || getDefaultAddress()
   const defaultPayment = paymentMethods.find(pm => pm.id === selectedPayment) || getDefaultPaymentMethod()
@@ -37,13 +51,18 @@ export default function Checkout() {
   }, [addresses, selectedAddressId, getDefaultAddress])
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity * 83, 0)
-  const deliveryFee = 2.99 * 83
+  const deliveryFee = orderType === "takeaway" ? 0 : 2.99 * 83
   const tax = subtotal * 0.08
   const total = subtotal + deliveryFee + tax
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddress || !selectedPayment) {
+    if (orderType !== "takeaway" && (!selectedAddress || !selectedPayment)) {
       alert("Please select a delivery address and payment method")
+      return
+    }
+
+    if (orderType === "takeaway" && !selectedPayment) {
+      alert("Please select a payment method")
       return
     }
 
@@ -57,6 +76,7 @@ export default function Checkout() {
     // Simulate API call
     setTimeout(() => {
       const orderId = createOrder({
+        orderType: orderType || "delivery",
         items: cart.map(item => ({
           id: item.id,
           name: item.name,
@@ -64,12 +84,13 @@ export default function Checkout() {
           quantity: item.quantity,
           image: item.image
         })),
-        address: selectedAddress,
-        paymentMethod: defaultPayment,
+        address: orderType === "takeaway" ? null : selectedAddress,
+        paymentMethod: selectedPayment === "cod" ? { type: "cod", id: "cod" } : (paymentMethods.find(pm => pm.id === selectedPayment) || { type: selectedPayment, id: selectedPayment }),
         subtotal,
         deliveryFee,
         tax,
         total,
+        restaurantId: cart[0]?.restaurantId || "rest-1",
         restaurant: cart[0]?.restaurant || cart[0]?.name || "Multiple Restaurants"
       })
 
@@ -118,17 +139,32 @@ export default function Checkout() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Left Column - Order Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Delivery Address */}
+            {/* Delivery Address / Pickup Info */}
             <ScrollReveal delay={0.1}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-[#EB590E]" />
-                    Delivery Address
+                    {orderType === "takeaway" ? "Pickup Information" : "Delivery Address"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {addresses.length > 0 ? (
+                  {orderType === "takeaway" ? (
+                    <div className="border-2 border-[#EB590E] bg-orange-50 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <Badge className="mb-2 bg-[#EB590E] text-white">Restaurant Pickup</Badge>
+                          <p className="text-sm font-bold">{cart[0]?.restaurant || "Main Restaurant Branch"}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Pickup your order from the restaurant counter.
+                            <br />
+                            Please show your order ID to the staff.
+                          </p>
+                        </div>
+                        <CheckCircle className="h-5 w-5 text-[#EB590E]" />
+                      </div>
+                    </div>
+                  ) : addresses.length > 0 ? (
                     <div className="space-y-3">
                       {addresses.map((address) => {
                         const addressId = getAddressId(address)
@@ -192,57 +228,106 @@ export default function Checkout() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {paymentMethods.length > 0 ? (
-                    <div className="space-y-3">
-                      {paymentMethods.map((payment) => {
-                        const isSelected = selectedPayment === payment.id
-                        const cardNumber = `**** **** **** ${payment.cardNumber}`
-
-                        return (
-                          <div
-                            key={payment.id}
-                            className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${isSelected
-                                ? "border-[#EB590E] bg-orange-50"
-                                : "border-gray-200 hover:border-orange-300"
-                              }`}
-                            onClick={() => setSelectedPayment(payment.id)}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  {payment.isDefault && (
-                                    <Badge className="bg-[#EB590E] text-white">Default</Badge>
-                                  )}
-                                  <Badge variant="outline" className="capitalize">
-                                    {payment.type}
-                                  </Badge>
-                                </div>
-                                <p className="font-semibold">{cardNumber}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {payment.cardHolder} � Expires {payment.expiryMonth}/{payment.expiryYear.slice(-2)}
-                                </p>
-                              </div>
-                              {isSelected && (
-                                <CheckCircle className="h-5 w-5 text-[#EB590E]" />
-                              )}
+                  <div className="space-y-3">
+                    {/* Cash on Delivery Option */}
+                    {(orderType !== "takeaway" || isCodEnabled) && (
+                      <div
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${selectedPayment === "cod"
+                            ? "border-[#EB590E] bg-orange-50"
+                            : "border-gray-200 hover:border-orange-300"
+                          }`}
+                        onClick={() => setSelectedPayment("cod")}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                              <span className="text-green-600 font-bold text-xs">COD</span>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Cash on Delivery</p>
+                              <p className="text-sm text-muted-foreground">Pay when you {orderType === "takeaway" ? "pickup" : "receive"} your order</p>
                             </div>
                           </div>
-                        )
-                      })}
+                          {selectedPayment === "cod" && (
+                            <CheckCircle className="h-5 w-5 text-[#EB590E]" />
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Razorpay Online Payment (Always available) */}
+                    <div
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${selectedPayment === "razorpay"
+                          ? "border-[#EB590E] bg-orange-50"
+                          : "border-gray-200 hover:border-orange-300"
+                        }`}
+                      onClick={() => setSelectedPayment("razorpay")}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 font-bold text-xs">RZP</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold">Razorpay Secure</p>
+                            <p className="text-sm text-muted-foreground">Pay online via UPI, Card, or Netbanking</p>
+                          </div>
+                        </div>
+                        {selectedPayment === "razorpay" && (
+                          <CheckCircle className="h-5 w-5 text-[#EB590E]" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Saved Cards */}
+                    {paymentMethods.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Saved Cards</p>
+                        <div className="space-y-3">
+                          {paymentMethods.map((payment) => {
+                            const isSelected = selectedPayment === payment.id
+                            const cardNumber = `**** **** **** ${payment.cardNumber}`
+
+                            return (
+                              <div
+                                key={payment.id}
+                                className={`border-2 rounded-lg p-3 cursor-pointer transition-colors ${isSelected
+                                    ? "border-[#EB590E] bg-orange-50"
+                                    : "border-gray-200 hover:border-orange-300 shadow-xs"
+                                  }`}
+                                onClick={() => setSelectedPayment(payment.id)}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge variant="outline" className="capitalize text-[10px] h-4">
+                                        {payment.type}
+                                      </Badge>
+                                      {payment.isDefault && (
+                                        <Badge className="bg-[#EB590E] text-white text-[10px] h-4">Default</Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-sm font-semibold">{cardNumber}</p>
+                                  </div>
+                                  {isSelected && (
+                                    <CheckCircle className="h-4 w-4 text-[#EB590E]" />
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-4">
                       <Link to="/user/profile/payments">
-                        <Button variant="outline" className="w-full">
+                        <Button variant="outline" className="w-full text-xs h-9">
                           Manage Payment Methods
                         </Button>
                       </Link>
                     </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground mb-4">No payment methods saved</p>
-                      <Link to="/user/profile/payments/new">
-                        <Button>Add Payment Method</Button>
-                      </Link>
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </ScrollReveal>
@@ -302,7 +387,7 @@ export default function Checkout() {
                   <Button
                     className="w-full bg-[#EB590E] hover:bg-[#D94F0C] text-white mt-4 md:mt-6 h-11 md:h-12 text-sm md:text-base border-none"
                     onClick={handlePlaceOrder}
-                    disabled={isPlacingOrder || !selectedAddress || !selectedPayment}
+                    disabled={isPlacingOrder || (orderType !== "takeaway" && !selectedAddress) || !selectedPayment}
                   >
                     {isPlacingOrder ? "Placing Order..." : "Place Order"}
                   </Button>

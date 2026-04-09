@@ -6,7 +6,7 @@ const debugError = (...args) => {}
 
 
 const ProfileContext = createContext(null)
-const USER_SESSION_PREFERENCE_KEYS = ["userVegMode", "food-under-250-filters"]
+const USER_SESSION_PREFERENCE_KEYS = ["userVegMode", "userOrderType", "food-under-250-filters"]
 
 export function ProfileProvider({ children }) {
   const getAddressId = (address) => address?.id || address?._id || null
@@ -83,6 +83,12 @@ export function ProfileProvider({ children }) {
     return saved !== null ? saved === "true" : false
   })
 
+  // orderType state - stored in localStorage for persistence
+  const [orderType, setOrderType] = useState(() => {
+    const saved = localStorage.getItem("userOrderType")
+    return (saved && ["delivery", "dining", "takeaway"].includes(saved)) ? saved : "delivery"
+  })
+
   // Helper to check if authenticated
   const isAuthenticated = useMemo(() => {
     return localStorage.getItem("user_authenticated") === "true" || !!localStorage.getItem("user_accessToken")
@@ -125,6 +131,12 @@ export function ProfileProvider({ children }) {
     }
   }, [vegMode, isAuthenticated])
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      localStorage.setItem("userOrderType", orderType)
+    }
+  }, [orderType, isAuthenticated])
+
   // Fetch user profile and addresses from API on mount and when authentication changes
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -139,6 +151,7 @@ export function ProfileProvider({ children }) {
         setFavorites([])
         setDishFavorites([])
         setVegMode(false)
+        setOrderType("delivery")
         USER_SESSION_PREFERENCE_KEYS.forEach((key) => {
           localStorage.removeItem(key)
         })
@@ -406,6 +419,8 @@ export function ProfileProvider({ children }) {
       favorites,
       vegMode,
       setVegMode,
+      orderType,
+      setOrderType,
       addAddress,
       updateAddress,
       deleteAddress,
@@ -438,6 +453,8 @@ export function ProfileProvider({ children }) {
       dishFavorites,
       vegMode,
       setVegMode,
+      orderType,
+      setOrderType,
       addAddress,
       updateAddress,
       deleteAddress,
@@ -499,10 +516,10 @@ export function useProfile() {
       isDishFavorite: () => false,
       getDishFavorites: () => [],
       vegMode: false,
-      setVegMode: () => debugWarn("ProfileProvider not available")
+      setVegMode: () => debugWarn("ProfileProvider not available"),
+      orderType: "delivery",
+      setOrderType: () => debugWarn("ProfileProvider not available")
     }
   }
   return context
 }
-
-

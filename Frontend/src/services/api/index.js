@@ -232,6 +232,10 @@ export const adminAPI = {
       params: { query },
       contextModule: "admin",
     }),
+  getSystemConfigs: () =>
+    apiClient.get("/admin/system-config", { contextModule: "admin" }),
+  updateSystemConfig: (key, value) =>
+    apiClient.patch(`/admin/system-config/${key}`, { value }, { contextModule: "admin" }),
   approveRestaurant: (id) =>
     apiClient.patch(
       `/food/admin/restaurants/${id}/approve`,
@@ -945,6 +949,16 @@ export const restaurantAPI = {
   updateDiningSettings: (body) =>
     apiClient
       .patch("/food/restaurant/dining-settings", body ?? {}, {
+        contextModule: "restaurant",
+      })
+      .then((res) => {
+        restaurantCurrentCached = res;
+        restaurantCurrentCacheTime = Date.now();
+        return res;
+      }),
+  updateTakeawaySettings: (body) =>
+    apiClient
+      .patch("/food/restaurant/takeaway-settings", body ?? {}, {
         contextModule: "restaurant",
       })
       .then((res) => {
@@ -2164,6 +2178,8 @@ export const uploadAPI = {
 };
 /** Order API (user app – Bearer USER token). Minimal calls: single create/verify, list/details cached by caller. */
 export const orderAPI = {
+  getTakeawayCodStatus: () =>
+    apiClient.get("/admin/system-config/takeaway-cod-status"),
   calculateOrder: (payload) =>
     apiClient.post("/food/orders/calculate", payload ?? {}, {
       contextModule: "user",

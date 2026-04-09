@@ -229,15 +229,21 @@ const readTokensFromDoc = (doc, platform) => {
 
 export const listOwnerTokens = async ({ ownerType, ownerId, platform }) => {
     if (!ownerType || !ownerId) return [];
-    const model = getOwnerModel(ownerType);
-    if (!model) return [];
-    const doc = await model.findById(ownerId).select('fcmTokens fcmTokenMobile').lean();
+    
+    let model = getOwnerModel(ownerType) || FoodUser;
+    let doc = await model.findById(ownerId).select('fcmTokens fcmTokenMobile').lean();
+
+    // Fallback: If not found in profile-specific model (Restaurant/Delivery), try finding it in User collection.
+    if (!doc && ownerType !== 'USER') {
+        doc = await FoodUser.findById(ownerId).select('fcmTokens fcmTokenMobile').lean();
+    }
+
     return readTokensFromDoc(doc, platform);
 };
 
 export const upsertFirebaseDeviceToken = async ({ ownerType, ownerId, token, platform = 'web' }) => {
     const normalizedToken = sanitizeString(token);
-    console.log(`[FCM-DEBUG] upsertFirebaseDeviceToken: ownerType=${ownerType}, ownerId=${ownerId}, platform=${platform}, tokenPreview=${normalizedToken?.slice(0, 10)}...`);
+    // console.log(`[FCM-DEBUG] upsertFirebaseDeviceToken: ownerType=${ownerType}, ownerId=${ownerId}, platform=${platform}, tokenPreview=${normalizedToken?.slice(0, 10)}...`);
     
     if (!ownerType || !ownerId || !normalizedToken) {
         console.error('[FCM-DEBUG] upsert - Missing required fields');
@@ -245,16 +251,17 @@ export const upsertFirebaseDeviceToken = async ({ ownerType, ownerId, token, pla
     }
 
     const normalizedPlatform = platform === 'mobile' ? 'mobile' : 'web';
-    const model = getOwnerModel(ownerType);
-    if (!model) {
-        console.error(`[FCM-DEBUG] upsert - Unsupported owner type: ${ownerType}`);
-        throw new Error(`Unsupported owner type: ${ownerType}`);
+    let model = getOwnerModel(ownerType) || FoodUser;
+    let doc = await model.findById(ownerId);
+
+    // Fallback: attempt to find in FoodUser if not found in primary model.
+    if (!doc && ownerType !== 'USER') {
+        doc = await FoodUser.findById(ownerId);
     }
 
-    const doc = await model.findById(ownerId);
     if (!doc) {
-        console.error(`[FCM-DEBUG] upsert - Owner profile not found for id ${ownerId}`);
-        throw new Error('Owner profile not found.');
+        console.warn(`[FCM] Profile not found for ${ownerType} ID ${ownerId}. Token not saved.`);
+        return { success: false, reason: 'Owner profile not found' };
     }
 
     const field = getTokenFieldForPlatform(normalizedPlatform);
@@ -265,7 +272,7 @@ export const upsertFirebaseDeviceToken = async ({ ownerType, ownerId, token, pla
     doc[field] = tokens;
     
     await doc.save();
-    console.log(`[FCM-DEBUG] upsert - Token list updated. New count: ${tokens.length}`);
+    // console.log(`[FCM-DEBUG] upsert - Token list updated. New count: ${tokens.length}`);
     return { success: true };
 };
 

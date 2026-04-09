@@ -24,10 +24,11 @@ const ROLES = {
   ADMIN: "ADMIN",
 };
 
-export const requestUserOtp = async (phone) => {
-  if (!phone) {
+export const requestUserOtp = async (phoneRaw) => {
+  if (!phoneRaw) {
     throw new ValidationError("Phone is required");
   }
+  const phone = String(phoneRaw).replace(/\D/g, "");
 
   const otp = await createOrUpdateOtp(phone);
   // TODO: integrate SMS provider here
@@ -37,13 +38,14 @@ export const requestUserOtp = async (phone) => {
 };
 
 export const verifyUserOtpAndLogin = async (
-  phone,
+  phoneRaw,
   otp,
   ref,
   fcmToken,
   platform,
   name,
 ) => {
+  const phone = String(phoneRaw).replace(/\D/g, "");
   const result = await verifyOtp(phone, otp);
 
   if (!result.valid) {
@@ -239,10 +241,11 @@ export const adminLogin = async (email, password) => {
   return { accessToken, refreshToken, user: userObj };
 };
 
-export const requestRestaurantOtp = async (phone) => {
-  if (!phone) {
+export const requestRestaurantOtp = async (phoneRaw) => {
+  if (!phoneRaw) {
     throw new ValidationError("Phone is required");
   }
+  const phone = String(phoneRaw).replace(/\D/g, "");
   const otp = await createOrUpdateOtp(phone);
   // Only expose OTP in response when in default/dev mode — never in production with real SMS
   const shouldExposeOtp =
@@ -250,7 +253,8 @@ export const requestRestaurantOtp = async (phone) => {
   return shouldExposeOtp ? { otp } : {};
 };
 
-export const verifyRestaurantOtpAndLogin = async (phone, otp, fcmToken, platform) => {
+export const verifyRestaurantOtpAndLogin = async (phoneRaw, otp, fcmToken, platform) => {
+  const phone = String(phoneRaw).replace(/\D/g, "");
   const result = await verifyOtp(phone, otp);
   if (!result.valid) {
     throw new AuthError(result.reason || "OTP verification failed");
@@ -331,10 +335,11 @@ export const verifyRestaurantOtpAndLogin = async (phone, otp, fcmToken, platform
   };
 };
 
-export const requestDeliveryOtp = async (phone) => {
-  if (!phone) {
+export const requestDeliveryOtp = async (phoneRaw) => {
+  if (!phoneRaw) {
     throw new ValidationError("Phone is required");
   }
+  const phone = String(phoneRaw).replace(/\D/g, "");
   const otp = await createOrUpdateOtp(phone);
   // Only expose OTP in response when in default/dev mode — never in production with real SMS
   const shouldExposeOtp =
@@ -347,7 +352,8 @@ const normalizePhoneForDelivery = (phone) => {
   return digits.slice(-10) || null;
 };
 
-export const verifyDeliveryOtpAndLogin = async (phone, otp, fcmToken, platform) => {
+export const verifyDeliveryOtpAndLogin = async (phoneRaw, otp, fcmToken, platform) => {
+  const phone = String(phoneRaw).replace(/\D/g, "");
   const result = await verifyOtp(phone, otp);
   if (!result.valid) {
     throw new AuthError(result.reason || "OTP verification failed");

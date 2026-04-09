@@ -144,8 +144,8 @@ export default function RestaurantConfigPage() {
       type="button"
       whileTap={{ scale: 0.95 }}
       onClick={() => onChange(!enabled)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#ff8100] focus:ring-offset-2 ${
-        enabled ? "bg-[#ff8100]" : "bg-gray-300"
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+        enabled ? "bg-green-600" : "bg-gray-300"
       }`}
     >
       <motion.span
@@ -566,5 +566,3 @@ export default function RestaurantConfigPage() {
     </div>
   )
 }
-
-

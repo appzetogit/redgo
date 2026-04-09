@@ -180,6 +180,10 @@ const toRestaurantProfile = (doc) => {
             maxGuests: Math.max(1, parseInt(doc.diningSettings?.maxGuests, 10) || 6),
             diningType: String(doc.diningSettings?.diningType || 'family-dining').trim() || 'family-dining'
         },
+        takeawaySettings: {
+            isEnabled: doc.takeawaySettings?.isEnabled === true,
+            codEnabled: doc.takeawaySettings?.codEnabled === true
+        },
         isAcceptingOrders: doc.isAcceptingOrders !== false,
         status: doc.status || null,
         createdAt: doc.createdAt,
@@ -320,6 +324,7 @@ export const registerRestaurant = async (payload, files) => {
             throw new ValidationError('Closing time cannot be less than opening time');
         }
     }
+    
     const estimatedDeliveryTimeText = String(estimatedDeliveryTime || '').trim();
     const estimatedDeliveryTimeMinutes = parseEstimatedDeliveryMinutes(estimatedDeliveryTimeText);
 
@@ -375,6 +380,10 @@ export const registerRestaurant = async (payload, files) => {
             accountHolderName,
             accountType,
             menuImages,
+            takeawaySettings: {
+                isEnabled: (payload.isTakeawayEnabled === true || payload.isTakeawayEnabled === 'true'),
+                codEnabled: (payload.isTakeawayCodEnabled === true || payload.isTakeawayCodEnabled === 'true')
+            },
             ...images
         });
 
@@ -438,6 +447,7 @@ export const getCurrentRestaurantProfile = async (restaurantId) => {
                 'estimatedDeliveryTime',
                 'estimatedDeliveryTimeMinutes',
                 'diningSettings',
+                'takeawaySettings',
                 'isAcceptingOrders',
                 'status',
                 'createdAt',
@@ -488,6 +498,7 @@ export const updateRestaurantAcceptingOrders = async (restaurantId, isAcceptingO
                 'closingTime',
                 'openDays',
                 'diningSettings',
+                'takeawaySettings',
                 'isAcceptingOrders',
                 'status',
                 'createdAt',
@@ -578,6 +589,90 @@ export const updateCurrentRestaurantDiningSettings = async (restaurantId, body =
                 'estimatedDeliveryTime',
                 'estimatedDeliveryTimeMinutes',
                 'diningSettings',
+                'takeawaySettings',
+                'isAcceptingOrders',
+                'status',
+                'createdAt',
+                'updatedAt'
+            ].join(' ')
+        }
+    ).lean();
+
+    return toRestaurantProfile(doc);
+};
+
+export const updateCurrentRestaurantTakeawaySettings = async (restaurantId, body = {}) => {
+    if (!restaurantId) {
+        throw new ValidationError('Invalid restaurant id');
+    }
+
+    const currentRestaurant = await FoodRestaurant.findById(restaurantId)
+        .select('takeawaySettings status')
+        .lean();
+
+    if (!currentRestaurant) {
+        throw new ValidationError('Restaurant not found');
+    }
+
+    const currentTakeawaySettings =
+        currentRestaurant.takeawaySettings && typeof currentRestaurant.takeawaySettings === 'object'
+            ? currentRestaurant.takeawaySettings
+            : {};
+
+    const parseBoolean = (value, fallback = false) => {
+        if (value === undefined || value === null) return Boolean(fallback);
+        if (typeof value === 'boolean') return value;
+        const normalized = String(value).trim().toLowerCase();
+        if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
+        if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
+        return Boolean(fallback);
+    };
+
+    const doc = await FoodRestaurant.findByIdAndUpdate(
+        restaurantId,
+        {
+            $set: {
+                takeawaySettings: {
+                    isEnabled: parseBoolean(body.isEnabled, currentTakeawaySettings.isEnabled),
+                    codEnabled: parseBoolean(body.codEnabled, currentTakeawaySettings.codEnabled)
+                }
+            }
+        },
+        {
+            new: true,
+            runValidators: true,
+            projection: [
+                'restaurantName',
+                'cuisines',
+                'location',
+                'addressLine1',
+                'addressLine2',
+                'area',
+                'city',
+                'state',
+                'pincode',
+                'landmark',
+                'ownerName',
+                'ownerEmail',
+                'ownerPhone',
+                'primaryContactNumber',
+                'accountNumber',
+                'ifscCode',
+                'accountHolderName',
+                'accountType',
+                'upiId',
+                'upiQrImage',
+                'pureVegRestaurant',
+                'profileImage',
+                'coverImages',
+                'menuImages',
+                'openingTime',
+                'closingTime',
+                'openDays',
+                'estimatedDeliveryTime',
+                'estimatedDeliveryTimeMinutes',
+                'diningSettings',
+                'takeawaySettings',
                 'isAcceptingOrders',
                 'status',
                 'createdAt',
@@ -595,7 +690,7 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
     }
 
     const currentRestaurant = await FoodRestaurant.findById(restaurantId)
-        .select('restaurantName restaurantNameNormalized ownerPhone ownerPhoneDigits ownerPhoneLast10 primaryContactNumber status')
+        .select('restaurantName restaurantNameNormalized ownerPhone ownerPhoneDigits ownerPhoneLast10 primaryContactNumber status takeawaySettings')
         .lean();
 
     if (!currentRestaurant) {
@@ -887,6 +982,22 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
         update.fssaiImage = toUrl(body.fssaiImage) || '';
     }
 
+    // Takeaway handle in general update
+    if (body.takeawaySettings !== undefined && typeof body.takeawaySettings === 'object') {
+        const currentTS = currentRestaurant.takeawaySettings || {};
+        const nextisEnabled = body.takeawaySettings.isEnabled !== undefined 
+            ? Boolean(body.takeawaySettings.isEnabled) 
+            : !!currentTS.isEnabled;
+        const nextCodEnabled = body.takeawaySettings.codEnabled !== undefined
+            ? Boolean(body.takeawaySettings.codEnabled)
+            : !!currentTS.codEnabled;
+            
+        update.takeawaySettings = {
+            isEnabled: nextisEnabled,
+            codEnabled: nextCodEnabled
+        };
+    }
+
     if (!Object.keys(update).length) {
         return getCurrentRestaurantProfile(restaurantId);
     }
@@ -922,10 +1033,10 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
                     'ownerEmail',
                     'ownerPhone',
                     'primaryContactNumber',
-                'pureVegRestaurant',
-                'profileImage',
-                'coverImages',
-                'menuImages',
+                    'pureVegRestaurant',
+                    'profileImage',
+                    'coverImages',
+                    'menuImages',
                     'openingTime',
                     'closingTime',
                     'openDays',
@@ -951,7 +1062,9 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
                     'upiQrImage',
                     'estimatedDeliveryTime',
                     'estimatedDeliveryTimeMinutes',
-                    'zoneId'
+                    'zoneId',
+                    'diningSettings',
+                    'takeawaySettings'
                 ].join(' ')
             }
         ).lean();
@@ -994,7 +1107,7 @@ export const uploadRestaurantProfileImage = async (restaurantId, file) => {
                 rejectionReason: 1
             }
         },
-        { new: true, projection: 'profileImage coverImages restaurantName cuisines location menuImages addressLine1 addressLine2 area city state pincode landmark ownerName ownerEmail ownerPhone primaryContactNumber pureVegRestaurant openingTime closingTime openDays status createdAt updatedAt' }
+        { new: true, projection: 'profileImage coverImages restaurantName cuisines location menuImages addressLine1 addressLine2 area city state pincode landmark ownerName ownerEmail ownerPhone primaryContactNumber pureVegRestaurant openingTime closingTime openDays status createdAt updatedAt diningSettings takeawaySettings' }
     ).lean();
 
     if (!doc) throw new ValidationError('Restaurant not found');
@@ -1132,6 +1245,10 @@ export const listApprovedRestaurants = async (query = {}) => {
 
     const filter = { status: 'approved' };
 
+    if (query.isTakeaway === 'true') {
+        filter['takeawaySettings.isEnabled'] = true;
+    }
+
     if (query.city && String(query.city).trim()) {
         const city = String(query.city).trim().slice(0, 80);
         const rx = { $regex: escapeRegex(city), $options: 'i' };
@@ -1144,7 +1261,6 @@ export const listApprovedRestaurants = async (query = {}) => {
     }
     if (query.cuisine && String(query.cuisine).trim()) {
         const cuisine = normalizeCuisine(query.cuisine);
-        // cuisines is an array of strings.
         filter.cuisines = { $in: [new RegExp(escapeRegex(cuisine), 'i')] };
     }
     if (query.hasOffers === 'true') {
@@ -1183,10 +1299,8 @@ export const listApprovedRestaurants = async (query = {}) => {
         }
     }
 
-    // Optional zone polygon filter (when restaurant.zoneId is not set yet).
     const zoneIdRaw = String(query.zoneId || '').trim();
     if (zoneIdRaw && mongoose.Types.ObjectId.isValid(zoneIdRaw)) {
-        // Try fast path (precomputed restaurant.zoneId).
         filter.$or = [{ zoneId: new mongoose.Types.ObjectId(zoneIdRaw) }];
         const zoneDoc = await FoodZone.findOne({ _id: zoneIdRaw, isActive: true }).lean();
         const polygon = zoneToPolygon(zoneDoc);
@@ -1197,7 +1311,6 @@ export const listApprovedRestaurants = async (query = {}) => {
 
     const lat = toFiniteNumber(query.lat);
     const lng = toFiniteNumber(query.lng);
-    // Accept both radiusKm (preferred) and maxDistance (legacy frontend param).
     const radiusKm = toFiniteNumber(query.radiusKm) ?? toFiniteNumber(query.maxDistance);
     const sortBy = parseSortBy(query.sortBy);
 
@@ -1223,11 +1336,11 @@ export const listApprovedRestaurants = async (query = {}) => {
         location: 1,
         openingTime: 1,
         closingTime: 1,
-        openDays: 1
+        openDays: 1,
+        diningSettings: 1,
+        takeawaySettings: 1
     };
 
-    // Use $geoNear only when geo is explicitly needed (radius filter or nearest sorting).
-    // This avoids accidentally hiding restaurants that do not have coordinates yet.
     const wantsGeo = (radiusKm !== null) || sortBy === 'nearest';
     if (lat !== null && lng !== null && wantsGeo) {
         const geoNear = {
@@ -1249,7 +1362,6 @@ export const listApprovedRestaurants = async (query = {}) => {
             if (sortBy === 'price-high') return { $sort: { featuredPrice: -1, distanceMeters: 1 } };
             if (sortBy === 'newest') return { $sort: { createdAt: -1 } };
             if (sortBy === 'deliveryTime') return { $sort: { estimatedDeliveryTimeMinutes: 1, distanceMeters: 1 } };
-            // nearest (default)
             return { $sort: { distanceMeters: 1 } };
         })();
 
@@ -1277,7 +1389,6 @@ export const listApprovedRestaurants = async (query = {}) => {
         return { restaurants: pageDocs, total, page, limit };
     }
 
-    // Non-geo path: normal query + sort.
     const sort = (() => {
         if (sortBy === 'rating' || sortBy === 'rating-high') return { rating: -1, createdAt: -1 };
         if (sortBy === 'rating-low') return { rating: 1, createdAt: -1 };
@@ -1299,7 +1410,6 @@ export const listApprovedRestaurants = async (query = {}) => {
 
     const restaurants = (restaurantsRaw || []).map((r) => ({
         ...r,
-        // Frontend user app expects `name` and often checks `profileImage.url`
         restaurantId: r._id,
         id: r._id,
         name: r.restaurantName || '',
@@ -1310,7 +1420,6 @@ export const listApprovedRestaurants = async (query = {}) => {
         openingTime: r.openingTime || null,
         closingTime: r.closingTime || null,
         openDays: Array.isArray(r.openDays) ? r.openDays : [],
-        // Keep menuImages as an array for fallbacks; allow both string and {url} on client.
         menuImages: Array.isArray(r.menuImages) ? r.menuImages : []
     }));
 
@@ -1321,7 +1430,6 @@ export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {
     const value = String(idOrSlug || '').trim();
     if (!value) return null;
 
-    // ObjectId path
     if (/^[0-9a-fA-F]{24}$/.test(value)) {
         const doc = await FoodRestaurant.findOne({ _id: value, status: 'approved' }).lean();
         if (!doc) return null;
@@ -1332,7 +1440,6 @@ export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {
         };
     }
 
-    // Slug path: use normalized field for index-friendly exact match.
     const restaurantNameNormalized = normalizeName(value);
     if (!restaurantNameNormalized) return null;
 
@@ -1401,12 +1508,7 @@ export const listPublicOffers = async () => {
     return { allOffers, groupedByOffer: {} };
 };
 
-/**
- * List complaints for a restaurant.
- * Calls adminService.getRestaurantComplaints with fixed restaurantId.
- */
 export const getRestaurantComplaints = async (restaurantId, query = {}) => {
     const { getRestaurantComplaints: getComplaintsInternal } = await import('../../admin/services/admin.service.js');
     return getComplaintsInternal({ ...query, restaurantId });
 };
-

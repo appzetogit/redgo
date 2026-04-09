@@ -5,6 +5,7 @@ import { Button } from "@food/components/ui/button"
 import { useLocation } from "@food/hooks/useLocation"
 import { useCart } from "@food/context/CartContext"
 import { useLocationSelector } from "./UserLayout"
+import { useProfile } from "@food/context/ProfileContext"
 import { FaLocationDot } from "react-icons/fa6"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
 import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
@@ -19,6 +20,7 @@ export default function PageNavbar({
   const { location, loading, requestLocation } = useLocation()
   const { getCartCount } = useCart()
   const { openLocationSelector } = useLocationSelector()
+  const { orderType } = useProfile()
   const cartCount = getCartCount()
   const [logoUrl, setLogoUrl] = useState(null)
   const [companyName, setCompanyName] = useState(null)
@@ -968,7 +970,9 @@ export default function PageNavbar({
       return ""
     }
   }, [location?.label])
-  const locationSubText = savedAddressLabel ? `Delivering to ${savedAddressLabel}` : subLocationName
+  const locationSubText = savedAddressLabel 
+    ? (orderType === "takeaway" ? `Near ${savedAddressLabel}` : `Delivering to ${savedAddressLabel}`) 
+    : subLocationName
 
   const handleLocationClick = () => {
     // Open location selector overlay

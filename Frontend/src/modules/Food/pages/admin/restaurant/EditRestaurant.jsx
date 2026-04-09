@@ -85,6 +85,8 @@ const normalizeDetailsFormFromRestaurant = (restaurant) => {
     openingTime: restaurant?.openingTime || restaurant?.deliveryTimings?.openingTime || "",
     closingTime: restaurant?.closingTime || restaurant?.deliveryTimings?.closingTime || "",
     isActive: restaurant?.isActive !== false,
+    takeawayEnabled: restaurant?.takeawaySettings?.isEnabled === true,
+    takeawayCodEnabled: restaurant?.takeawaySettings?.codEnabled === true,
   }
 }
 
@@ -317,6 +319,10 @@ export default function EditRestaurant() {
         openingTime: detailsForm.openingTime,
         closingTime: detailsForm.closingTime,
         isActive: detailsForm.isActive !== false,
+        takeawaySettings: {
+          isEnabled: detailsForm.takeawayEnabled === true,
+          codEnabled: detailsForm.takeawayCodEnabled === true,
+        },
       }
 
       const res = await adminAPI.updateRestaurant(restaurantId, payload)
@@ -494,6 +500,60 @@ export default function EditRestaurant() {
                 <div>
                   <Label>Offer</Label>
                   <Input value={detailsForm.offer} onChange={(e) => setDetailsForm((p) => ({ ...p, offer: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-slate-100">
+                <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider">Takeaway (Pickup) Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                        <span>🛍️</span>
+                        <span>Takeaway (Pickup)</span>
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Allow customers to place orders online and pick them up from your restaurant.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetailsForm(p => ({ ...p, takeawayEnabled: !p.takeawayEnabled }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        detailsForm.takeawayEnabled ? "bg-green-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          detailsForm.takeawayEnabled ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
+                    detailsForm.takeawayEnabled 
+                      ? "border-slate-200 bg-slate-50/50 opacity-100" 
+                      : "border-slate-100 bg-slate-50/30 opacity-60 grayscale pointer-events-none"
+                  }`}>
+                    <div>
+                      <Label className="text-sm font-semibold text-slate-900">Takeaway COD</Label>
+                      <p className="text-[11px] text-slate-500">Enable Cash on Delivery for Pickup</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetailsForm(p => ({ ...p, takeawayCodEnabled: !p.takeawayCodEnabled }))}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        detailsForm.takeawayCodEnabled ? "bg-green-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          detailsForm.takeawayCodEnabled ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>

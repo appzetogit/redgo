@@ -11,7 +11,8 @@ import {
   CardTitle,
 } from "@food/components/ui/card";
 import { toast } from "sonner";
-import { Lock, Eye, EyeOff, Save, Loader2, Shield, User, Mail, Truck } from "lucide-react";
+import { Lock, Eye, EyeOff, Save, Loader2, Shield, User, Mail, Truck, CreditCard } from "lucide-react";
+import { Switch } from "@food/components/ui/switch";
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -29,6 +30,8 @@ export default function AdminSettings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [systemConfigs, setSystemConfigs] = useState([]);
+  const [loadingConfigs, setLoadingConfigs] = useState(false);
 
   // Single API: getAdminProfile (GET /auth/me) for current account display
   useEffect(() => {
@@ -39,26 +42,46 @@ export default function AdminSettings() {
         const admin = res?.data?.data?.admin ?? res?.data?.admin;
         if (!cancelled && admin) {
           setAdminInfo({ name: admin.name, email: admin.email, role: admin.role });
-          return;
         }
       } catch (_) {}
-      if (!cancelled) {
-        try {
-          const adminUserStr = localStorage.getItem("admin_user");
-          if (adminUserStr) {
-            const local = JSON.parse(adminUserStr);
-            setAdminInfo({
-              name: local.name || "Admin User",
-              email: local.email || "",
-              role: local.role || "admin",
-            });
-          }
-        } catch (_) {}
-      }
     };
     load();
+
+    const loadConfigs = async () => {
+        try {
+            setLoadingConfigs(true);
+            const res = await adminAPI.getSystemConfigs();
+            if(!cancelled && res.data?.data) {
+                setSystemConfigs(res.data.data);
+            }
+        } catch (err) {
+            debugError("Error loading system configs:", err);
+        } finally {
+            if(!cancelled) setLoadingConfigs(false);
+        }
+    }
+    loadConfigs();
+
     return () => { cancelled = true; };
   }, []);
+
+  const handleToggleSystemConfig = async (key, newValue) => {
+    try {
+        setSaving(true);
+        await adminAPI.updateSystemConfig(key, newValue);
+        
+        // Update local state
+        setSystemConfigs(prev => prev.map(c => 
+            c.key === key ? { ...c, value: newValue } : c
+        ));
+        
+        toast.success(`${key.replace(/_/g, ' ')} updated successfully`);
+    } catch (error) {
+        toast.error("Failed to update setting");
+    } finally {
+        setSaving(false);
+    }
+  }
 
 
   const handlePasswordChange = (field, value) => {
@@ -184,7 +207,44 @@ export default function AdminSettings() {
         </Card>
       )}
 
-      {/* Password Change Card */}
+      {/* Order & Payment Settings */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-neutral-700" />
+            <CardTitle>Order & Payment Settings</CardTitle>
+          </div>
+          <CardDescription>
+            Configure global ordering behavior and payment methods
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-neutral-50/50">
+            <div className="space-y-0.5">
+              <Label className="text-base">Takeaway Cash on Delivery</Label>
+              <p className="text-sm text-neutral-500">
+                Allow customers to pay with cash when picking up their orders
+              </p>
+            </div>
+            {loadingConfigs ? (
+                <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
+            ) : (
+                <Switch
+                    checked={systemConfigs.find(c => c.key === "takeaway_cod_enabled")?.value === true}
+                    onCheckedChange={(checked) => handleToggleSystemConfig("takeaway_cod_enabled", checked)}
+                    disabled={saving}
+                />
+            )}
+          </div>
+          
+          <div className="p-4 border border-blue-100 rounded-lg bg-blue-50/30">
+            <p className="text-sm text-blue-700 leading-relaxed">
+              <strong>Note:</strong> Razorpay online payments are always enabled for all order types (Delivery, Dining, and Takeaway). 
+              Disabling COD for Takeaway will force users to pay online at the time of placing orders.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">

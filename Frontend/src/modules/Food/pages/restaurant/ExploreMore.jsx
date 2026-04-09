@@ -906,7 +906,7 @@ export default function ExploreMore() {
               <Search className="w-5 h-5 text-gray-900" />
             </button>
             <button
-              onClick={() => navigate("/restaurant/onboarding?step=1")}
+              onClick={() => setProfileOpen(true)}
               className="p-2 hover:bg-gray-100 bg-gray-200 rounded-full transition-colors"
               aria-label="Profile"
             >
@@ -1230,7 +1230,7 @@ export default function ExploreMore() {
                 <button 
                   onClick={() => {
                     setProfileOpen(false)
-                    navigate("/restaurant/onboarding?step=1")
+                    navigate("/restaurant/outlet-info")
                   }}
                   className="w-full flex items-start gap-4 text-left p-2 -m-2 hover:bg-gray-50 rounded-xl transition-colors group"
                 >

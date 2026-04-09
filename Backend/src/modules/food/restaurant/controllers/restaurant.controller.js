@@ -6,6 +6,7 @@ import {
     updateRestaurantProfile,
     updateRestaurantAcceptingOrders,
     updateCurrentRestaurantDiningSettings,
+    updateCurrentRestaurantTakeawaySettings,
     uploadRestaurantProfileImage,
     uploadRestaurantMenuImage,
     uploadRestaurantCoverImages,
@@ -87,6 +88,16 @@ export const updateCurrentRestaurantDiningSettingsController = async (req, res, 
     }
 };
 
+export const updateCurrentRestaurantTakeawaySettingsController = async (req, res, next) => {
+    try {
+        const restaurantId = req.user?.userId;
+        const restaurant = await updateCurrentRestaurantTakeawaySettings(restaurantId, req.body || {});
+        return sendResponse(res, 200, 'Takeaway settings updated successfully', { restaurant });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const uploadRestaurantProfileImageController = async (req, res, next) => {
     try {
         const restaurantId = req.user?.userId;
@@ -144,4 +155,3 @@ export const getRestaurantComplaintsController = async (req, res, next) => {
         next(error);
     }
 };
-

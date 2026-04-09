@@ -9,6 +9,7 @@ import {
     updateRestaurantProfileController,
     updateRestaurantAcceptingOrdersController,
     updateCurrentRestaurantDiningSettingsController,
+    updateCurrentRestaurantTakeawaySettingsController,
     uploadRestaurantProfileImageController,
     uploadRestaurantMenuImageController,
     uploadRestaurantCoverImagesController,
@@ -90,13 +91,8 @@ router.patch('/profile', authMiddleware, requireRestaurant, async (req, res, nex
     await invalidateCache('restaurant_detail:*');
     next();
 }, updateRestaurantProfileController);
-router.patch('/availability', authMiddleware, requireRestaurant, async (req, res, next) => {
-    await invalidateCache('restaurants:*');
-    next();
-}, updateRestaurantAcceptingOrdersController);
-router.patch('/profile', authMiddleware, requireRestaurant, updateRestaurantProfileController);
-router.patch('/availability', authMiddleware, requireRestaurant, updateRestaurantAcceptingOrdersController);
 router.patch('/dining-settings', authMiddleware, requireRestaurant, updateCurrentRestaurantDiningSettingsController);
+router.patch('/takeaway-settings', authMiddleware, requireRestaurant, updateCurrentRestaurantTakeawaySettingsController);
 router.get('/outlet-timings', authMiddleware, requireRestaurant, getCurrentRestaurantOutletTimingsController);
 router.put('/outlet-timings', authMiddleware, requireRestaurant, upsertCurrentRestaurantOutletTimingsController);
 router.get('/finance', authMiddleware, requireRestaurant, getRestaurantFinanceController);

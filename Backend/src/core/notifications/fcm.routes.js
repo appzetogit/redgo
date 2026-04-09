@@ -75,7 +75,7 @@ router.post('/save', authMiddleware, async (req, res, next) => {
         const token = String(req.body?.token || '').trim();
         const platform = req.body?.platform === 'mobile' ? 'mobile' : 'web';
 
-        console.log(`[FCM-DEBUG] /save request received: ownerType=${ownerType}, ownerId=${ownerId}, platform=${platform}, tokenPreview=${token?.slice(0, 10)}...`);
+        // console.log(`[FCM-DEBUG] /save request received: ownerType=${ownerType}, ownerId=${ownerId}, platform=${platform}, tokenPreview=${token?.slice(0, 10)}...`);
 
         if (!ownerType || !ownerId) {
             console.warn('[FCM-DEBUG] /save - Authentication required');
@@ -83,7 +83,7 @@ router.post('/save', authMiddleware, async (req, res, next) => {
         }
 
         await upsertFirebaseDeviceToken({ ownerType, ownerId, token, platform });
-        console.log('[FCM-DEBUG] /save - Token saved successfully');
+        // console.log('[FCM-DEBUG] /save - Token saved successfully');
         return res.status(200).json({
             success: true,
             message: 'FCM token saved',
@@ -99,7 +99,7 @@ router.post('/mobile/save', authMiddleware, async (req, res, next) => {
         const { ownerType, ownerId } = getOwnerContext(req);
         const token = String(req.body?.token || '').trim();
 
-        console.log(`[FCM-DEBUG] /mobile/save request received: ownerType=${ownerType}, ownerId=${ownerId}, tokenPreview=${token?.slice(0, 10)}...`);
+        // console.log(`[FCM-DEBUG] /mobile/save request received: ownerType=${ownerType}, ownerId=${ownerId}, tokenPreview=${token?.slice(0, 10)}...`);
 
         if (!ownerType || !ownerId) {
             console.warn('[FCM-DEBUG] /mobile/save - Authentication required');
@@ -112,7 +112,7 @@ router.post('/mobile/save', authMiddleware, async (req, res, next) => {
         }
 
         await upsertFirebaseDeviceToken({ ownerType, ownerId, token, platform: 'mobile' });
-        console.log('[FCM-DEBUG] /mobile/save - Token saved successfully');
+        // console.log('[FCM-DEBUG] /mobile/save - Token saved successfully');
         return res.status(200).json({
             success: true,
             message: 'Mobile FCM token saved successfully',

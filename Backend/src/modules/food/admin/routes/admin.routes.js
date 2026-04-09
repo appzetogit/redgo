@@ -6,6 +6,7 @@ import * as addonsApprovalController from '../controllers/addonsApproval.control
 import * as businessSettingsController from '../controllers/businessSettings.controller.js';
 import * as feedbackExperienceController from '../controllers/feedbackExperience.controller.js';
 import * as notificationBroadcastController from '../controllers/notificationBroadcast.controller.js';
+import * as systemConfigController from '../controllers/systemConfig.controller.js';
 import * as diningAdminController from '../../dining/controllers/diningAdmin.controller.js';
 import * as orderController from '../../orders/controllers/order.controller.js';
 import { getAdminPageController, upsertAdminPageController } from '../controllers/pageContent.controller.js';
@@ -15,6 +16,7 @@ const router = express.Router();
 
 // ----- Public Business Settings (No Admin Required) -----
 router.get('/business-settings/public', businessSettingsController.getBusinessSettings);
+router.get('/system-config/takeaway-cod-status', systemConfigController.getTakeawayCodStatus);
 
 const requireAdmin = (req, _res, next) => {
     const user = req.user;
@@ -194,6 +196,11 @@ router.patch('/dining/restaurants/:restaurantId', diningAdminController.updateDi
 router.get('/orders', orderController.listOrdersAdminController);
 router.get('/orders/:orderId', orderController.getOrderByIdAdminController);
 router.delete('/orders/:orderId', orderController.deleteOrderAdminController);
+
+// ----- System Config (Admin) -----
+router.get('/system-configs', systemConfigController.getConfigs);
+router.get('/system-configs/:key', systemConfigController.getConfigByKey);
+router.post('/system-configs', systemConfigController.updateConfig);
 
 // ----- CMS Pages (About + legal) -----
 router.get('/pages-social-media/:key', getAdminPageController);

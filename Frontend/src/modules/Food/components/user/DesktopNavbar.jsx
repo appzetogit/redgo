@@ -53,12 +53,14 @@ export default function DesktopNavbar({ showLogo = true }) {
     // Check active routes - support both /user/* and /* paths
     const isDining = location.pathname === "/dining" || location.pathname === "/dining"
     const isUnder250 = location.pathname === "/under-250" || location.pathname === "/under-250"
+    const isTakeaway = location.pathname === "/takeaway" || location.pathname === "/takeaway"
     const isProfile = location.pathname.startsWith("/profile") || location.pathname.startsWith("/profile")
-    const isDelivery = !isDining && !isUnder250 && !isProfile && (location.pathname === "" || location.pathname === "/food" || (location.pathname.startsWith("") && !location.pathname.includes("/dining") && !location.pathname.includes("/under-250") && !location.pathname.includes("/profile")))
+    const isDelivery = !isDining && !isUnder250 && !isTakeaway && !isProfile && (location.pathname === "" || location.pathname === "/food" || (location.pathname.startsWith("") && !location.pathname.includes("/dining") && !location.pathname.includes("/under-250") && !location.pathname.includes("/takeaway") && !location.pathname.includes("/profile")))
     const isBannerRoute =
         location.pathname === "" ||
         location.pathname === "/food" ||
         location.pathname === "/under-250" ||
+        location.pathname === "/takeaway" ||
         location.pathname === "/under-250"
 
     // Load business settings logo
@@ -298,7 +300,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-center h-12">
                         {/* Navigation Tabs - Centered with spacing */}
-                        <div className="flex items-center space-x-24">
+                        <div className="flex items-center space-x-16">
                             {/* Delivery Tab */}
                             <Link
                                 to="/"
@@ -329,6 +331,26 @@ export default function DesktopNavbar({ showLogo = true }) {
                             >
                                 <span className="text-sm font-bold tracking-wide uppercase">Under 250</span>
                                 {isUnder250 && (
+                                    <motion.div
+                                        layoutId="navIndicator"
+                                        className="absolute -bottom-3 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.3 }}
+                                    />
+                                )}
+                            </Link>
+
+                            {/* Takeaway Tab */}
+                            <Link
+                                to="/takeaway"
+                                className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors relative group ${isTakeaway
+                                    ? "text-orange-600 dark:text-orange-500"
+                                    : "text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500"
+                                    }`}
+                            >
+                                <span className="text-sm font-bold tracking-wide uppercase">Takeaway</span>
+                                {isTakeaway && (
                                     <motion.div
                                         layoutId="navIndicator"
                                         className="absolute -bottom-3 left-0 right-0 h-0.5 bg-orange-600 dark:bg-orange-500"
