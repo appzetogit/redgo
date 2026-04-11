@@ -16,6 +16,7 @@ import AddToCartAnimation from "@food/components/user/AddToCartAnimation"
 import OptimizedImage from "@food/components/OptimizedImage"
 import api from "@food/api"
 import { restaurantAPI, adminAPI } from "@food/api"
+import RestaurantImageCarousel from "@food/components/user/RestaurantImageCarousel"
 import { isModuleAuthenticated } from "@food/utils/auth"
 import { flattenMenuItems, getMenuFromResponse } from "@food/utils/menuItems"
 import { calculateDistance, formatDistance } from "@food/utils/common"
@@ -88,18 +89,11 @@ export default function Under250() {
   const [categories, setCategories] = useState([])
   const [bannerImages, setBannerImages] = useState([])
   const [loadingBanner, setLoadingBanner] = useState(true)
-  const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [under250Restaurants, setUnder250Restaurants] = useState([])
   const [loadingRestaurants, setLoadingRestaurants] = useState(true)
   const [hasScrolledPastBanner, setHasScrolledPastBanner] = useState(false)
   const bannerShellRef = useRef(null)
   const stickyHeaderRef = useRef(null)
-  const autoSlideIntervalRef = useRef(null)
-  const touchStartXRef = useRef(0)
-  const touchStartYRef = useRef(0)
-  const touchEndXRef = useRef(0)
-  const touchEndYRef = useRef(0)
-  const isBannerSwipingRef = useRef(false)
 
   const sortOptions = [
     { id: null, label: 'Relevance' },
@@ -250,89 +244,6 @@ export default function Under250() {
       })
     return () => { cancelled = true }
   }, [])
-
-  useEffect(() => {
-    setCurrentBannerIndex((prev) => {
-      if (bannerImages.length === 0) return 0
-      return Math.min(prev, bannerImages.length - 1)
-    })
-  }, [bannerImages.length])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    bannerImages.forEach((src) => {
-      if (!src) return
-      const img = new window.Image()
-      img.src = src
-    })
-  }, [bannerImages])
-
-  const startBannerAutoSlide = useCallback(() => {
-    if (autoSlideIntervalRef.current) {
-      clearInterval(autoSlideIntervalRef.current)
-    }
-
-    if (bannerImages.length <= 1) return
-
-    autoSlideIntervalRef.current = setInterval(() => {
-      if (!isBannerSwipingRef.current) {
-        setCurrentBannerIndex((prev) => (prev + 1) % bannerImages.length)
-      }
-    }, 3500)
-  }, [bannerImages.length])
-
-  const resetBannerAutoSlide = useCallback(() => {
-    startBannerAutoSlide()
-  }, [startBannerAutoSlide])
-
-  useEffect(() => {
-    startBannerAutoSlide()
-
-    return () => {
-      if (autoSlideIntervalRef.current) {
-        clearInterval(autoSlideIntervalRef.current)
-      }
-    }
-  }, [startBannerAutoSlide])
-
-  const handleBannerTouchStart = useCallback((event) => {
-    if (bannerImages.length <= 1) return
-    touchStartXRef.current = event.touches[0].clientX
-    touchStartYRef.current = event.touches[0].clientY
-    touchEndXRef.current = event.touches[0].clientX
-    touchEndYRef.current = event.touches[0].clientY
-    isBannerSwipingRef.current = true
-  }, [bannerImages.length])
-
-  const handleBannerTouchMove = useCallback((event) => {
-    if (!isBannerSwipingRef.current) return
-    touchEndXRef.current = event.touches[0].clientX
-    touchEndYRef.current = event.touches[0].clientY
-  }, [])
-
-  const handleBannerTouchEnd = useCallback(() => {
-    if (!isBannerSwipingRef.current || bannerImages.length <= 1) {
-      isBannerSwipingRef.current = false
-      return
-    }
-
-    const deltaX = touchEndXRef.current - touchStartXRef.current
-    const deltaY = Math.abs(touchEndYRef.current - touchStartYRef.current)
-    const minSwipeDistance = 40
-
-    if (Math.abs(deltaX) > minSwipeDistance && Math.abs(deltaX) > deltaY) {
-      setCurrentBannerIndex((prev) => {
-        if (deltaX > 0) {
-          return (prev - 1 + bannerImages.length) % bannerImages.length
-        }
-        return (prev + 1) % bannerImages.length
-      })
-      resetBannerAutoSlide()
-    }
-
-    isBannerSwipingRef.current = false
-  }, [bannerImages.length, resetBannerAutoSlide])
 
   // Fetch restaurants with dishes under ?250 from backend
   useEffect(() => {
@@ -840,7 +751,7 @@ export default function Under250() {
           }`}
       >
         <div className="relative z-50 pt-2 sm:pt-3 pb-2">
-          <PageNavbar textColor="black" zIndex={20} showProfile={true} showLogo={false} />
+          <PageNavbar textColor={hasScrolledPastBanner ? "black" : "white"} zIndex={20} showProfile={true} showLogo={false} />
         </div>
       </div>
 
@@ -850,53 +761,22 @@ export default function Under250() {
         data-banner-shell="true"
         className="relative w-full overflow-hidden h-[clamp(240px,42vw,520px)] md:-mt-40"
       >
-        {/* Banner Image */}
-        {bannerImages.length > 0 && (
-          <div
-            className="absolute inset-0 z-0 overflow-hidden"
-            onTouchStart={handleBannerTouchStart}
-            onTouchMove={handleBannerTouchMove}
-            onTouchEnd={handleBannerTouchEnd}
-          >
-            <div
-              className="flex h-full w-full transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}
-            >
-              {bannerImages.map((bannerImage, index) => (
-                <div key={`${bannerImage}-${index}`} className="relative h-full w-full shrink-0">
-                  <OptimizedImage
-                    src={bannerImage}
-                    alt={`Under 250 Banner ${index + 1}`}
-                    className="w-full h-full"
-                    objectFit="cover"
-                    priority={index === 0}
-                    sizes="100vw"
-                  />
-                </div>
-              ))}
-            </div>
-            {bannerImages.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/25 px-3 py-1.5 backdrop-blur-sm">
-                {bannerImages.map((_, index) => (
-                  <button
-                    key={`banner-dot-${index}`}
-                    type="button"
-                    aria-label={`Go to banner ${index + 1}`}
-                    onClick={() => {
-                      setCurrentBannerIndex(index)
-                      resetBannerAutoSlide()
-                    }}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      currentBannerIndex === index ? "w-5 bg-white" : "w-2 bg-white/55"
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+        {bannerImages.length > 0 ? (
+          <RestaurantImageCarousel
+            restaurant={{ name: "Under 250 Offers", images: bannerImages }}
+            priority={true}
+            className="h-full"
+            roundedClass="rounded-none"
+          />
+        ) : (
+          !loadingBanner && (
+            <div className="absolute top-0 left-0 right-0 bottom-0 z-0 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 overflow-hidden" />
+          )
         )}
-        {bannerImages.length === 0 && !loadingBanner && (
-          <div className="absolute top-0 left-0 right-0 bottom-0 z-0 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 overflow-hidden" />
+        {loadingBanner && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 dark:bg-[#1a1a1a]">
+            <div className="w-10 h-10 border-4 border-[#E23744] border-t-transparent rounded-full animate-spin" />
+          </div>
         )}
       </div>
 
@@ -921,7 +801,7 @@ export default function Under250() {
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
-                <div className={`w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all ${!activeCategory ? 'ring-2 ring-[#EB590E] ring-offset-2' : ''}`}>
+                <div className={`w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all ${!activeCategory ? 'ring-2 ring-[#E23744] ring-offset-2' : ''}`}>
                   <OptimizedImage
                     src={offerImage}
                     alt="All"
@@ -931,7 +811,7 @@ export default function Under250() {
                     placeholder="blur"
                   />
                 </div>
-                <span className={`text-xs sm:text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200 text-center pb-1 ${!activeCategory ? 'text-[#EB590E]' : ''}`}>
+                <span className={`text-xs sm:text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200 text-center pb-1 ${!activeCategory ? 'text-[#E23744]' : ''}`}>
                   All
                 </span>
               </motion.div>
@@ -946,7 +826,7 @@ export default function Under250() {
                       whileTap={{ scale: 0.95 }}
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     >
-                      <div className={`w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all ${isActive ? 'ring-2 ring-[#EB590E] ring-offset-2' : ''}`}>
+                      <div className={`w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all ${isActive ? 'ring-2 ring-[#E23744] ring-offset-2' : ''}`}>
                         <OptimizedImage
                           src={category.image}
                           alt={category.name}
@@ -956,7 +836,7 @@ export default function Under250() {
                           placeholder="blur"
                         />
                       </div>
-                      <span className={`text-xs sm:text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200 text-center pb-1 ${isActive ? 'text-[#EB590E]' : ''}`}>
+                      <span className={`text-xs sm:text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200 text-center pb-1 ${isActive ? 'text-[#E23744]' : ''}`}>
                         {category.name.length > 7 ? `${category.name.slice(0, 7)}...` : category.name}
                       </span>
                     </motion.div>
@@ -983,7 +863,7 @@ export default function Under250() {
               variant="outline"
               onClick={() => setUnder30MinsFilter(!under30MinsFilter)}
               className={`h-8 sm:h-9 md:h-10 px-3 sm:px-4 md:px-5 rounded-md flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-medium transition-all text-sm md:text-base ${under30MinsFilter
-                ? 'bg-[#EB590E] text-white border border-[#EB590E] hover:bg-[#D94F0C]'
+                ? 'bg-[#E23744] text-white border border-[#E23744] hover:bg-[#C21824]'
                 : 'bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300'
                 }`}
             >
@@ -1082,19 +962,18 @@ export default function Under250() {
                               {/* Gradient Overlay on Hover */}
                               <motion.div
                                 className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"
-                                initial={{ opacity: 0 }}
                                 whileHover={{ opacity: 1 }}
                                 transition={{ duration: 0.3 }}
                               />
                               {/* Veg Indicator */}
                               {item.isVeg && (
-                                <motion.div
-                                  className="absolute top-2 left-2 md:top-3 md:left-3 h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 rounded border-2 border-green-600 bg-white flex items-center justify-center z-10"
-                                  whileHover={{ scale: 1.2, rotate: 5 }}
-                                  transition={{ duration: 0.2 }}
-                                >
-                                  <div className="h-2 w-2 md:h-2.5 md:w-2.5 lg:h-3 lg:w-3 rounded-full bg-green-600" />
-                                </motion.div>
+                                  <motion.div
+                                    className="absolute top-2 left-2 md:top-3 md:left-3 h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 border-2 border-green-600 bg-white flex items-center justify-center rounded z-10 p-[2px]"
+                                    whileHover={{ scale: 1.2, rotate: 5 }}
+                                    transition={{ duration: 0.2 }}
+                                  >
+                                    <div className="w-full h-full rounded-full bg-green-600" />
+                                  </motion.div>
                               )}
                             </div>
 
@@ -1102,52 +981,52 @@ export default function Under250() {
                             <div className="p-3 md:p-4 lg:p-5">
                               <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2 lg:mb-3">
                                 {item.isVeg && (
-                                  <div className="h-3 w-3 md:h-4 md:w-4 lg:h-5 lg:w-5 rounded border border-green-600 bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
-                                    <div className="h-1.5 w-1.5 md:h-2 md:w-2 lg:h-2.5 lg:w-2.5 rounded-full bg-green-600" />
+                                  <div className="h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 border-2 border-green-600 bg-white flex items-center justify-center rounded p-[1.5px]">
+                                    <div className="w-full h-full rounded-full bg-green-600" />
                                   </div>
                                 )}
                                 <span className="text-sm md:text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
-                                  1 x {item.name}
+                                  {item.name}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
-                                    {RUPEE_SYMBOL}{Math.round(item.price)}
-                                  </p>
-                                  {item.bestPrice && (
-                                    <p className="text-xs md:text-sm lg:text-base text-gray-500 dark:text-gray-400">Best price</p>
-                                  )}
-                                </div>
-                                {quantity > 0 ? (
-                                  <Link to="/user/cart" onClick={(e) => e.stopPropagation()}>
+                                  <div>
+                                    <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
+                                      {RUPEE_SYMBOL}{Math.round(item.price)}
+                                    </p>
+                                    {item.bestPrice && (
+                                      <p className="text-xs md:text-sm lg:text-base text-gray-500 dark:text-gray-400">Best price</p>
+                                    )}
+                                  </div>
+                                  {quantity > 0 ? (
+                                    <Link to="/user/cart" onClick={(e) => e.stopPropagation()}>
+                                      <Button
+                                        variant={"outline"}
+                                        size="sm"
+                                        className="bg-[#FFF2EB] text-[#E23744] border-[#E23744] hover:bg-[#E23744] hover:text-white h-7 md:h-8 lg:h-9 px-3 md:px-4 lg:px-5 text-xs md:text-sm lg:text-base"
+                                      >
+                                        View cart
+                                      </Button>
+                                    </Link>
+                                  ) : (
                                     <Button
                                       variant={"outline"}
                                       size="sm"
-                                      className="bg-[#FFF2EB] text-[#EB590E] border-[#EB590E] hover:bg-[#EB590E] hover:text-white h-7 md:h-8 lg:h-9 px-3 md:px-4 lg:px-5 text-xs md:text-sm lg:text-base"
+                                      disabled={shouldShowGrayscale}
+                                      className={`h-7 md:h-8 lg:h-9 px-3 md:px-4 lg:px-5 text-xs md:text-sm lg:text-base ${shouldShowGrayscale
+                                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-50'
+                                        : 'bg-[#FFF2EB] text-[#E23744] border-[#E23744] hover:bg-[#E23744] hover:text-white'
+                                        }`}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        if (!shouldShowGrayscale) {
+                                          handleItemClick(item, restaurant)
+                                        }
+                                      }}
                                     >
-                                      View cart
+                                      Add
                                     </Button>
-                                  </Link>
-                                ) : (
-                                  <Button
-                                    variant={"outline"}
-                                    size="sm"
-                                    disabled={shouldShowGrayscale}
-                                    className={`h-7 md:h-8 lg:h-9 px-3 md:px-4 lg:px-5 text-xs md:text-sm lg:text-base ${shouldShowGrayscale
-                                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-300 dark:border-gray-700 cursor-not-allowed opacity-50'
-                                      : 'bg-[#FFF2EB] text-[#EB590E] border-[#EB590E] hover:bg-[#EB590E] hover:text-white'
-                                      }`}
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      if (!shouldShowGrayscale) {
-                                        handleItemClick(item, restaurant)
-                                      }
-                                    }}
-                                  >
-                                    Add
-                                  </Button>
-                                )}
+                                  )}
                               </div>
                             </div>
                           </motion.div>
@@ -1207,7 +1086,7 @@ export default function Under250() {
                 <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Sort By</h2>
                 <button
                   onClick={handleClearAll}
-                  className="text-[#EB590E] dark:text-[#F97316] font-medium text-sm md:text-base"
+                  className="text-[#E23744] dark:text-[#F97316] font-medium text-sm md:text-base"
                 >
                   Clear all
                 </button>
@@ -1221,11 +1100,11 @@ export default function Under250() {
                       key={option.id || 'relevance'}
                       onClick={() => setDraftSelectedSort(option.id)}
                       className={`px-4 md:px-5 lg:px-6 py-3 md:py-4 rounded-xl border text-left transition-colors ${draftSelectedSort === option.id
-                        ? 'border-[#EB590E] bg-[#FFF2EB] dark:bg-orange-900/20'
-                        : 'border-gray-200 dark:border-gray-800 hover:border-[#EB590E]'
+                        ? 'border-[#E23744] bg-[#FFF2EB] dark:bg-orange-900/20'
+                        : 'border-gray-200 dark:border-gray-800 hover:border-[#E23744]'
                         }`}
                     >
-                      <span className={`text-sm md:text-base lg:text-lg font-medium ${draftSelectedSort === option.id ? 'text-[#EB590E] dark:text-[#F97316]' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <span className={`text-sm md:text-base lg:text-lg font-medium ${draftSelectedSort === option.id ? 'text-[#E23744] dark:text-[#F97316]' : 'text-gray-700 dark:text-gray-300'}`}>
                         {option.label}
                       </span>
                     </button>
@@ -1243,7 +1122,7 @@ export default function Under250() {
                 </button>
                 <button
                   onClick={handleApply}
-                  className="flex-1 py-3 md:py-4 font-semibold rounded-xl transition-colors text-sm md:text-base bg-[#EB590E] text-white hover:bg-[#D94F0C]"
+                  className="flex-1 py-3 md:py-4 font-semibold rounded-xl transition-colors text-sm md:text-base bg-[#E23744] text-white hover:bg-[#C21824]"
                 >
                   Apply
                 </button>
@@ -1338,18 +1217,6 @@ export default function Under250() {
                 ref={itemDetailContentRef}
                 className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 xl:px-10 py-4 md:py-6 lg:py-8"
               >
-                {/* Item Name and Indicator */}
-                <div className="flex items-start justify-between mb-3 md:mb-4 lg:mb-6">
-                  <div className="flex items-center gap-2 md:gap-3 flex-1">
-                    {selectedItem.isVeg && (
-                      <div className="h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7 rounded border-2 border-green-600 dark:border-green-500 bg-green-50 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0">
-                        <div className="h-2.5 w-2.5 md:h-3 md:w-3 lg:h-3.5 lg:w-3.5 rounded-full bg-green-600 dark:bg-green-500" />
-                      </div>
-                    )}
-                    <h2 className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 dark:text-white">
-                      {selectedItem.name}
-                    </h2>
-                  </div>
                   {/* Bookmark and Share Icons (Desktop) */}
                   <div className="hidden md:flex items-center gap-2 lg:gap-3">
                     <button
@@ -1377,7 +1244,6 @@ export default function Under250() {
                       <Share2 className="h-4 w-4 lg:h-5 lg:w-5" />
                     </button>
                   </div>
-                </div>
 
                 {/* Description */}
                 <p className="text-sm md:text-base lg:text-lg text-gray-600 dark:text-gray-400 mb-4 md:mb-6 lg:mb-8 leading-relaxed">
@@ -1388,7 +1254,7 @@ export default function Under250() {
                 {selectedItem.customisable && (
                   <div className="flex items-center gap-2 mb-4">
                     <div className="flex-1 h-0.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#EB590E] rounded-full" style={{ width: '50%' }} />
+                      <div className="h-full bg-[#E23744] rounded-full" style={{ width: '50%' }} />
                     </div>
                     <span className="text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
                       highly reordered
@@ -1524,7 +1390,7 @@ export default function Under250() {
                   <button
                     key={option.id}
                     onClick={() => handleShareOption(option.id)}
-                    className="rounded-2xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200 hover:border-[#EB590E] hover:text-[#EB590E] transition-colors"
+                    className="rounded-2xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200 hover:border-[#E23744] hover:text-[#E23744] transition-colors"
                   >
                     {option.label}
                   </button>

@@ -14,6 +14,7 @@ import {
     categoryAllowsFoodType,
     GLOBAL_CATEGORY_FILTER
 } from '../../shared/categoryWorkflow.js';
+import { invalidateCache } from '../../../../middleware/cache.js';
 
 const toStr = (v) => (v != null ? String(v).trim() : '');
 const APPROVED_CATEGORY_FILTER = [
@@ -203,6 +204,7 @@ export async function createRestaurantFood(restaurantId, body = {}) {
         image,
         foodType,
         isAvailable,
+        isRecommended: Boolean(body.isRecommended),
         preparationTime,
         approvalStatus: 'pending',
         requestedAt: new Date()
@@ -248,8 +250,8 @@ export async function updateRestaurantFood(restaurantId, foodId, body = {}) {
     if (body.image !== undefined) update.image = toStr(body.image);
     Object.assign(update, getUpdatedFoodPricing(existing, body));
     if (body.isAvailable !== undefined) update.isAvailable = body.isAvailable !== false;
+    if (body.isRecommended !== undefined) update.isRecommended = Boolean(body.isRecommended);
     if (body.preparationTime !== undefined) update.preparationTime = toStr(body.preparationTime);
-
     const targetFoodType = body.foodType !== undefined ? normalizeFoodType(body.foodType) : normalizeFoodType(existing.foodType);
     if (body.foodType !== undefined) update.foodType = targetFoodType;
 
@@ -300,5 +302,12 @@ export async function updateRestaurantFood(restaurantId, foodId, body = {}) {
         }
     }
 
+    if (updated) {
+        await invalidateCache([
+            'restaurants:*',
+            `restaurant_detail:${restaurantId}`,
+            `restaurant_menu:${restaurantId}`
+        ]);
+    }
     return updated;
 }

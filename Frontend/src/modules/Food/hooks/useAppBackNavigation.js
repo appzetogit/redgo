@@ -39,19 +39,19 @@ const resolveBackPath = ({ pathname, search, state }) => {
     return explicitBackPath || "/profile"
   }
 
-  if (pathname === "/wallet") {
-    return "/profile"
+  if (pathname === "/wallet" || pathname === "/user/wallet") {
+    return explicitBackPath || -1
   }
 
-  if (pathname === "/notifications") {
-    return explicitBackPath || "/"
+  if (pathname === "/notifications" || pathname === "/user/notifications") {
+    return explicitBackPath || -1
   }
 
   if (/^\/restaurants\/[^/]+$/.test(pathname)) {
     if (searchParams.get("under250") === "true") {
       return "/under-250"
     }
-    return explicitBackPath || "/"
+    return explicitBackPath || -1
   }
 
   if (/^\/dining\/book(\/|$)/.test(pathname)) {
@@ -111,7 +111,7 @@ const resolveBackPath = ({ pathname, search, state }) => {
   }
 
   if (/^\/product\/[^/]+$/.test(pathname)) {
-    return explicitBackPath || "/"
+    return explicitBackPath || -1
   }
 
   if (/^\/complaints(\/|$)/.test(pathname)) {
@@ -122,7 +122,7 @@ const resolveBackPath = ({ pathname, search, state }) => {
     return explicitBackPath
   }
 
-  return "/"
+  return -1
 }
 
 export default function useAppBackNavigation() {
@@ -130,6 +130,11 @@ export default function useAppBackNavigation() {
   const location = useLocation()
 
   return useCallback(() => {
-    navigate(resolveBackPath(location))
+    const backPath = resolveBackPath(location)
+    if (backPath === -1) {
+      navigate(-1)
+    } else {
+      navigate(backPath)
+    }
   }, [location, navigate])
 }

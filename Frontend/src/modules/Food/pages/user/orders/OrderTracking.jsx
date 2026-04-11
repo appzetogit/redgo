@@ -1,5 +1,5 @@
 import { useParams, Link, useSearchParams } from "react-router-dom"
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import {
@@ -86,7 +86,7 @@ const AnimatedCheckmark = ({ delay = 0 }) => (
 )
 
 // Real Delivery Map Component with User Live Location
-const DeliveryMap = React.memo(({ orderId, order, isVisible, fallbackCustomerCoords = null, userLiveCoords = null, userLocationAccuracy = null, onEtaUpdate = null }) => {
+const DeliveryMap = memo(({ orderId, order, isVisible, fallbackCustomerCoords = null, userLiveCoords = null, userLocationAccuracy = null, onEtaUpdate = null }) => {
   const toPointFromGeoJSON = (coords) => {
     if (!Array.isArray(coords) || coords.length < 2) return null;
     const lng = Number(coords[0]);
@@ -1649,10 +1649,10 @@ export default function OrderTracking() {
                 <div className="mt-2 space-y-1">
                   {order?.items?.map((item, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
-                      <span className="w-4 h-4 rounded border border-green-600 flex items-center justify-center">
-                        <span className="w-2 h-2 rounded-full bg-green-600" />
-                      </span>
-                      <span>{item.quantity} x {item.name}{item.variantName ? ` (${item.variantName})` : ""}</span>
+                      <div className={`w-3.5 h-3.5 border-2 ${item.isVeg ? "border-green-600" : "border-red-600"} bg-white flex items-center justify-center p-[1.5px] rounded-sm shrink-0`}>
+                        <div className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
+                      </div>
+                      <span className="font-medium text-gray-700">{item.quantity} x {item.name}{item.variantName ? ` (${item.variantName})` : ""}</span>
                     </div>
                   ))}
                 </div>
@@ -1785,8 +1785,8 @@ export default function OrderTracking() {
                 {order?.items?.map((item, index) => (
                   <div key={index} className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="w-5 h-5 rounded border border-green-600 flex items-center justify-center mt-0.5 shrink-0">
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-600" />
+                      <div className={`w-4 h-4 rounded border-2 ${item.isVeg ? "border-green-600" : "border-red-600"} bg-white flex items-center justify-center mt-0.5 shrink-0 p-[2px]`}>
+                        <div className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
                       </div>
                       <div className="flex-1">
                         <p className="font-semibold text-gray-900 leading-tight">{item.name}</p>

@@ -1238,6 +1238,53 @@ export const uploadRestaurantMenuImages = async (restaurantId, files = []) => {
     };
 };
 
+const attachRecommendedDishes = async (restaurantDocs) => {
+    if (!restaurantDocs || restaurantDocs.length === 0) return restaurantDocs;
+    try {
+        const { FoodItem } = await import('../../admin/models/food.model.js');
+        const restaurantIds = restaurantDocs.map(r => r._id || r.restaurantId);
+        
+        // Fetch up to 10 recommended verified image dishes per restaurant
+        const dishesRaw = await FoodItem.find({
+            restaurantId: { $in: restaurantIds },
+            isAvailable: true,
+            approvalStatus: 'approved',
+            image: { $type: 'string', $ne: '' },
+            $or: [
+                { isRecommended: true },
+                { isRecommended: 'true' },
+                { isRecommended: '1' },
+                { categoryName: { $regex: /recommend/i } }
+            ]
+        }, { _id: 1, name: 1, image: 1, price: 1, foodType: 1, restaurantId: 1 })
+        .sort({ createdAt: -1 })
+        .lean();
+
+        const dishMap = {};
+        dishesRaw.forEach(d => {
+            const rId = String(d.restaurantId);
+            if (!dishMap[rId]) dishMap[rId] = [];
+            if (dishMap[rId].length < 10) {
+                dishMap[rId].push({
+                    id: String(d._id),
+                    name: d.name,
+                    price: d.price,
+                    image: d.image,
+                    foodType: d.foodType
+                });
+            }
+        });
+
+        return restaurantDocs.map(r => ({
+            ...r,
+            recommendedDishes: dishMap[String(r._id || r.restaurantId)] || []
+        }));
+    } catch (error) {
+        console.error("Error attaching recommended dishes:", error);
+        return restaurantDocs;
+    }
+};
+
 export const listApprovedRestaurants = async (query = {}) => {
     const limit = Math.min(Math.max(parseInt(query.limit, 10) || 100, 1), 1000);
     const page = Math.max(parseInt(query.page, 10) || 1, 1);
@@ -1338,7 +1385,8 @@ export const listApprovedRestaurants = async (query = {}) => {
         closingTime: 1,
         openDays: 1,
         diningSettings: 1,
-        takeawaySettings: 1
+        takeawaySettings: 1,
+        slug: 1
     };
 
     const wantsGeo = (radiusKm !== null) || sortBy === 'nearest';
@@ -1386,7 +1434,8 @@ export const listApprovedRestaurants = async (query = {}) => {
         ]);
 
         const total = totalDocs?.[0]?.count || 0;
-        return { restaurants: pageDocs, total, page, limit };
+        const finalDocs = await attachRecommendedDishes(pageDocs);
+        return { restaurants: finalDocs, total, page, limit };
     }
 
     const sort = (() => {
@@ -1423,7 +1472,8 @@ export const listApprovedRestaurants = async (query = {}) => {
         menuImages: Array.isArray(r.menuImages) ? r.menuImages : []
     }));
 
-    return { restaurants, total, page, limit };
+    const finalDocs = await attachRecommendedDishes(restaurants);
+    return { restaurants: finalDocs, total, page, limit };
 };
 
 export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {

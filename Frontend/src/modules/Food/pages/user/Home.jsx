@@ -1,4 +1,4 @@
-import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useSearchParams, Link, useNavigate, useLocation as useRouterLocation } from "react-router-dom";
 import React, {
   useRef,
   useEffect,
@@ -144,20 +144,20 @@ const RestaurantImageCarousel = React.memo(
   }) => {
     const webviewSessionKeyRef = useRef(WEBVIEW_SESSION_CACHE_BUSTER);
     const imageElementRef = useRef(null);
+    const navigate = useNavigate();
+    const { vegMode } = useProfile();
 
     const withCacheBuster = useCallback(
       (url) => {
         if (typeof url !== "string" || !url) return "";
         if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
 
-        // Resolve relative URLs (e.g. /uploads/...) so they load on mobile when backend is different from frontend.
         const isRelative = !/^(https?:|\/\/|data:|blob:)/i.test(url.trim());
         const resolvedUrl =
           backendOrigin && isRelative
             ? `${backendOrigin.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`
             : url;
 
-        // Do not mutate signed URLs (legacy S3/Cloudfront/Firebase links can break if query changes).
         const hasSignedParams =
           /[?&](X-Amz-|Signature=|Expires=|AWSAccessKeyId=|GoogleAccessId=|token=|sig=|se=|sp=|sv=)/i.test(
             resolvedUrl,
@@ -166,13 +166,8 @@ const RestaurantImageCarousel = React.memo(
 
         try {
           const parsed = new URL(resolvedUrl, window.location.origin);
-
-          // Apply cache-buster only to app/backend-hosted URLs to avoid third-party CDN signature issues.
-          const currentHost =
-            typeof window !== "undefined" ? window.location.hostname : "";
-          const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(
-            parsed.hostname,
-          );
+          const currentHost = typeof window !== "undefined" ? window.location.hostname : "";
+          const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(parsed.hostname);
           const isSameHost = currentHost && parsed.hostname === currentHost;
 
           if (isLocalHost || isSameHost) {
@@ -186,76 +181,87 @@ const RestaurantImageCarousel = React.memo(
       [backendOrigin],
     );
 
-    const images = useMemo(() => {
-      const sourceImages =
-        Array.isArray(restaurant.images) && restaurant.images.length > 0
+    const slideItems = useMemo(() => {
+      let items = [];
+      if (Array.isArray(restaurant.recommendedDishes) && restaurant.recommendedDishes.length > 0) {
+        restaurant.recommendedDishes.forEach((dish, idx) => {
+          if (dish.image) items.push({ id: dish.id || idx, src: withCacheBuster(dish.image), dish });
+        });
+      }
+
+      // Fallback: If no recommended dishes, only show ONE restaurant cover image (no sliding).
+      if (items.length === 0) {
+        const sourceImages = Array.isArray(restaurant.images) && restaurant.images.length > 0
           ? restaurant.images
           : [restaurant.image];
+        const validImages = sourceImages.filter(img => typeof img === "string").map(img => img.trim()).filter(Boolean);
+        if (validImages.length > 0) {
+          items.push({ id: "fallback", src: withCacheBuster(validImages[0]), dish: null });
+        }
+      }
+      return items;
+    }, [restaurant.recommendedDishes, restaurant.images, restaurant.image, withCacheBuster]);
 
-      const validImages = sourceImages
-        .filter((img) => typeof img === "string")
-        .map((img) => img.trim())
-        .filter(Boolean);
-
-      return validImages.map((img) => withCacheBuster(img));
-    }, [restaurant.images, restaurant.image, withCacheBuster]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loadedBySrc, setLoadedBySrc] = useState({});
-    const [, setAttemptedSrcs] = useState({});
     const [isImageUnavailable, setIsImageUnavailable] = useState(false);
     const [showShimmer, setShowShimmer] = useState(true);
-    const [lastGoodSrc, setLastGoodSrc] = useState("");
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
     const isSwiping = useRef(false);
 
-    const safeIndex =
-      images.length > 0
-        ? ((currentIndex % images.length) + images.length) % images.length
-        : 0;
-    const primarySrc = images[safeIndex] || "";
-    const displaySrc = primarySrc;
-    const renderSrc = displaySrc || lastGoodSrc;
-    const isImageLoaded = Boolean(loadedBySrc[renderSrc] || lastGoodSrc);
+    const [isTransitioning, setIsTransitioning] = useState(true);
+    const [displayIndex, setDisplayIndex] = useState(0);
 
-    // Reset transient image state when restaurant or source list changes.
+    // Prepare slides for infinite loop: [Original Slides] + [First Slide Clone]
+    const infiniteSlides = useMemo(() => {
+      if (slideItems.length <= 1) return slideItems;
+      return [...slideItems, { ...slideItems[0], id: 'clone-first' }];
+    }, [slideItems]);
+
+    // Auto Swipe logic
+    useEffect(() => {
+      if (slideItems.length > 1) {
+        const timer = setInterval(() => {
+          handleNext();
+        }, 3000);
+        return () => clearInterval(timer);
+      }
+    }, [slideItems.length, currentIndex]);
+
+    const handleNext = () => {
+      setIsTransitioning(true);
+      setCurrentIndex(prev => prev + 1);
+    };
+
+    const handlePrev = () => {
+      setIsTransitioning(true);
+      setCurrentIndex(prev => (prev - 1 + infiniteSlides.length) % infiniteSlides.length);
+    };
+
+    // Magic loop cleanup: Handle jump from clone back to real first item
+    useEffect(() => {
+      if (currentIndex === infiniteSlides.length - 1 && slideItems.length > 1) {
+        // We reached the clone
+        const timer = setTimeout(() => {
+          setIsTransitioning(false);
+          setCurrentIndex(0);
+        }, 500); // Wait for transition duration
+        return () => clearTimeout(timer);
+      }
+    }, [currentIndex, infiniteSlides.length, slideItems.length]);
+
+    // Map internal index to indicators (0 to length-1)
+    useEffect(() => {
+      setDisplayIndex(currentIndex % slideItems.length);
+    }, [currentIndex, slideItems.length]);
+
     useEffect(() => {
       setCurrentIndex(0);
-      setLoadedBySrc({});
-      setAttemptedSrcs({});
-      setIsImageUnavailable(images.length === 0);
-      setShowShimmer(images.length > 0);
-    }, [restaurant?.id, restaurant?.slug, restaurant?.updatedAt, images]);
-
-    // Clear sticky successful source only when card identity changes.
-    useEffect(() => {
-      setLastGoodSrc("");
-    }, [restaurant?.id, restaurant?.slug]);
-
-    // WebView can serve from cache without firing onLoad; handle already-complete images.
-    useEffect(() => {
-      if (!renderSrc) return;
-      const imgEl = imageElementRef.current;
-      if (!imgEl) return;
-
-      setShowShimmer(true);
-      const shimmerTimeout = setTimeout(() => {
-        setShowShimmer(false);
-      }, 2500);
-
-      if (imgEl.complete) {
-        if (imgEl.naturalWidth > 0) {
-          setLoadedBySrc((prev) =>
-            prev[renderSrc] ? prev : { ...prev, [renderSrc]: true },
-          );
-          setLastGoodSrc(renderSrc);
-          setShowShimmer(false);
-        } else {
-          setAttemptedSrcs((prev) => ({ ...prev, [renderSrc]: true }));
-        }
-      }
-      return () => clearTimeout(shimmerTimeout);
-    }, [renderSrc]);
+      setIsTransitioning(true);
+      setIsImageUnavailable(slideItems.length === 0);
+      setShowShimmer(slideItems.length > 0);
+    }, [restaurant?.id, restaurant?.slug, restaurant?.updatedAt, slideItems.length]);
 
     // Handle touch events for swipe
     const handleTouchStart = (e) => {
@@ -266,87 +272,93 @@ const RestaurantImageCarousel = React.memo(
     const handleTouchMove = (e) => {
       const currentX = e.touches[0].clientX;
       const diff = touchStartX.current - currentX;
-
-      // If swipe distance is significant, mark as swiping
-      if (Math.abs(diff) > 10) {
-        isSwiping.current = true;
-      }
+      if (Math.abs(diff) > 10) isSwiping.current = true;
     };
 
     const handleTouchEnd = (e) => {
       if (!isSwiping.current) return;
-
       touchEndX.current = e.changedTouches[0].clientX;
       const diff = touchStartX.current - touchEndX.current;
-      const minSwipeDistance = 85; // Keep card swipe less sensitive on mobile
+      const minSwipeDistance = 50; 
 
       if (Math.abs(diff) > minSwipeDistance) {
-        if (diff > 0) {
-          // Swipe left - next image
-          setCurrentIndex((prev) => (prev + 1) % images.length);
-        } else {
-          // Swipe right - previous image
-          setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
-        }
+        if (diff > 0) handleNext();
+        else handlePrev();
       }
-
-      // Reset
       isSwiping.current = false;
-      touchStartX.current = 0;
-      touchEndX.current = 0;
     };
 
-    const showMultipleImages = images.length > 1;
+    const handleDishClick = (e, dish) => {
+      if (!dish) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const targetSlug = restaurant.slug || String(restaurant.name || "").toLowerCase().replace(/\s+/g, '-');
+      navigate(`/user/restaurants/${targetSlug}?dish=${dish.id}`);
+    };
+
+    const showMultipleImages = slideItems.length > 1;
+    const currentSlide = infiniteSlides[currentIndex] || null;
 
     return (
       <div
         className={`relative ${className} w-full overflow-hidden ${roundedClass} flex-shrink-0 group`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}>
-        {showShimmer && !isImageUnavailable && Boolean(renderSrc) && (
+        onTouchEnd={handleTouchEnd}
+        onClick={(e) => currentSlide?.dish ? handleDishClick(e, currentSlide.dish) : null}
+      >
+        {showShimmer && !isImageUnavailable && (
           <div className="absolute inset-0 z-[1] overflow-hidden bg-gray-200">
             <div className="h-full w-full animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200" />
           </div>
         )}
 
-        <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110">
-          {renderSrc && (
-            <img
-              ref={imageElementRef}
-              src={renderSrc}
-              alt={`${restaurant.name} - Image ${safeIndex + 1}`}
-              className="w-full h-full object-cover"
-              loading={priority ? "eager" : "lazy"}
-              fetchPriority={priority ? "high" : "auto"}
-              decoding="async"
-              onLoad={() => {
-                setLoadedBySrc((prev) => ({ ...prev, [renderSrc]: true }));
-                setLastGoodSrc(renderSrc);
-                setShowShimmer(false);
-              }}
-              onError={() => {
-                setAttemptedSrcs((prev) => {
-                  const next = { ...prev, [primarySrc]: true };
-                  const attemptedCount = Object.keys(next).length;
-
-                  if (attemptedCount >= images.length) {
-                    setIsImageUnavailable(true);
-                  } else if (images.length > 1) {
-                    setCurrentIndex(
-                      (prevIndex) => (prevIndex + 1) % images.length,
-                    );
-                  }
-
-                  return next;
-                });
-                if (images.length === 1) {
-                  setIsImageUnavailable(true);
-                }
-              }}
-            />
-          )}
+        <div 
+          className={`absolute inset-0 flex h-full group-hover:scale-105 ${isTransitioning ? 'transition-transform duration-500 ease-in-out' : 'transition-none'}`}
+          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        >
+          {infiniteSlides.map((item, idx) => (
+             <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0 relative">
+               <img
+                  src={item.src}
+                  alt={`${restaurant.name} - Image ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  loading={priority && idx === 0 ? "eager" : "lazy"}
+                  fetchPriority={priority && idx === 0 ? "high" : "auto"}
+                  decoding="async"
+                  onLoad={() => {
+                    if (idx === currentIndex) setShowShimmer(false);
+                    setLoadedBySrc((prev) => ({ ...prev, [item.src]: true }));
+                  }}
+                  onError={() => {
+                    if (idx === currentIndex && slideItems.length === 1) setIsImageUnavailable(true);
+                  }}
+                />
+             </div>
+          ))}
         </div>
+
+        {/* Dish Recommended Badge Floating Left Top */}
+        {currentSlide?.dish && (
+           <div className="absolute top-2 left-2 z-10 max-w-[90%]">
+             <div className="bg-[#1c1c1c]/90 backdrop-blur-md px-2.5 py-1.5 rounded-[8px] flex items-center gap-2 shadow-md">
+               {!vegMode && (
+                 currentSlide.dish.foodType === 'Veg' ? (
+                   <div className="flex-shrink-0 w-3.5 h-3.5 border-2 border-green-600 bg-white rounded flex items-center justify-center p-[2px]">
+                     <div className="w-full h-full bg-green-600 rounded-full" />
+                   </div>
+                 ) : (
+                   <div className="flex-shrink-0 w-3.5 h-3.5 border-2 border-red-600 bg-white rounded flex items-center justify-center p-[2px]">
+                     <div className="w-full h-full bg-red-600 rounded-full" />
+                   </div>
+                 )
+               )}
+               <span className="text-white font-medium text-xs truncate max-w-[140px] drop-shadow-sm">{currentSlide.dish.name}</span>
+               <span className="text-white font-medium text-xs text-opacity-80 drop-shadow-sm">•</span>
+               <span className="text-white font-semibold text-xs drop-shadow-sm">₹{currentSlide.dish.price}</span>
+             </div>
+           </div>
+        )}
 
         {isImageUnavailable && (
           <div className="absolute inset-0 z-[2] flex items-center justify-center bg-gray-100">
@@ -354,10 +366,9 @@ const RestaurantImageCarousel = React.memo(
           </div>
         )}
 
-        {/* Image Indicators - only show if more than 1 image */}
         {showMultipleImages && (
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex items-center z-10 -space-x-2">
-            {images.map((_, index) => (
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex items-center z-10 max-w-[80%] overflow-hidden gap-[4px] justify-center drop-shadow-lg">
+            {slideItems.map((_, index) => (
               <button
                 key={index}
                 onClick={(e) => {
@@ -365,12 +376,12 @@ const RestaurantImageCarousel = React.memo(
                   e.stopPropagation();
                   setCurrentIndex(index);
                 }}
-                className="w-10 h-10 flex items-center justify-center focus:outline-none group/btn rounded-full"
-                aria-label={`Go to image ${index + 1}`}>
+                className="focus:outline-none flex items-center py-1 group/btn"
+                aria-label={`Go to slide ${index + 1}`}>
                 <div
-                  className={`h-1.5 rounded-full transition-all duration-300 ${index === currentIndex
-                    ? "w-6 bg-white"
-                    : "w-1.5 bg-white/50 group-hover/btn:bg-white/75"
+                  className={`h-1.5 rounded-full transition-all duration-300 shadow-sm ${index === displayIndex
+                    ? "w-4 bg-white opacity-100"
+                    : "w-1.5 bg-white opacity-60 group-hover/btn:opacity-90 group-hover/btn:bg-white"
                     }`}
                 />
               </button>
@@ -378,11 +389,7 @@ const RestaurantImageCarousel = React.memo(
           </div>
         )}
 
-        {/* Gradient Overlay on Hover */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-        {/* Shine Effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full transition-transform duration-1000 group-hover:animate-shine" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
       </div>
     );
   },
@@ -392,13 +399,17 @@ export default function Home() {
   const HERO_BANNER_AUTO_SLIDE_MS = 3500;
   const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
   const navigate = useNavigate();
+  const routerLocation = useRouterLocation();
   const [searchParams] = useSearchParams();
+  const isTakeawayPage = routerLocation.pathname === "/takeaway" || 
+                         routerLocation.pathname.startsWith("/takeaway") || 
+                         routerLocation.pathname.startsWith("/user/takeaway");
   const query = searchParams.get("q") || "";
   const [heroSearch, setHeroSearch] = useState("");
   const { openSearch, closeSearch, searchValue, setSearchValue } =
     useSearchOverlay();
   const { openLocationSelector } = useLocationSelector();
-  const { vegMode, setVegMode: setVegModeContext, orderType } = useProfile();
+  const { userProfile, vegMode, setVegMode: setVegModeContext, orderType } = useProfile();
   const [prevVegMode, setPrevVegMode] = useState(vegMode);
   const [showVegModePopup, setShowVegModePopup] = useState(false);
   const [showSwitchOffPopup, setShowSwitchOffPopup] = useState(false);
@@ -448,6 +459,11 @@ export default function Home() {
         .replace(/(^-|-$)/g, ""),
     [],
   );
+
+  const getInitials = useCallback((name) => {
+    if (!name) return "U";
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  }, []);
 
   // Stable list of restaurant ids for menu-category union so we don't refetch menus
   // when `restaurantsData` changes for reasons like distance recalculation or outletTimings enrichment.
@@ -1338,7 +1354,7 @@ export default function Home() {
         // Build query parameters from filters
         const params = {};
 
-        if (orderType === "takeaway") {
+        if (orderType === "takeaway" || isTakeawayPage) {
           params.isTakeaway = "true";
         }
 
@@ -1582,6 +1598,8 @@ export default function Home() {
                 outletTimings: restaurant.outletTimings || null,
                 openingTime: restaurant.openingTime || restaurant?.deliveryTimings?.openingTime || null,
                 closingTime: restaurant.closingTime || restaurant?.deliveryTimings?.closingTime || null,
+                takeawaySettings: restaurant.takeawaySettings || null,
+                recommendedDishes: restaurant.recommendedDishes || [],
               };
             },
             );
@@ -1707,7 +1725,7 @@ export default function Home() {
         }
       }
     },
-    [extractImages, buildRestaurantImageCandidates, location?.latitude, location?.longitude, orderType],
+    [extractImages, buildRestaurantImageCandidates, location?.latitude, location?.longitude, orderType, isTakeawayPage],
   );
 
   const applyFiltersAndRefetch = useCallback(
@@ -1739,7 +1757,7 @@ export default function Home() {
   // Fetch restaurants when appliedFilters change
   useEffect(() => {
     fetchRestaurants(appliedFilters);
-  }, [appliedFilters, fetchRestaurants, orderType]);
+  }, [appliedFilters, fetchRestaurants, orderType, isTakeawayPage]);
 
   // Recalculate distances when user location updates
   useEffect(() => {
@@ -2016,13 +2034,15 @@ export default function Home() {
       if (!vegMatch) return false;
 
       // Apply Takeaway filter if orderType is takeaway
-      if (orderType === "takeaway") {
-        return restaurant?.takeawaySettings?.isEnabled === true;
+      if (orderType === "takeaway" || isTakeawayPage) {
+        // Backend handles the filtering when isTakeaway is sent as a param.
+        // We allow all restaurants returned by the API to show here.
+        return true; 
       }
 
       return true;
     });
-  }, [restaurantsData, matchesVegMode, orderType]);
+  }, [restaurantsData, matchesVegMode, orderType, isTakeawayPage]);
 
   const restaurantLazyLoadResetKey = useMemo(() => {
     const activeFilterKey = Array.from(activeFilters).sort().join("|");
@@ -2304,11 +2324,11 @@ export default function Home() {
             className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-105 active:scale-95"
             onClick={() => navigate("/user/under-250")}
           >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#EB590E] rounded-b-full rounded-t-sm shadow-md border-t-4 border-orange-200 flex flex-col items-center justify-center p-1">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#E23744] rounded-b-full rounded-t-sm shadow-md border-t-4 border-red-200 flex flex-col items-center justify-center p-1">
               <span className="text-[10px] sm:text-xs font-bold text-white text-center leading-tight">UNDER</span>
               <span className="text-sm sm:text-base font-extrabold text-white">₹200</span>
               <div className="w-10 h-3.5 bg-white rounded-full mt-1 flex items-center justify-center">
-                <span className="text-[8px] font-bold text-[#EB590E]">Explore</span>
+                <span className="text-[8px] font-bold text-[#E23744]">Explore</span>
               </div>
             </div>
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Offers</span>
@@ -2324,7 +2344,7 @@ export default function Home() {
                 className="flex-shrink-0 flex flex-col items-center gap-2 group transition-all duration-300 hover:-translate-y-1"
                 style={{ animation: `fade-in-up 0.5s ease-out forwards ${index * 0.05}s`, opacity: 0 }}
               >
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 group-hover:border-[#EB590E] transition-colors">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 group-hover:border-[#E23744] transition-colors">
                   <OptimizedImage
                     src={category.image}
                     alt={category.name}
@@ -2344,8 +2364,8 @@ export default function Home() {
               className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group"
               onClick={() => navigate("/categories")}
             >
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-orange-50 dark:bg-orange-950 flex items-center justify-center border border-orange-100 group-hover:border-[#EB590E] transition-all">
-                <Plus className="w-6 h-6 text-[#EB590E]" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center border border-red-100 group-hover:border-[#E23744] transition-all">
+                <Plus className="w-6 h-6 text-[#E23744]" />
               </div>
               <span className="text-xs font-medium text-gray-700">See All</span>
             </div>
@@ -2489,16 +2509,44 @@ export default function Home() {
         </div>
 
         <div className="md:hidden relative overflow-x-clip">
-          <HomeHeader
-            location={location}
-            handleLocationClick={handleLocationClick}
-            handleSearchFocus={handleSearchFocus}
-            placeholderIndex={placeholderIndex}
-            placeholders={placeholders}
-            orderType={orderType}
-          />
+          {orderType !== "takeaway" && !isTakeawayPage ? (
+            <HomeHeader
+              location={location}
+              handleLocationClick={handleLocationClick}
+              handleSearchFocus={handleSearchFocus}
+              placeholderIndex={placeholderIndex}
+              placeholders={placeholders}
+              orderType={orderType}
+            />
+          ) : (
+            <div className="bg-white dark:bg-[#0a0a0a] px-4 pt-6 pb-2 border-b dark:border-gray-800">
+               <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-0.5">Self-Pickup</span>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                       Takeaway
+                    </h1>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={handleSearchFocus}
+                      className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-full active:scale-95 transition-all"
+                    >
+                      <Search className="h-5 w-5 text-gray-700 dark:text-gray-300" strokeWidth={2.5} />
+                    </button>
+                    <Link to="/profile" className="h-10 w-10 flex items-center justify-center rounded-full bg-white border-2 border-red-500 shadow-sm active:scale-95 transition-all overflow-hidden">
+                      <Avatar className="h-full w-full">
+                        <AvatarFallback className="bg-red-100 text-red-600 font-bold text-sm">
+                          {getInitials(userProfile?.name || userProfile?.fullName)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
+                  </div>
+               </div>
+            </div>
+          )}
 
-          {orderType !== "takeaway" && (
+          {orderType !== "takeaway" && !isTakeawayPage && (
             <>
               {/* Flavour Fest Banner */}
               <FestBanner />
@@ -2515,25 +2563,25 @@ export default function Home() {
             </>
           )}
 
-          {orderType === "takeaway" && (
+          {(orderType === "takeaway" || isTakeawayPage) && (
             <div className="px-4 pt-6 pb-2">
               <div className="flex flex-col gap-1">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-gray-950 dark:text-white flex items-center gap-2 tracking-tight">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <span className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
                     <ShoppingBag className="h-6 w-6 text-green-600" />
                   </span>
-                  Self-Pickup Restaurants
+                  Pickup Restaurants
                 </h1>
                 <p className="text-[13px] text-gray-500 font-medium flex items-center gap-1.5 ml-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                  Fresh food, ready for pick up at your convenience
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                  Order online, skip the queue & pickup yourself
                 </p>
               </div>
               <div className="h-[1px] bg-gradient-to-r from-gray-100 via-gray-200 to-transparent dark:from-gray-800 dark:via-gray-700 dark:to-transparent mt-5 mb-2"></div>
             </div>
           )}
 
-          {orderType !== "takeaway" && (
+          {orderType !== "takeaway" && !isTakeawayPage && (
             <>
               {/* "What's on your mind today?" Section */}
               <div className="px-4 py-6 space-y-6 bg-white dark:bg-[#0a0a0a]">
@@ -2635,7 +2683,7 @@ export default function Home() {
                       );
                     }}
                     className={`h-9 px-4 rounded-full flex items-center gap-2 whitespace-nowrap flex-shrink-0 transition-all font-bold shadow-sm active:scale-95 ${isActive
-                      ? "bg-[#EB590E] text-white border border-[#EB590E] hover:bg-orange-700"
+                      ? "bg-[#E23744] text-white border border-[#E23744] hover:bg-red-700"
                       : "bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
                       }`}
                   >
@@ -2654,7 +2702,7 @@ export default function Home() {
           </section>
         </div>
 
-        {orderType !== "takeaway" && recommendedForYouRestaurants.length > 0 && (
+        {orderType !== "takeaway" && !isTakeawayPage && recommendedForYouRestaurants.length > 0 && (
           <motion.section
             className="content-auto pt-1 sm:pt-2"
             initial={false}
@@ -2693,8 +2741,8 @@ export default function Home() {
                         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate tracking-tight">
                           {restaurant.name}
                         </p>
-                        <p className="text-[10px] text-orange-600 font-bold mt-1 flex items-center gap-1 uppercase tracking-wider">
-                          <Flame className="w-3.5 h-3.5 fill-orange-600" />
+                        <p className="text-[10px] text-red-600 font-bold mt-1 flex items-center gap-1 uppercase tracking-wider">
+                          <Flame className="w-3.5 h-3.5 fill-red-600" />
                           Near & Fast
                         </p>
                       </div>
@@ -2707,7 +2755,7 @@ export default function Home() {
         )}
 
         {/* Explore More Section */}
-        {orderType !== "takeaway" && (
+        {orderType !== "takeaway" && !isTakeawayPage && (
           <motion.section
             className="content-auto pt-2 sm:pt-3 lg:pt-4"
             initial={false}
@@ -2742,9 +2790,9 @@ export default function Home() {
                       to={item.href}
                       className="flex-shrink-0">
                       <div className="flex flex-col items-center gap-3 w-24 sm:w-28 group">
-                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white dark:bg-[#1a1a1a] flex items-center justify-center shadow-[0_4px_15px_-3px_rgba(0,0,0,0.08)] group-hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.12)] transition-all duration-500 overflow-hidden p-3 border border-gray-100 dark:border-gray-800 group-hover:border-orange-500/30">
+                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white dark:bg-[#1a1a1a] flex items-center justify-center shadow-[0_4px_15px_-3px_rgba(226,55,68,0.1)] group-hover:shadow-[0_10px_25px_-5px_rgba(226,55,68,0.2)] transition-all duration-500 overflow-hidden p-3 border border-gray-100 dark:border-gray-800 group-hover:border-[#E23744]/30">
                           {/* Colorful Glow Background */}
-                          <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br ${index % 3 === 0 ? 'from-orange-500 to-red-500' : index % 3 === 1 ? 'from-blue-500 to-purple-500' : 'from-green-500 to-teal-500'}`} />
+                          <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br ${index % 3 === 0 ? 'from-[#E23744] to-red-600' : index % 3 === 1 ? 'from-red-500 to-rose-500' : 'from-rose-600 to-[#E23744]'}`} />
 
                           {/* Shine Effect */}
                           <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
@@ -2785,10 +2833,10 @@ export default function Home() {
           <div className="px-4 mb-3 lg:mb-4">
             <div className="flex flex-col gap-0.5 lg:gap-1">
               <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
-                {orderType === "takeaway" ? "Self-Pickup" : "Restaurants delivering to you"}
+                {orderType === "takeaway" || isTakeawayPage ? "Self-Pickup" : "Restaurants delivering to you"}
               </h2>
-              <span className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-                {orderType === "takeaway" ? (
+              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
+                {orderType === "takeaway" || isTakeawayPage ? (
                   <>
                     <span className="text-[#EF4F5F]">{filteredRestaurants.length}</span> Restaurants for Pickup
                   </>
@@ -2912,13 +2960,7 @@ export default function Home() {
                               backendOrigin={BACKEND_ORIGIN}
                             />
 
-                            {/* Featured Dish Badge - Top Left */}
-                            <div className="absolute top-4 left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105">
-                              <div className="bg-black/70 backdrop-blur-lg text-white px-4 py-1.5 rounded-full text-[11px] font-medium tracking-tight flex items-center shadow-2xl border border-white/20">
-                                {restaurant.featuredDish} • ₹
-                                {restaurant.featuredPrice}
-                              </div>
-                            </div>
+
 
                             {/* Bookmark Icon - Top Right */}
                             <div className="absolute top-4 right-4 z-10 transform transition-transform duration-300 group-hover:scale-110">
@@ -2990,7 +3032,7 @@ export default function Home() {
                                   strokeWidth={1.5}
                                 />
                                 <span className="font-medium dark:text-gray-300 text-gray-700">
-                                  {orderType === "takeaway" ? (restaurant.preparationTime || "20-25 mins") : restaurant.deliveryTime}
+                                  {orderType === "takeaway" || isTakeawayPage ? (restaurant.preparationTime || "20-25 mins") : restaurant.deliveryTime}
                                 </span>
                                 <span className="mx-1">|</span>
                                 <span className="font-medium dark:text-gray-300 text-gray-700">
@@ -3014,7 +3056,7 @@ export default function Home() {
                           </div>
 
                           {/* Border Glow Effect */}
-                          <div className="absolute inset-0 rounded-md pointer-events-none z-0 transition-all duration-300 border border-transparent group-hover:border-[#EB590E]/30 group-hover:shadow-[inset_0_0_0_1px_rgba(235,89,14,0.2)]" />
+                          <div className="absolute inset-0 rounded-md pointer-events-none z-0 transition-all duration-300 border border-transparent group-hover:border-[#E23744]/30 group-hover:shadow-[inset_0_0_0_1px_rgba(235,89,14,0.2)]" />
                         </Card>
                       </Link>
                     </div>
@@ -3078,7 +3120,7 @@ export default function Home() {
                     setSortBy(null);
                     setSelectedCuisine(null);
                   }}
-                  className="text-[#EB590E] font-medium text-sm">
+                  className="text-[#E23744] font-medium text-sm">
                   Clear all
                 </button>
               </div>
@@ -3114,11 +3156,11 @@ export default function Home() {
                           }
                         }}
                         className={`flex flex-col items-center gap-1 py-4 px-2 text-center relative transition-colors ${isActive
-                          ? "bg-white dark:bg-[#1a1a1a] text-[#EB590E]"
+                          ? "bg-white dark:bg-[#1a1a1a] text-[#E23744]"
                           : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
                           }`}>
                         {isActive && (
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#EB590E] rounded-r" />
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#E23744] rounded-r" />
                         )}
                         <Icon className="h-5 w-5" strokeWidth={1.5} />
                         <span className="text-xs font-medium leading-tight">
@@ -3153,11 +3195,11 @@ export default function Home() {
                           key={option.id || "relevance"}
                           onClick={() => setSortBy(option.id)}
                           className={`px-4 py-3 rounded-xl border text-left transition-colors ${sortBy === option.id
-                            ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                            : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                            ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                            : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                             }`}>
                           <span
-                            className={`text-sm font-medium ${sortBy === option.id ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                            className={`text-sm font-medium ${sortBy === option.id ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                             {option.label}
                           </span>
                         </button>
@@ -3171,37 +3213,37 @@ export default function Home() {
                     data-section-id="time"
                     className="space-y-4 mb-8">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                      {orderType === "takeaway" ? "Estimated Readiness" : "Estimated Time"}
+                      {orderType === "takeaway" || isTakeawayPage ? "Estimated Readiness" : "Estimated Time"}
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         onClick={() => toggleFilter("delivery-under-30")}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${activeFilters.has("delivery-under-30")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <Timer
-                          className={`h-6 w-6 ${activeFilters.has("delivery-under-30") ? "text-[#EB590E]" : "text-gray-600 dark:text-gray-400"}`}
+                          className={`h-6 w-6 ${activeFilters.has("delivery-under-30") ? "text-[#E23744]" : "text-gray-600 dark:text-gray-400"}`}
                           strokeWidth={1.5}
                         />
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("delivery-under-30") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
-                          {orderType === "takeaway" ? "Within 30 mins" : "Under 30 mins"}
+                          className={`text-sm font-medium ${activeFilters.has("delivery-under-30") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
+                          {orderType === "takeaway" || isTakeawayPage ? "Within 30 mins" : "Under 30 mins"}
                         </span>
                       </button>
                       <button
                         onClick={() => toggleFilter("delivery-under-45")}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${activeFilters.has("delivery-under-45")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <Timer
-                          className={`h-6 w-6 ${activeFilters.has("delivery-under-45") ? "text-[#EB590E]" : "text-gray-600 dark:text-gray-400"}`}
+                          className={`h-6 w-6 ${activeFilters.has("delivery-under-45") ? "text-[#E23744]" : "text-gray-600 dark:text-gray-400"}`}
                           strokeWidth={1.5}
                         />
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("delivery-under-45") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
-                          {orderType === "takeaway" ? "Within 45 mins" : "Under 45 mins"}
+                          className={`text-sm font-medium ${activeFilters.has("delivery-under-45") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
+                          {orderType === "takeaway" || isTakeawayPage ? "Within 45 mins" : "Under 45 mins"}
                         </span>
                       </button>
                     </div>
@@ -3219,42 +3261,42 @@ export default function Home() {
                       <button
                         onClick={() => toggleFilter("rating-35-plus")}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${activeFilters.has("rating-35-plus")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <Star
-                          className={`h-6 w-6 ${activeFilters.has("rating-35-plus") ? "text-[#EB590E] fill-[#EB590E]" : "text-gray-400 dark:text-gray-500"}`}
+                          className={`h-6 w-6 ${activeFilters.has("rating-35-plus") ? "text-[#E23744] fill-[#E23744]" : "text-gray-400 dark:text-gray-500"}`}
                         />
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("rating-35-plus") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("rating-35-plus") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Rated 3.5+
                         </span>
                       </button>
                       <button
                         onClick={() => toggleFilter("rating-4-plus")}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${activeFilters.has("rating-4-plus")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <Star
-                          className={`h-6 w-6 ${activeFilters.has("rating-4-plus") ? "text-[#EB590E] fill-[#EB590E]" : "text-gray-400 dark:text-gray-500"}`}
+                          className={`h-6 w-6 ${activeFilters.has("rating-4-plus") ? "text-[#E23744] fill-[#E23744]" : "text-gray-400 dark:text-gray-500"}`}
                         />
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("rating-4-plus") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("rating-4-plus") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Rated 4.0+
                         </span>
                       </button>
                       <button
                         onClick={() => toggleFilter("rating-45-plus")}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${activeFilters.has("rating-45-plus")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <Star
-                          className={`h-6 w-6 ${activeFilters.has("rating-45-plus") ? "text-[#EB590E] fill-[#EB590E]" : "text-gray-400 dark:text-gray-500"}`}
+                          className={`h-6 w-6 ${activeFilters.has("rating-45-plus") ? "text-[#E23744] fill-[#E23744]" : "text-gray-400 dark:text-gray-500"}`}
                         />
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("rating-45-plus") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("rating-45-plus") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Rated 4.5+
                         </span>
                       </button>
@@ -3273,30 +3315,30 @@ export default function Home() {
                       <button
                         onClick={() => toggleFilter("distance-under-1km")}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${activeFilters.has("distance-under-1km")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <MapPin
-                          className={`h-6 w-6 ${activeFilters.has("distance-under-1km") ? "text-[#EB590E]" : "text-gray-600 dark:text-gray-400"}`}
+                          className={`h-6 w-6 ${activeFilters.has("distance-under-1km") ? "text-[#E23744]" : "text-gray-600 dark:text-gray-400"}`}
                           strokeWidth={1.5}
                         />
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("distance-under-1km") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("distance-under-1km") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Under 1 km
                         </span>
                       </button>
                       <button
                         onClick={() => toggleFilter("distance-under-2km")}
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors ${activeFilters.has("distance-under-2km")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <MapPin
-                          className={`h-6 w-6 ${activeFilters.has("distance-under-2km") ? "text-[#EB590E]" : "text-gray-600 dark:text-gray-400"}`}
+                          className={`h-6 w-6 ${activeFilters.has("distance-under-2km") ? "text-[#E23744]" : "text-gray-600 dark:text-gray-400"}`}
                           strokeWidth={1.5}
                         />
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("distance-under-2km") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("distance-under-2km") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Under 2 km
                         </span>
                       </button>
@@ -3315,22 +3357,22 @@ export default function Home() {
                       <button
                         onClick={() => toggleFilter("price-under-200")}
                         className={`px-4 py-3 rounded-xl border text-left transition-colors ${activeFilters.has("price-under-200")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("price-under-200") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("price-under-200") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Under ₹200
                         </span>
                       </button>
                       <button
                         onClick={() => toggleFilter("price-under-500")}
                         className={`px-4 py-3 rounded-xl border text-left transition-colors ${activeFilters.has("price-under-500")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("price-under-500") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("price-under-500") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Under ₹500
                         </span>
                       </button>
@@ -3351,22 +3393,22 @@ export default function Home() {
                       <button
                         onClick={() => toggleFilter("top-rated")}
                         className={`px-4 py-3 rounded-xl border text-left transition-colors ${activeFilters.has("top-rated")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("top-rated") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("top-rated") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Top Rated
                         </span>
                       </button>
                       <button
                         onClick={() => toggleFilter("trusted")}
                         className={`px-4 py-3 rounded-xl border text-left transition-colors ${activeFilters.has("trusted")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("trusted") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("trusted") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Trusted by 1000+ users
                         </span>
                       </button>
@@ -3385,11 +3427,11 @@ export default function Home() {
                       <button
                         onClick={() => toggleFilter("has-offers")}
                         className={`px-4 py-3 rounded-xl border text-left transition-colors ${activeFilters.has("has-offers")
-                          ? "border-[#EB590E] bg-[#FFF2EB] dark:bg-green-900/20"
-                          : "border-gray-200 dark:border-gray-800 hover:border-[#EB590E]"
+                          ? "border-[#E23744] bg-[#FFF2EB] dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-[#E23744]"
                           }`}>
                         <span
-                          className={`text-sm font-medium ${activeFilters.has("has-offers") ? "text-[#EB590E]" : "text-gray-700 dark:text-gray-300"}`}>
+                          className={`text-sm font-medium ${activeFilters.has("has-offers") ? "text-[#E23744]" : "text-gray-700 dark:text-gray-300"}`}>
                           Restaurants with offers
                         </span>
                       </button>
@@ -3415,7 +3457,7 @@ export default function Home() {
                     );
                   }}
                   className={`flex-1 py-3 font-semibold rounded-xl transition-colors ${activeFilters.size > 0 || sortBy || selectedCuisine
-                    ? "bg-[#EB590E] text-white hover:bg-[#D94F0C]"
+                    ? "bg-[#E23744] text-white hover:bg-[#D94F0C]"
                     : "bg-gray-200 text-gray-500"
                     }`}
                   disabled={isLoadingFilterResults}>
@@ -3553,7 +3595,7 @@ export default function Home() {
                     setIsApplyingVegMode(false);
                   }, 2000);
                 }}
-                className="w-full bg-[#EB590E] text-white font-semibold py-2.5 rounded-xl hover:bg-[#D94F0C] transition-colors mb-2 text-sm">
+                className="w-full bg-[#E23744] text-white font-semibold py-2.5 rounded-xl hover:bg-[#D94F0C] transition-colors mb-2 text-sm">
                 Apply
               </button>
             </motion.div>

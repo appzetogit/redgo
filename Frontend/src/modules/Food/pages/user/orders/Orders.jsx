@@ -840,31 +840,27 @@ Order again from this restaurant in the ${companyName} app.`
                               />
                             </div>
                           )}
-
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start gap-2">
-                              {/* Veg/Non-Veg Icon */}
-                              <div className={`w-4 h-4 border ${isVeg ? 'border-green-600' : 'border-red-600'} flex items-center justify-center p-[2px] flex-shrink-0 mt-0.5`}>
-                                <div className={`w-full h-full rounded-full ${isVeg ? 'bg-green-600' : 'bg-red-600'}`}></div>
+                            <div className="flex items-center gap-1.5">
+                              <div className={`w-3.5 h-3.5 border-2 ${isVeg ? "border-green-600" : "border-red-600"} bg-white flex items-center justify-center p-[1.5px] rounded-sm shrink-0`}>
+                                <div className={`w-full h-full rounded-full ${isVeg ? "bg-green-600" : "bg-red-600"}`} />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm text-gray-800 font-medium block">
-                                  {itemQuantity} x {itemName}
-                                </span>
-                                {item.variantName ? (
-                                  <p className="text-xs text-gray-500 mt-0.5">{item.variantName}</p>
-                                ) : null}
-                                {item.description && (
-                                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
-                                )}
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <span className="text-sm font-semibold text-gray-800">{"\u20B9"}{itemTotal.toFixed(2)}</span>
-                                {itemQuantity > 1 && (
-                                  <p className="text-xs text-gray-500">{"\u20B9"}{itemPrice.toFixed(2)} each</p>
-                                )}
-                              </div>
+                              <h4 className="text-sm font-medium text-gray-800 line-clamp-1">
+                                {itemQuantity} x {itemName}
+                              </h4>
                             </div>
+                            {item.variantName ? (
+                              <p className="text-xs text-gray-500 mt-0.5">{item.variantName}</p>
+                            ) : null}
+                            {item.description && (
+                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-sm font-semibold text-gray-800">{"\u20B9"}{itemTotal.toFixed(2)}</span>
+                            {itemQuantity > 1 && (
+                              <p className="text-xs text-gray-500">{"\u20B9"}{itemPrice.toFixed(2)} each</p>
+                            )}
                           </div>
                         </div>
                       )

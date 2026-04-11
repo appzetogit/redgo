@@ -360,7 +360,7 @@ export default function ProfessionalSearch() {
                             onError={(e) => (e.target.src = "/placeholder-dish.jpg")}
                           />
                           {r.pureVegRestaurant && (
-                            <div className="absolute top-1 left-1 w-4 h-4 border border-green-600 p-[1px] bg-white rounded-sm">
+                            <div className="absolute top-1 left-1 w-4 h-4 border-2 border-green-600 p-[2px] bg-white rounded">
                                <div className="w-full h-full bg-green-600 rounded-full" />
                             </div>
                           )}

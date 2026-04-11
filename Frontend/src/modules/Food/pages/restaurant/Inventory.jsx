@@ -1725,8 +1725,11 @@ export default function Inventory() {
       })
     )
 
-    // Persist local recommended preference (backend doesn't support it yet).
+    // Update backend
     try {
+      if (itemId) {
+        await restaurantAPI.updateFood(itemId, { isRecommended: newRecommendationStatus })
+      }
       setRecommendedMap((prev) => {
         const next = { ...(prev || {}) }
         next[String(itemId)] = Boolean(newRecommendationStatus)
@@ -1734,7 +1737,8 @@ export default function Inventory() {
         return next
       })
     } catch (error) {
-      debugWarn("Failed to persist recommended state:", error)
+      debugWarn("Failed to persist recommended state via API:", error)
+      toast.error(error?.response?.data?.message || 'Failed to update recommendation status')
     }
   }
 
@@ -2327,6 +2331,16 @@ export default function Inventory() {
                           <div key={item.id}>
                             <div className="flex items-center justify-between gap-3 rounded-[22px] border border-slate-200 bg-slate-50/80 px-4 py-3">
                               <div className="flex flex-1 items-center gap-3 min-w-0">
+                                {/* Image Preview */}
+                                {item.image ? (
+                                  <div className="h-[52px] w-[52px] flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                                    <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                                  </div>
+                                ) : (
+                                  <div className="h-[52px] w-[52px] flex-shrink-0 flex items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm">
+                                    <Utensils className="h-5 w-5 text-slate-300" />
+                                  </div>
+                                )}
                                 {/* Veg/Non-veg Icon */}
                                 <div className={`h-4 w-4 rounded-sm border-2 flex items-center justify-center ${item.isVeg ? 'border-green-600' : 'border-red-500'
                                   }`}>

@@ -13,11 +13,11 @@ function RouteSyncHandler() {
   useEffect(() => {
     const path = location.pathname
     
-    if (path === "/" || path === "" || path === "/food") {
+    if (path === "/" || path === "" || path === "/food" || path === "/user") {
       if (orderType !== "delivery") setOrderType("delivery")
-    } else if (path === "/dining" || path.startsWith("/dining")) {
+    } else if (path === "/dining" || path.startsWith("/dining") || path.startsWith("/user/dining")) {
       if (orderType !== "dining") setOrderType("dining")
-    } else if (path === "/takeaway" || path.startsWith("/takeaway")) {
+    } else if (path === "/takeaway" || path.startsWith("/takeaway") || path.startsWith("/user/takeaway")) {
       if (orderType !== "takeaway") setOrderType("takeaway")
     }
   }, [location.pathname, orderType, setOrderType])

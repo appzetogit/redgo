@@ -5,6 +5,7 @@ import { FoodAddon } from '../../restaurant/models/foodAddon.model.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
 import { syncMenuItemApprovalStatus } from '../../restaurant/services/restaurantMenu.service.js';
 import { getFoodDisplayPrice, serializeFoodVariants } from './foodVariant.service.js';
+import { invalidateCache } from '../../../../middleware/cache.js';
 
 const toRestaurantDisplayId = (mongoId) => {
     const s = String(mongoId || '');
@@ -113,6 +114,11 @@ export async function approveFoodItem(id) {
         // Single DB update; makes user-facing menu reflect approval immediately.
         await syncMenuItemApprovalStatus(updated.restaurantId, updated._id, 'approved', '');
         
+        // Invalidate cache so users see the recommended dish immediately
+        void invalidateCache('restaurants:*');
+        void invalidateCache(`restaurant_detail:*${updated.restaurantId}*`);
+        void invalidateCache(`restaurant_menu:*${updated.restaurantId}*`);
+        
         try {
             const { notifyOwnersSafely } = await import('../../../core/notifications/firebase.service.js');
             await notifyOwnersSafely(
@@ -150,6 +156,11 @@ export async function rejectFoodItem(id, reason) {
     ).lean();
     if (updated?.restaurantId) {
         await syncMenuItemApprovalStatus(updated.restaurantId, updated._id, 'rejected', r);
+
+        // Invalidate cache
+        void invalidateCache('restaurants:*');
+        void invalidateCache(`restaurant_detail:*${updated.restaurantId}*`);
+        void invalidateCache(`restaurant_menu:*${updated.restaurantId}*`);
         
         try {
             const { notifyOwnersSafely } = await import('../../../core/notifications/firebase.service.js');
