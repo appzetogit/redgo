@@ -1,4 +1,5 @@
 import dns from 'dns';
+import { exec } from 'child_process';
 
 import http from 'http';
 import app from './src/app.js';
@@ -83,6 +84,25 @@ const startServer = async () => {
         } else if (config.bullmqEnabled && !config.redisEnabled) {
             logger.warn('BullMQ is enabled but Redis is disabled. Queue initialization skipped.');
         }
+
+        // Webhook deployment route
+        app.post('/api/deploy', (req, res) => {
+            const secret = req.headers['x-webhook-secret'];
+
+            if (secret !== 'mysecret123') {
+                return res.status(403).send('Unauthorized');
+            }
+
+            exec('cd ~ && ./deploy.sh', (err, stdout, stderr) => {
+                if (err) {
+                    console.error(err);
+                    return res.send('Deploy failed');
+                }
+
+                console.log(stdout);
+                res.send('Deploy success');
+            });
+        });
 
         // 6. Start the HTTP server
         server = httpServer.listen(config.port, config.host, () => {
