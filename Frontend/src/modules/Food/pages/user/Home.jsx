@@ -279,7 +279,7 @@ const RestaurantImageCarousel = React.memo(
       if (!isSwiping.current) return;
       touchEndX.current = e.changedTouches[0].clientX;
       const diff = touchStartX.current - touchEndX.current;
-      const minSwipeDistance = 50; 
+      const minSwipeDistance = 50;
 
       if (Math.abs(diff) > minSwipeDistance) {
         if (diff > 0) handleNext();
@@ -313,51 +313,51 @@ const RestaurantImageCarousel = React.memo(
           </div>
         )}
 
-        <div 
+        <div
           className={`absolute inset-0 flex h-full group-hover:scale-105 ${isTransitioning ? 'transition-transform duration-500 ease-in-out' : 'transition-none'}`}
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {infiniteSlides.map((item, idx) => (
-             <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0 relative">
-               <img
-                  src={item.src}
-                  alt={`${restaurant.name} - Image ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                  loading={priority && idx === 0 ? "eager" : "lazy"}
-                  fetchPriority={priority && idx === 0 ? "high" : "auto"}
-                  decoding="async"
-                  onLoad={() => {
-                    if (idx === currentIndex) setShowShimmer(false);
-                    setLoadedBySrc((prev) => ({ ...prev, [item.src]: true }));
-                  }}
-                  onError={() => {
-                    if (idx === currentIndex && slideItems.length === 1) setIsImageUnavailable(true);
-                  }}
-                />
-             </div>
+            <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0 relative">
+              <img
+                src={item.src}
+                alt={`${restaurant.name} - Image ${idx + 1}`}
+                className="w-full h-full object-cover"
+                loading={priority && idx === 0 ? "eager" : "lazy"}
+                fetchPriority={priority && idx === 0 ? "high" : "auto"}
+                decoding="async"
+                onLoad={() => {
+                  if (idx === currentIndex) setShowShimmer(false);
+                  setLoadedBySrc((prev) => ({ ...prev, [item.src]: true }));
+                }}
+                onError={() => {
+                  if (idx === currentIndex && slideItems.length === 1) setIsImageUnavailable(true);
+                }}
+              />
+            </div>
           ))}
         </div>
 
         {/* Dish Recommended Badge Floating Left Top */}
         {currentSlide?.dish && (
-           <div className="absolute top-2 left-2 z-10 max-w-[90%]">
-             <div className="bg-[#1c1c1c]/90 backdrop-blur-md px-2.5 py-1.5 rounded-[8px] flex items-center gap-2 shadow-md">
-               {!vegMode && (
-                 currentSlide.dish.foodType === 'Veg' ? (
-                   <div className="flex-shrink-0 w-3.5 h-3.5 border-2 border-green-600 bg-white rounded flex items-center justify-center p-[2px]">
-                     <div className="w-full h-full bg-green-600 rounded-full" />
-                   </div>
-                 ) : (
-                   <div className="flex-shrink-0 w-3.5 h-3.5 border-2 border-red-600 bg-white rounded flex items-center justify-center p-[2px]">
-                     <div className="w-full h-full bg-red-600 rounded-full" />
-                   </div>
-                 )
-               )}
-               <span className="text-white font-medium text-xs truncate max-w-[140px] drop-shadow-sm">{currentSlide.dish.name}</span>
-               <span className="text-white font-medium text-xs text-opacity-80 drop-shadow-sm">•</span>
-               <span className="text-white font-semibold text-xs drop-shadow-sm">₹{currentSlide.dish.price}</span>
-             </div>
-           </div>
+          <div className="absolute top-2 left-2 z-10 max-w-[90%]">
+            <div className="bg-[#1c1c1c]/90 backdrop-blur-md px-2.5 py-1.5 rounded-[8px] flex items-center gap-2 shadow-md">
+              {!vegMode && (
+                currentSlide.dish.foodType === 'Veg' ? (
+                  <div className="flex-shrink-0 w-3.5 h-3.5 border-2 border-green-600 bg-white rounded flex items-center justify-center p-[2px]">
+                    <div className="w-full h-full bg-green-600 rounded-full" />
+                  </div>
+                ) : (
+                  <div className="flex-shrink-0 w-3.5 h-3.5 border-2 border-red-600 bg-white rounded flex items-center justify-center p-[2px]">
+                    <div className="w-full h-full bg-red-600 rounded-full" />
+                  </div>
+                )
+              )}
+              <span className="text-white font-medium text-xs truncate max-w-[140px] drop-shadow-sm">{currentSlide.dish.name}</span>
+              <span className="text-white font-medium text-xs text-opacity-80 drop-shadow-sm">•</span>
+              <span className="text-white font-semibold text-xs drop-shadow-sm">₹{currentSlide.dish.price}</span>
+            </div>
+          </div>
         )}
 
         {isImageUnavailable && (
@@ -401,9 +401,9 @@ export default function Home() {
   const navigate = useNavigate();
   const routerLocation = useRouterLocation();
   const [searchParams] = useSearchParams();
-  const isTakeawayPage = routerLocation.pathname === "/takeaway" || 
-                         routerLocation.pathname.startsWith("/takeaway") || 
-                         routerLocation.pathname.startsWith("/user/takeaway");
+  const isTakeawayPage = routerLocation.pathname === "/takeaway" ||
+    routerLocation.pathname.startsWith("/takeaway") ||
+    routerLocation.pathname.startsWith("/user/takeaway");
   const query = searchParams.get("q") || "";
   const [heroSearch, setHeroSearch] = useState("");
   const { openSearch, closeSearch, searchValue, setSearchValue } =
@@ -2037,7 +2037,7 @@ export default function Home() {
       if (orderType === "takeaway" || isTakeawayPage) {
         // Backend handles the filtering when isTakeaway is sent as a param.
         // We allow all restaurants returned by the API to show here.
-        return true; 
+        return true;
       }
 
       return true;
@@ -2520,29 +2520,29 @@ export default function Home() {
             />
           ) : (
             <div className="bg-white dark:bg-[#0a0a0a] px-4 pt-6 pb-2 border-b dark:border-gray-800">
-               <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-0.5">Self-Pickup</span>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                       Takeaway
-                    </h1>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={handleSearchFocus}
-                      className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-full active:scale-95 transition-all"
-                    >
-                      <Search className="h-5 w-5 text-gray-700 dark:text-gray-300" strokeWidth={2.5} />
-                    </button>
-                    <Link to="/profile" className="h-10 w-10 flex items-center justify-center rounded-full bg-white border-2 border-red-500 shadow-sm active:scale-95 transition-all overflow-hidden">
-                      <Avatar className="h-full w-full">
-                        <AvatarFallback className="bg-red-100 text-red-600 font-bold text-sm">
-                          {getInitials(userProfile?.name || userProfile?.fullName)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Link>
-                  </div>
-               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-0.5">Self-Pickup</span>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    Takeaway
+                  </h1>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSearchFocus}
+                    className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-full active:scale-95 transition-all"
+                  >
+                    <Search className="h-5 w-5 text-gray-700 dark:text-gray-300" strokeWidth={2.5} />
+                  </button>
+                  <Link to="/profile" className="h-10 w-10 flex items-center justify-center rounded-full bg-white border-2 border-red-500 shadow-sm active:scale-95 transition-all overflow-hidden">
+                    <Avatar className="h-full w-full">
+                      <AvatarFallback className="bg-red-100 text-red-600 font-bold text-sm">
+                        {getInitials(userProfile?.name || userProfile?.fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                </div>
+              </div>
             </div>
           )}
 
@@ -2637,69 +2637,71 @@ export default function Home() {
           )}
 
           {/* Filters Sticky Sidebar Header */}
-          <section className="py-3 px-4 bg-white sticky top-[0px] z-[40] -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 shadow-sm">
-            <div
-              className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4"
-              style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setIsFilterOpen(true)}
-                className="h-9 px-4 rounded-full flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-bold transition-all bg-white dark:bg-[#1a1a1a] border border-gray-200 shadow-sm active:scale-95"
+          {!isTakeawayPage && orderType !== "takeaway" && (
+            <section className="py-3 px-4 bg-white sticky top-[0px] z-[40] -mx-4 w-[calc(100%+2rem)] border-b border-gray-100 shadow-sm">
+              <div
+                className="flex items-center gap-2 overflow-x-auto scrollbar-hide px-4"
+                style={{
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                }}
               >
-                <SlidersHorizontal className="h-4 w-4 text-black" />
-                <span className="text-xs font-bold text-black dark:text-white uppercase tracking-tight">
-                  Filters
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFilterOpen(true)}
+                  className="h-9 px-4 rounded-full flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 font-bold transition-all bg-white dark:bg-[#1a1a1a] border border-gray-200 shadow-sm active:scale-95"
+                >
+                  <SlidersHorizontal className="h-4 w-4 text-black" />
+                  <span className="text-xs font-bold text-black dark:text-white uppercase tracking-tight">
+                    Filters
+                  </span>
+                </button>
 
-              {[
-                { id: "delivery-under-30", label: "Under 30 mins" },
-                { id: "delivery-under-45", label: "Under 45 mins" },
-                { id: "distance-under-1km", label: "Under 1km", icon: MapPin },
-                { id: "distance-under-2km", label: "Under 2km", icon: MapPin },
-              ].map((filter) => {
-                const Icon = filter.icon;
-                const isActive = activeFilters.has(filter.id);
-                return (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    onClick={() => {
-                      const nextFilters = new Set(activeFilters);
-                      if (nextFilters.has(filter.id)) {
-                        nextFilters.delete(filter.id);
-                      } else {
-                        nextFilters.add(filter.id);
-                      }
-                      setActiveFilters(nextFilters);
-                      void applyFiltersAndRefetch(
-                        nextFilters,
-                        sortBy,
-                        selectedCuisine,
-                      );
-                    }}
-                    className={`h-9 px-4 rounded-full flex items-center gap-2 whitespace-nowrap flex-shrink-0 transition-all font-bold shadow-sm active:scale-95 ${isActive
-                      ? "bg-[#E23744] text-white border border-[#E23744] hover:bg-red-700"
-                      : "bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                      }`}
-                  >
-                    {Icon && (
-                      <Icon
-                        className={`h-3.5 w-3.5 ${isActive ? "fill-white" : ""}`}
-                      />
-                    )}
-                    <span className="text-xs font-bold tracking-tight">
-                      {filter.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+                {[
+                  { id: "delivery-under-30", label: "Under 30 mins" },
+                  { id: "delivery-under-45", label: "Under 45 mins" },
+                  { id: "distance-under-1km", label: "Under 1km", icon: MapPin },
+                  { id: "distance-under-2km", label: "Under 2km", icon: MapPin },
+                ].map((filter) => {
+                  const Icon = filter.icon;
+                  const isActive = activeFilters.has(filter.id);
+                  return (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => {
+                        const nextFilters = new Set(activeFilters);
+                        if (nextFilters.has(filter.id)) {
+                          nextFilters.delete(filter.id);
+                        } else {
+                          nextFilters.add(filter.id);
+                        }
+                        setActiveFilters(nextFilters);
+                        void applyFiltersAndRefetch(
+                          nextFilters,
+                          sortBy,
+                          selectedCuisine,
+                        );
+                      }}
+                      className={`h-9 px-4 rounded-full flex items-center gap-2 whitespace-nowrap flex-shrink-0 transition-all font-bold shadow-sm active:scale-95 ${isActive
+                        ? "bg-[#E23744] text-white border border-[#E23744] hover:bg-red-700"
+                        : "bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                        }`}
+                    >
+                      {Icon && (
+                        <Icon
+                          className={`h-3.5 w-3.5 ${isActive ? "fill-white" : ""}`}
+                        />
+                      )}
+                      <span className="text-xs font-bold tracking-tight">
+                        {filter.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
 
         {orderType !== "takeaway" && !isTakeawayPage && recommendedForYouRestaurants.length > 0 && (

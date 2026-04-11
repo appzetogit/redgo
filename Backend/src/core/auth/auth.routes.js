@@ -13,7 +13,8 @@ import {
     updateAdminProfileController,
     changeAdminPasswordController,
     requestAdminForgotPasswordOtpController,
-    resetAdminPasswordWithOtpController
+    resetAdminPasswordWithOtpController,
+    deleteAccountController
 } from './auth.controller.js';
 import { authMiddleware, requireAdmin } from './auth.middleware.js';
 import { authRateLimiter } from '../../middleware/rateLimit.js';
@@ -46,6 +47,9 @@ router.post('/refresh-token', refreshTokenController);
 
 // Logout (invalidates refresh token)
 router.post('/logout', logoutController);
+
+// Delete Account (removes all data and invalidate sessions)
+router.delete('/delete-account', authMiddleware, deleteAccountController);
 
 // Authenticated user profile (requires Bearer token)
 router.get('/me', authMiddleware, getMeController);

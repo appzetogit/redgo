@@ -8,6 +8,7 @@ import {
   requestDeliveryOtp,
   verifyDeliveryOtpAndLogin,
   logout,
+  deleteAccount,
   getProfile,
   updateAdminProfile,
   changeAdminPassword,
@@ -137,6 +138,16 @@ export const logoutController = async (req, res, next) => {
       result.invalidated ? "Logged out successfully" : "Token already invalid",
       result,
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteAccountController = async (req, res, next) => {
+  try {
+    const { userId, role } = req.user;
+    const result = await deleteAccount(userId, role);
+    return sendResponse(res, 200, result.message, result);
   } catch (error) {
     next(error);
   }

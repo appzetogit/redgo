@@ -141,14 +141,20 @@ apiClient.interceptors.request.use(
       }
     }
 
-    // Skip Authorization header for auth routes to avoid interference from stale tokens
+    // Skip Authorization header for public auth routes (login/OTP) to avoid stale token interference.
+    // Protected auth routes like /me, /delete-account, /admin/profile still need the Bearer token.
     const normalizedUrl = (config.url || "").toLowerCase();
-    const isAuthRoute = 
-      normalizedUrl.includes("/auth/") || 
-      normalizedUrl.includes("/login") || 
-      normalizedUrl.includes("/verify-otp") || 
-      normalizedUrl.includes("/request-otp") ||
-      normalizedUrl.includes("/register");
+    const PROTECTED_AUTH_PATHS = ["/auth/me", "/auth/delete-account", "/auth/admin/profile", "/auth/admin/change-password"];
+    const isProtectedAuthRoute = PROTECTED_AUTH_PATHS.some((p) => normalizedUrl.includes(p));
+
+    const isAuthRoute =
+      !isProtectedAuthRoute && (
+        normalizedUrl.includes("/auth/") ||
+        normalizedUrl.includes("/login") ||
+        normalizedUrl.includes("/verify-otp") ||
+        normalizedUrl.includes("/request-otp") ||
+        normalizedUrl.includes("/register")
+      );
 
     if (!isAuthRoute) {
       const token = getAccessToken(config);

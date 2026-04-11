@@ -16,6 +16,18 @@ import { logger } from "../../utils/logger.js";
 import { sendAdminResetOtpEmail } from "../../utils/email.js";
 import mongoose from "mongoose";
 import { creditReferralReward } from "../../modules/food/user/services/userWallet.service.js";
+import { FoodOrder } from "../../modules/food/orders/models/order.model.js";
+import { FoodTransaction } from "../../modules/food/orders/models/foodTransaction.model.js";
+import { FoodUserWallet } from "../../modules/food/user/models/userWallet.model.js";
+import { FoodSupportTicket } from "../../modules/food/user/models/supportTicket.model.js";
+import { FoodRestaurantMenu } from "../../modules/food/restaurant/models/restaurantMenu.model.js";
+import { FoodRestaurantWallet } from "../../modules/food/restaurant/models/restaurantWallet.model.js";
+import { FoodRestaurantWithdrawal } from "../../modules/food/restaurant/models/foodRestaurantWithdrawal.model.js";
+import { FoodAddon } from "../../modules/food/restaurant/models/foodAddon.model.js";
+import { FoodRestaurantOutletTimings } from "../../modules/food/restaurant/models/outletTimings.model.js";
+import { FoodDeliveryWallet } from "../../modules/food/delivery/models/deliveryWallet.model.js";
+import { FoodDeliveryCashDeposit } from "../../modules/food/delivery/models/foodDeliveryCashDeposit.model.js";
+import { FoodDeliveryWithdrawal } from "../../modules/food/delivery/models/foodDeliveryWithdrawal.model.js";
 
 const ROLES = {
   USER: "USER",
@@ -467,6 +479,68 @@ export const logout = async (refreshToken, fcmToken, platform) => {
   // 2. Invalidate the refresh token (standard logout procedure)
   const deleted = await FoodRefreshToken.deleteOne({ token: refreshToken });
   return { invalidated: deleted.deletedCount > 0 };
+};
+
+export const deleteAccount = async (userId, role) => {
+  if (!userId || !role) {
+    throw new AuthError("Invalid token payload / missing user identity");
+  }
+
+  try {
+    const id = new mongoose.Types.ObjectId(userId);
+
+    // 1. Module-Specific Deletions (no transaction - avoids WriteConflict with concurrent reads)
+    if (role === ROLES.USER) {
+      await Promise.allSettled([
+        FoodUserWallet.deleteOne({ userId: id }),
+        FoodOrder.deleteMany({ userId: id }),
+        FoodTransaction.deleteMany({ userId: id }),
+        FoodSupportTicket.deleteMany({ userId: id }),
+        FoodReferralLog.deleteMany({ $or: [{ referrerId: id }, { refereeId: id }] }),
+      ]);
+    } else if (role === ROLES.RESTAURANT) {
+      await Promise.allSettled([
+        FoodRestaurantMenu.deleteOne({ restaurantId: id }),
+        FoodRestaurantWallet.deleteOne({ restaurantId: id }),
+        FoodRestaurantWithdrawal.deleteMany({ restaurantId: id }),
+        FoodAddon.deleteMany({ restaurantId: id }),
+        FoodRestaurantOutletTimings.deleteMany({ restaurantId: id }),
+        FoodOrder.deleteMany({ restaurantId: id }),
+        FoodTransaction.deleteMany({ restaurantId: id }),
+      ]);
+    } else if (role === ROLES.DELIVERY_PARTNER) {
+      await Promise.allSettled([
+        FoodDeliveryWallet.deleteOne({ deliveryPartnerId: id }),
+        FoodDeliveryCashDeposit.deleteMany({ deliveryPartnerId: id }),
+        FoodDeliveryWithdrawal.deleteMany({ deliveryPartnerId: id }),
+        FoodOrder.deleteMany({ deliveryPartnerId: id }),
+        FoodTransaction.deleteMany({ deliveryPartnerId: id }),
+      ]);
+    }
+
+    // 2. Common: invalidate all sessions
+    await FoodRefreshToken.deleteMany({ userId: id });
+
+    // 3. Main Identity Deletion — if this fails we still return an error
+    let deletedIdentity;
+    if (role === ROLES.USER) {
+      deletedIdentity = await FoodUser.findByIdAndDelete(id);
+    } else if (role === ROLES.RESTAURANT) {
+      deletedIdentity = await FoodRestaurant.findByIdAndDelete(id);
+    } else if (role === ROLES.DELIVERY_PARTNER) {
+      deletedIdentity = await FoodDeliveryPartner.findByIdAndDelete(id);
+    }
+
+    if (!deletedIdentity) {
+      throw new AuthError("Account not found or already deleted");
+    }
+
+    logger.info(`[Account-Deletion] Role=${role}, ID=${userId} permanently deleted.`);
+    return { success: true, message: "Account and all related data deleted permanently" };
+  } catch (error) {
+    logger.error(`[Account-Deletion] Failed Role=${role}, ID=${userId}: ${error.message}`);
+    throw error;
+  }
 };
 
 export const getProfile = async (userId, role) => {

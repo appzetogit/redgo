@@ -10,9 +10,10 @@ import {
   LogOut,
   X,
   Loader2,
-  Briefcase
+  Briefcase,
+  Trash2
 } from "lucide-react"
-import { deliveryAPI } from "@food/api"
+import { deliveryAPI, authAPI } from "@food/api"
 import { toast } from "sonner"
 import { clearModuleAuth } from "@food/utils/auth"
 
@@ -28,6 +29,20 @@ export const ProfileV2 = () => {
   const [referralReward, setReferralReward] = useState(0)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
+  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteInput, setDeleteInput] = useState("")
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+
+  // Lock background scroll when delete modal is open
+  useEffect(() => {
+    if (showDeleteConfirm) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => { document.body.style.overflow = "" }
+  }, [showDeleteConfirm])
 
   // Fetch profile data
   useEffect(() => {
@@ -83,6 +98,23 @@ export const ProfileV2 = () => {
     toast.success("Logged out successfully")
     navigate("/delivery/login", { replace: true })
     setLogoutSubmitting(false)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteSubmitting || deleteInput !== "DELETE") return
+    
+    try {
+      setDeleteSubmitting(true)
+      await authAPI.deleteAccount("delivery")
+      clearModuleAuth("delivery")
+      localStorage.removeItem("app:isOnline")
+      toast.success("Account deleted successfully")
+      setShowDeleteConfirm(false)
+      navigate("/delivery/login", { replace: true })
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to delete account")
+      setDeleteSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -175,7 +207,7 @@ export const ProfileV2 = () => {
 
           {/* Partner options Section */}
           {/* Logout Section */}
-          <div className="pt-4">
+          <div className="pt-4 space-y-3">
             <div 
               onClick={() => setShowLogoutConfirm(true)}
               className="bg-white rounded-xl p-4 flex items-center justify-between cursor-pointer border border-red-50 hover:bg-red-50/30 active:bg-red-50 transition-colors"
@@ -185,6 +217,20 @@ export const ProfileV2 = () => {
                 <span className="text-sm font-bold text-red-600">Log out</span>
               </div>
               <ArrowRight className="w-5 h-5 text-red-100" />
+            </div>
+
+            <div 
+              onClick={() => {
+                setDeleteInput("");
+                setShowDeleteConfirm(true);
+              }}
+              className="bg-white rounded-xl p-4 flex items-center justify-between cursor-pointer border border-red-100 hover:bg-red-50/50 active:bg-red-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Trash2 className="w-5 h-5 text-red-600" />
+                <span className="text-sm font-bold text-red-600">Delete Account</span>
+              </div>
+              <ArrowRight className="w-5 h-5 text-red-200" />
             </div>
           </div>
         </div>
@@ -215,6 +261,68 @@ export const ProfileV2 = () => {
                 className="flex-1 h-11 rounded-xl bg-red-600 text-white font-bold disabled:opacity-60"
               >
                 {logoutSubmitting ? "Logging out..." : "Yes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirm Popup */}
+      {showDeleteConfirm && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center px-4 backdrop-blur-sm"
+        >
+          <div 
+            className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Icon + Title centered */}
+            <div className="flex flex-col items-center text-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-3">
+                <Trash2 className="w-7 h-7 text-red-600" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900">Delete Your Account?</h3>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed text-center">
+              Are you sure you want to delete your account?
+            </p>
+
+            {/* Warning box */}
+            <div className="mb-4 bg-orange-50 border-l-4 border-orange-500 rounded-r-xl p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                <span className="text-sm font-bold text-orange-700">Warning</span>
+              </div>
+              <p className="text-xs text-orange-700 leading-relaxed">
+                Your all data will be permanently lost. This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="mb-6">
+              <input 
+                type="text" 
+                placeholder="Type DELETE to confirm" 
+                value={deleteInput}
+                onChange={(e) => setDeleteInput(e.target.value.toUpperCase())}
+                className="w-full h-12 px-4 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-4 focus:ring-red-50 outline-none transition-all font-bold text-center tracking-widest placeholder:tracking-normal placeholder:font-medium placeholder:text-gray-400"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                autoFocus
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 h-12 rounded-xl border-2 border-gray-300 text-gray-700 font-bold hover:bg-gray-50 active:bg-gray-100 transition-colors ring-2 ring-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteSubmitting || deleteInput !== "DELETE"}
+                className="flex-1 h-12 rounded-xl bg-red-600 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed hover:bg-red-700 active:bg-red-800 transition-colors shadow-lg shadow-red-600/20"
+              >
+                {deleteSubmitting ? "Deleting..." : "Delete Account"}
               </button>
             </div>
           </div>
