@@ -6,7 +6,7 @@ import { Input } from "@food/components/ui/input"
 import { Button } from "@food/components/ui/button"
 import { authAPI } from "@food/api"
 import { setAuthData as setUserAuthData } from "@food/utils/auth"
-import loginBanner from "@food/assets/login_banner.jpg"
+import loginBanner from "@food/assets/restaurant/loginbanner1.png"
 
 export default function OTP() {
   const navigate = useNavigate()

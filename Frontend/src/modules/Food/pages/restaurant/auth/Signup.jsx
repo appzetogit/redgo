@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@food/components/ui/select"
-import loginBg from "@food/assets/loginbanner.png"
+import loginBg from "@food/assets/restaurant/loginbanner1.png"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 
 const countryCodes = [
