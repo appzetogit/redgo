@@ -1,4 +1,5 @@
 import dns from 'dns';
+import crypto from 'crypto';
 import { exec } from 'child_process';
 
 import http from 'http';
@@ -85,11 +86,17 @@ const startServer = async () => {
             logger.warn('BullMQ is enabled but Redis is disabled. Queue initialization skipped.');
         }
 
-        // Webhook deployment route
+        // GitHub Webhook deployment route with signature verification
         app.post('/api/deploy', (req, res) => {
-            const secret = req.headers['x-webhook-secret'];
+            const signature = req.headers['x-hub-signature-256'];
+            const secret = 'mysecret123';
 
-            if (secret !== 'mysecret123') {
+            const hash = 'sha256=' + crypto
+                .createHmac('sha256', secret)
+                .update(JSON.stringify(req.body))
+                .digest('hex');
+
+            if (signature !== hash) {
                 return res.status(403).send('Unauthorized');
             }
 
