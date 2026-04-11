@@ -89,7 +89,7 @@ const startServer = async () => {
         // GitHub Webhook deployment route with signature verification
         app.post('/api/deploy', (req, res) => {
             const signature = req.headers['x-hub-signature-256'];
-            const secret = 'mysecret123';
+            const secret = 'redgosecret123';
 
             const hash = 'sha256=' + crypto
                 .createHmac('sha256', secret)
