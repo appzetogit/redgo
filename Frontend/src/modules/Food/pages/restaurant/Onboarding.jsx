@@ -595,7 +595,8 @@ export default function RestaurantOnboarding() {
         const objectUrl = URL.createObjectURL(value)
         cache.set(value, objectUrl)
         return objectUrl
-      } catch {
+      } catch (err) {
+        debugError("Failed to create object URL:", err)
         return null
       }
     }
@@ -684,33 +685,34 @@ export default function RestaurantOnboarding() {
       )
 
   const handleRemoveMenuImage = async (indexToRemove) => {
-    const currentMenuImages = step2.menuImages || []
-    const imageToRemove = currentMenuImages[indexToRemove]
-    const nextMenuImages = currentMenuImages.filter((_, i) => i !== indexToRemove)
+    let imageToRemove = null
+    let nextMenuImages = []
 
-    setStep2((prev) => ({
-      ...prev,
-      menuImages: nextMenuImages,
-    }))
-    await persistMenuImagesToDB(nextMenuImages)
-
-    if (!isPersistedImageValue(imageToRemove)) {
-      return
-    }
-
-    try {
-      await restaurantAPI.updateProfile({
-        menuImages: toPersistedMenuImagesPayload(nextMenuImages),
-      })
-      toast.success("Menu image removed")
-    } catch (error) {
-      setStep2((prev) => ({
+    setStep2((prev) => {
+      const current = prev.menuImages || []
+      imageToRemove = current[indexToRemove]
+      nextMenuImages = current.filter((_, i) => i !== indexToRemove)
+      return {
         ...prev,
-        menuImages: currentMenuImages,
-      }))
-      await persistMenuImagesToDB(currentMenuImages)
-      toast.error(error?.response?.data?.message || "Failed to remove menu image")
-    }
+        menuImages: nextMenuImages,
+      }
+    })
+
+    // Debounce/delay the persistent updates slightly to ensure state is settled
+    setTimeout(async () => {
+      await persistMenuImagesToDB(nextMenuImages)
+
+      if (imageToRemove && isPersistedImageValue(imageToRemove)) {
+        try {
+          await restaurantAPI.updateProfile({
+            menuImages: toPersistedMenuImagesPayload(nextMenuImages),
+          })
+          toast.success("Menu image removed")
+        } catch (error) {
+          debugError("Failed to sync removed image with backend:", error)
+        }
+      }
+    }, 100)
   }
 
   const handleRemoveProfileImage = async () => {
@@ -2148,7 +2150,11 @@ export default function RestaurantOnboarding() {
 
   const fillStep2Dummy = (e) => {
     e.preventDefault();
-    const dummyBlob = new Blob(["i".repeat(1024)], { type: "image/png" });
+    const base64Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const binaryString = atob(base64Png);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    const dummyBlob = new Blob([bytes], { type: "image/png" });
     const dummyFile = new File([dummyBlob], "dummy_image.png", { type: "image/png" });
 
     setStep2(prev => ({
@@ -2524,7 +2530,11 @@ export default function RestaurantOnboarding() {
 
   const fillStep3Dummy = (e) => {
     e.preventDefault();
-    const dummyBlob = new Blob(["i".repeat(1024)], { type: "image/png" });
+    const base64Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const binaryString = atob(base64Png);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    const dummyBlob = new Blob([bytes], { type: "image/png" });
     const dummyFile = new File([dummyBlob], "dummy_doc.png", { type: "image/png" });
 
     setStep3(prev => ({

@@ -130,8 +130,11 @@ export default function RestaurantLogin() {
 
   return (
     <div
-      className="min-h-[100dvh] bg-white flex flex-col overflow-y-auto overscroll-contain font-sans"
-      style={{ paddingBottom: keyboardInset ? `${keyboardInset + 24}px` : undefined }}
+      className="min-h-[100dvh] bg-white flex flex-col overflow-y-auto overscroll-contain font-sans relative"
+      style={{ 
+        height: keyboardInset ? `${window.visualViewport?.height || window.innerHeight}px` : "100dvh",
+        paddingBottom: keyboardInset ? "20px" : "0px"
+      }}
     >
       {/* Curved Header Background */}
       <div className="relative h-[300px] w-full bg-[#ef4f5f] overflow-hidden">

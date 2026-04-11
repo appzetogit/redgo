@@ -5,7 +5,6 @@ import useRestaurantBackNavigation from "@food/hooks/useRestaurantBackNavigation
 import Lenis from "lenis"
 import { 
   ArrowLeft,
-  User,
   Bell,
   Shield,
   Globe,
@@ -13,26 +12,15 @@ import {
   Sun,
   Info,
   LogOut,
-  Lock,
-  Mail,
-  Phone,
-  CreditCard,
   FileText,
   MessageSquare,
-  ChevronRight,
-  Trash2,
-  AlertTriangle
+  ChevronRight
 } from "lucide-react"
-import { authAPI } from "@food/api"
-import { clearModuleAuth } from "@food/utils/auth"
-import { toast } from "sonner"
 import { Card, CardContent } from "@food/components/ui/card"
 import BottomNavbar from "@food/components/restaurant/BottomNavbar"
 import MenuOverlay from "@food/components/restaurant/MenuOverlay"
-const debugLog = (...args) => {}
-const debugWarn = (...args) => {}
-const debugError = (...args) => {}
 
+const debugLog = (...args) => {}
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -40,38 +28,6 @@ export default function SettingsPage() {
   const [showMenu, setShowMenu] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
-
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteInput, setDeleteInput] = useState("")
-  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
-
-  // Lock background scroll when delete modal is open
-  useEffect(() => {
-    if (showDeleteConfirm) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
-    return () => { document.body.style.overflow = "" }
-  }, [showDeleteConfirm])
-
-  const handleDeleteAccount = async () => {
-    if (deleteSubmitting || deleteInput !== "DELETE") return
-    
-    try {
-      setDeleteSubmitting(true)
-      await authAPI.deleteAccount("restaurant")
-      clearModuleAuth("restaurant")
-      localStorage.removeItem("app:isOnline")
-      toast.success("Account deleted successfully")
-      setShowDeleteConfirm(false)
-      navigate("/restaurant/login", { replace: true })
-    } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to delete account")
-      setDeleteSubmitting(false)
-    }
-  }
-
 
   // Lenis smooth scrolling
   useEffect(() => {
@@ -127,11 +83,7 @@ export default function SettingsPage() {
       items: [
         { id: "logout", label: "Logout", icon: LogOut, isDestructive: true, action: () => {
           debugLog("Logout clicked")
-          // Add logout logic here
-        } },
-        { id: "delete-account", label: "Delete Account", icon: Trash2, isDestructive: true, action: () => {
-          setDeleteInput("")
-          setShowDeleteConfirm(true)
+          // Logic handled by BottomNavbar/MenuOverlay usually, but kept for UI
         } },
       ]
     }
@@ -246,69 +198,6 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      
-      {/* Delete Account Confirm Popup */}
-      {showDeleteConfirm && (
-        <div 
-          className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center px-4 backdrop-blur-sm"
-        >
-          <div 
-            className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Icon + Title centered */}
-            <div className="flex flex-col items-center text-center mb-4">
-              <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-3">
-                <Trash2 className="w-7 h-7 text-red-600" />
-              </div>
-              <h3 className="text-xl font-black text-gray-900">Delete Your Account?</h3>
-            </div>
-
-            <p className="text-sm text-gray-600 mb-4 leading-relaxed text-center">
-              Are you sure you want to delete your account?
-            </p>
-
-            {/* Warning box */}
-            <div className="mb-4 bg-orange-50 border-l-4 border-orange-500 rounded-r-xl p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle className="w-4 h-4 text-orange-600 flex-shrink-0" />
-                <span className="text-sm font-bold text-orange-700">Warning</span>
-              </div>
-              <p className="text-xs text-orange-700 leading-relaxed">
-                Your all data will be permanently lost. This action cannot be undone.
-              </p>
-            </div>
-            
-            <div className="mb-6">
-              <input 
-                type="text" 
-                placeholder="Type DELETE to confirm" 
-                value={deleteInput}
-                onChange={(e) => setDeleteInput(e.target.value.toUpperCase())}
-                className="w-full h-12 px-4 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:ring-4 focus:ring-red-50 outline-none transition-all font-bold text-center tracking-widest placeholder:tracking-normal placeholder:font-medium placeholder:text-gray-400"
-              />
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                autoFocus
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 h-12 rounded-xl border-2 border-gray-300 text-gray-700 font-bold hover:bg-gray-50 active:bg-gray-100 transition-colors ring-2 ring-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleteSubmitting || deleteInput !== "DELETE"}
-                className="flex-1 h-12 rounded-xl bg-red-600 text-white font-bold disabled:opacity-60 disabled:cursor-not-allowed hover:bg-red-700 active:bg-red-800 transition-colors shadow-lg shadow-red-600/20"
-              >
-                {deleteSubmitting ? "Deleting..." : "Delete Account"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Bottom Navigation Bar */}
       <BottomNavbar onMenuClick={() => setShowMenu(true)} />
       
@@ -317,5 +206,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-
-

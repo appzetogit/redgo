@@ -411,7 +411,11 @@ export default function SignupStep2() {
           <button
             type="button"
             onClick={() => {
-              const dummyBlob = new Blob(["i".repeat(1024)], { type: "image/png" });
+              const base64Png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+              const binaryString = atob(base64Png);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+              const dummyBlob = new Blob([bytes], { type: "image/png" });
               const dummyFile = new File([dummyBlob], "dummy_doc.png", { type: "image/png" });
               
               setDocuments({

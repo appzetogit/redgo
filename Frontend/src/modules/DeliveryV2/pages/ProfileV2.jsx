@@ -11,7 +11,8 @@ import {
   X,
   Loader2,
   Briefcase,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from "lucide-react"
 import { deliveryAPI, authAPI } from "@food/api"
 import { toast } from "sonner"
@@ -86,16 +87,20 @@ export const ProfileV2 = () => {
     } catch (e) {}
   }
 
-  const handleLogout = async () => {
+  const handleLogout = async (allDevices = false) => {
     if (logoutSubmitting) return
     setShowLogoutConfirm(false)
     try {
       setLogoutSubmitting(true)
-      await deliveryAPI.logout()
+      if (allDevices) {
+        await authAPI.logoutFromAllDevices("delivery")
+      } else {
+        await deliveryAPI.logout()
+      }
     } catch (error) {}
     clearModuleAuth("delivery")
     localStorage.removeItem("app:isOnline")
-    toast.success("Logged out successfully")
+    toast.success(allDevices ? "Logged out from all devices" : "Logged out successfully")
     navigate("/delivery/login", { replace: true })
     setLogoutSubmitting(false)
   }
@@ -239,28 +244,48 @@ export const ProfileV2 = () => {
       {/* Logout Confirm Popup */}
       {showLogoutConfirm && (
         <div 
-          className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center px-4"
+          className="fixed inset-0 bg-black/70 z-[1000] flex items-center justify-center px-4 backdrop-blur-sm"
           onClick={() => setShowLogoutConfirm(false)}
         >
           <div 
-            className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-5"
+            className="bg-white w-full max-w-sm rounded-[24px] shadow-2xl p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-base font-black text-gray-900 mb-2">Do you want to log out?</h3>
-            <p className="text-sm text-gray-500 mb-5">You will be signed out from your delivery account.</p>
-            <div className="flex items-center gap-3">
+            {/* User Info in Modal */}
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="relative mb-3">
+                <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-slate-50 shadow-inner">
+                  {profile?.profileImage?.url ? (
+                    <img src={profile.profileImage.url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-10 h-10 text-gray-300" />
+                  )}
+                </div>
+              </div>
+              <h3 className="text-xl font-black text-gray-900 leading-tight">{profile?.name || "Partner"}</h3>
+              <p className="text-sm font-medium text-gray-500 mt-0.5">{profile?.deliveryId || ""}</p>
+            </div>
+
+            <div className="space-y-3">
               <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 h-11 rounded-xl border border-gray-200 text-gray-700 font-bold"
+                onClick={() => handleLogout(false)}
+                disabled={logoutSubmitting}
+                className="w-full h-14 bg-red-600 hover:bg-red-700 active:scale-95 disabled:opacity-50 text-white font-bold rounded-2xl transition-all shadow-lg shadow-red-600/20"
               >
-                No
+                {logoutSubmitting ? "Logging out..." : "Logout"}
               </button>
               <button
-                onClick={handleLogout}
+                onClick={() => handleLogout(true)}
                 disabled={logoutSubmitting}
-                className="flex-1 h-11 rounded-xl bg-red-600 text-white font-bold disabled:opacity-60"
+                className="w-full h-14 bg-white hover:bg-gray-50 active:scale-95 disabled:opacity-50 text-red-600 font-bold rounded-2xl border-2 border-red-600 transition-all"
               >
-                {logoutSubmitting ? "Logging out..." : "Yes"}
+                Logout from all devices
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="w-full h-12 text-gray-500 font-bold hover:bg-gray-50 rounded-2xl transition-all"
+              >
+                Cancel
               </button>
             </div>
           </div>

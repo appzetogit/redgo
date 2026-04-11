@@ -338,7 +338,10 @@ export default function RestaurantOTP() {
   return (
     <div
       className={`h-[100dvh] bg-white flex flex-col font-sans ${keyboardOffset > 0 ? "overflow-y-auto overflow-x-hidden" : "overflow-hidden"}`}
-      style={keyboardOffset > 0 ? { paddingBottom: `${Math.min(keyboardOffset, 360)}px` } : undefined}
+      style={{ 
+        height: keyboardOffset ? `${window.visualViewport?.height || window.innerHeight}px` : "100dvh",
+        paddingBottom: keyboardOffset ? "20px" : "0px"
+      }}
     >
       {/* Curved Header Background */}
       <div className="relative h-[240px] sm:h-[300px] w-full bg-[#ef4f5f] overflow-hidden">
