@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Suspense, lazy, useEffect } from 'react'
 
 
@@ -52,6 +52,30 @@ const AppRoutes = () => {
       localStorage.setItem(NATIVE_LAST_ROUTE_KEY, route)
     }
   }, [location.pathname, location.search])
+
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const handleAuthFailure = (event) => {
+      const module = event.detail?.module || 'user'
+      console.log(`[AppRoutes] Global auth failure detected for module: ${module}. Redirecting...`)
+      
+      const loginPaths = {
+        admin: '/admin/login',
+        restaurant: '/restaurant/login',
+        delivery: '/delivery/login',
+        user: '/auth/login'
+      }
+
+      const targetPath = loginPaths[module] || '/auth/login'
+      
+      // Force immediate redirect to login
+      navigate(targetPath, { replace: true, state: { from: location.pathname } })
+    }
+
+    window.addEventListener('authRefreshFailed', handleAuthFailure)
+    return () => window.removeEventListener('authRefreshFailed', handleAuthFailure)
+  }, [navigate, location.pathname])
 
   return (
     <Routes>

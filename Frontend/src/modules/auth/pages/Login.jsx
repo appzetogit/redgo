@@ -18,6 +18,8 @@ export default function UnifiedOTPFastLogin() {
   const [userData, setUserData] = useState(null)
   const [otpSent, setOtpSent] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
+  const [showExitModal, setShowExitModal] = useState(false)
+  
   const navigate = useNavigate()
   const submitting = useRef(false)
 
@@ -82,8 +84,15 @@ export default function UnifiedOTPFastLogin() {
     setResendTimer(0)
   }
 
+  // Auto-verify when OTP is 4 digits
+  useEffect(() => {
+    if (step === 2 && otp.length === 4 && !submitting.current) {
+      handleVerifyOTP();
+    }
+  }, [otp, step]);
+
   const handleVerifyOTP = async (e) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     const phone = normalizedPhone()
     const otpDigits = String(otp).replace(/\D/g, "").slice(0, 4)
     if (otpDigits.length !== 4) {
@@ -133,7 +142,6 @@ export default function UnifiedOTPFastLogin() {
         setAuthData("user", accessToken, user, refreshToken) // Save auth first
         setUserData({ accessToken, user, refreshToken })
         setStep(3)
-        toast.info("Welcome! Please complete your profile.")
       } else {
         setAuthData("user", accessToken, user, refreshToken)
         toast.success("Login successful!")
@@ -141,15 +149,20 @@ export default function UnifiedOTPFastLogin() {
       }
     } catch (err) {
       const status = err?.response?.status
-      let msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Invalid OTP. Please try again."
+      let msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Invalid OTP"
       if (status === 401) {
         if (/deactivat(ed|e)/i.test(String(msg))) {
           msg = "Your account is deactivated. Please contact support."
         } else {
-          msg = "Invalid or expired code, or account not active."
+          msg = "Invalid OTP"
         }
       }
       toast.error(msg)
+      // Reset OTP and focus first field
+      setOtp("");
+      setTimeout(() => {
+        document.getElementById(`otp-0`)?.focus();
+      }, 50);
     } finally {
       setLoading(false)
       submitting.current = false
@@ -182,6 +195,38 @@ export default function UnifiedOTPFastLogin() {
     }
   }
 
+  const handleExitLogin = () => {
+    // Clear any temporary auth data
+    localStorage.removeItem("user_accessToken")
+    localStorage.removeItem("user_refreshToken")
+    localStorage.removeItem("user_authenticated")
+    localStorage.removeItem("user_user")
+    
+    // Reset to step 1
+    setShowExitModal(false)
+    setPhoneNumber("")
+    setFullName("")
+    setOtp("")
+    setStep(1)
+    setOtpSent(false)
+    toast.info("Registration cancelled.")
+  }
+
+  // Handle browser back button/gestures for Step 3
+  useEffect(() => {
+    if (step === 3) {
+      const handlePopState = (e) => {
+        e.preventDefault();
+        setShowExitModal(true);
+        window.history.pushState(null, null, window.location.pathname);
+      };
+      
+      window.history.pushState(null, null, window.location.pathname);
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [step]);
+
   useEffect(() => {
     if (step !== 2 || resendTimer <= 0) return
     const intervalId = setInterval(() => {
@@ -203,6 +248,45 @@ export default function UnifiedOTPFastLogin() {
 
   return (
     <AnimatedPage className="min-h-screen bg-[#FFF9F0] flex relative font-sans overflow-hidden">
+      
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center px-6">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowExitModal(false)}
+          />
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-[32px] p-8 w-full max-w-[340px] relative z-[1001] shadow-2xl text-center"
+          >
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-[#EF4F5F]" />
+            </div>
+            <h3 className="text-xl font-black text-gray-900 mb-2">Cancel Registration?</h3>
+            <p className="text-sm font-medium text-gray-500 mb-8 leading-relaxed">
+              If you exit now, you'll have to verify your phone number again.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleExitLogin}
+                className="w-full py-4 bg-[#EF4F5F] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-red-200 active:scale-95 transition-all"
+              >
+                Exit Registration
+              </button>
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="w-full py-4 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Background Lightning Bolts (Only for Steps 1 & 2) */}
       {step !== 3 && (
@@ -251,13 +335,24 @@ export default function UnifiedOTPFastLogin() {
       </div>
 
       {/* Main Container */}
-      <div className={`w-full min-h-screen flex flex-col transition-all duration-700 ${step === 3 ? 'bg-white' : 'lg:w-[45%] lg:ml-auto'}`}>
+      <div className={`w-full min-h-screen flex flex-col transition-all duration-700 ${step === 3 ? 'bg-white' : 'lg:w-[45%] lg:ml-auto relative'}`}>
+        
+        {/* Step 2 Back Button */}
+        {step === 2 && (
+          <button
+            onClick={handleEditNumber}
+            className="absolute top-6 left-6 p-3 bg-white rounded-full shadow-lg text-[#EF4F5F] hover:bg-gray-50 transition-all z-50 active:scale-95"
+            aria-label="Back to phone number"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+        )}
 
         {/* Step 3 Header (Matching screenshots exactly) */}
         {step === 3 && (
           <header className="w-full bg-white border-b border-gray-100 flex items-center h-20 px-4 shrink-0 relative z-50">
             <button
-              onClick={() => setStep(2)}
+              onClick={() => setShowExitModal(true)}
               className="absolute left-6 p-3 hover:bg-gray-50 rounded-full transition-colors active:scale-90"
             >
               <ArrowLeft className="w-6 h-6 text-gray-900" />
@@ -328,7 +423,6 @@ export default function UnifiedOTPFastLogin() {
                       <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest leading-none mb-1">Sent to</p>
                       <p className="text-sm font-bold text-gray-900">+91 {phoneNumber}</p>
                     </div>
-                    <button type="button" onClick={handleEditNumber} className="text-xs text-[#EF4F5F] font-black hover:underline cursor-pointer">Edit</button>
                   </div>
 
                   <div className="flex justify-between gap-2 mt-4 px-2">

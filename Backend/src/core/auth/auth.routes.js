@@ -9,6 +9,7 @@ import {
     requestDeliveryOtpController,
     verifyDeliveryOtpController,
     logoutController,
+    logoutAllDevicesController,
     getMeController,
     updateAdminProfileController,
     changeAdminPasswordController,
@@ -47,6 +48,9 @@ router.post('/refresh-token', refreshTokenController);
 
 // Logout (invalidates refresh token)
 router.post('/logout', logoutController);
+
+// Logout from all devices (invalidates all refresh tokens and FCM tokens)
+router.post('/logout-all', authMiddleware, logoutAllDevicesController);
 
 // Delete Account (removes all data and invalidate sessions)
 router.delete('/delete-account', authMiddleware, deleteAccountController);

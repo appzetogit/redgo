@@ -125,6 +125,7 @@ function onRefreshFailed(module) {
   refreshSubscribers.forEach((cb) => cb(null, module));
   refreshSubscribers = [];
   
+  // Dispatch event so UI can redirect
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("authRefreshFailed", { detail: { module } }));
   }
@@ -179,8 +180,15 @@ apiClient.interceptors.response.use(
     }
     const module = original.contextModule || getModuleFromUrl(original.url);
     const refreshToken = getRefreshToken(module);
+    
+    // Do NOT trigger global logout redirect if this was an OTP verification or login attempt
+    const normalizedUrl = (original.url || "").toLowerCase();
+    const isVerificationRoute = normalizedUrl.includes("/verify-otp") || normalizedUrl.includes("/login");
+
     if (!refreshToken) {
-      clearModuleAuth(module);
+      if (!isVerificationRoute) {
+        onRefreshFailed(module);
+      }
       return Promise.reject(err);
     }
 

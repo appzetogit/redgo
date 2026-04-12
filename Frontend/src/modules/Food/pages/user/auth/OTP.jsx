@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, AlertCircle, Smartphone } from "lucide-react"
 import AnimatedPage from "@food/components/user/AnimatedPage"
 import { Input } from "@food/components/ui/input"
 import { Button } from "@food/components/ui/button"
+import { toast } from "sonner"
 import { authAPI } from "@food/api"
 import { setAuthData as setUserAuthData } from "@food/utils/auth"
 import loginBanner from "@food/assets/restaurant/loginbanner1.png"
@@ -80,8 +81,11 @@ export default function OTP() {
 
   useEffect(() => {
     // Focus first input on mount
-    if (inputRefs.current[0] && !showNameInput) {
-      inputRefs.current[0].focus()
+    if (!showNameInput) {
+      const timer = setTimeout(() => {
+        inputRefs.current[0]?.focus()
+      }, 100)
+      return () => clearTimeout(timer)
     }
   }, [showNameInput])
 
@@ -267,14 +271,13 @@ export default function OTP() {
         err?.message ||
         "Failed to verify OTP. Please try again."
       if (status === 401) {
-        // Friendlier copy for deactivated users or auth errors
-        if (/deactivat(ed|e)/i.test(String(message))) {
-          message = "Your account is deactivated. Please contact support."
-        } else {
-          message = "Invalid or expired code, or account not active."
-        }
+        message = "Invalid OTP"
       }
-      setError(message)
+      toast.error(message)
+      setOtp(["", "", "", ""])
+      setTimeout(() => {
+        inputRefs.current[0]?.focus()
+      }, 50)
     } finally {
       setIsLoading(false)
       submittingRef.current = false
@@ -479,12 +482,6 @@ export default function OTP() {
                 ))}
               </div>
 
-              {error && (
-                <div className="flex items-center justify-center gap-1.5 text-xs text-red-500 bg-red-50 dark:bg-red-900/10 py-2 rounded-lg">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  <span>{error}</span>
-                </div>
-              )}
 
               {/* Resend Section */}
               <div className="text-center">

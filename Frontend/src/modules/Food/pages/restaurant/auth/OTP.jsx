@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, ShieldCheck, Timer, RefreshCw } from "lucide-react"
 import { Button } from "@food/components/ui/button"
+import { toast } from "sonner"
 import { restaurantAPI } from "@food/api"
 import {
   setAuthData as setRestaurantAuthData,
@@ -62,9 +63,11 @@ export default function RestaurantOTP() {
   }, [navigate])
 
   useEffect(() => {
-    if (inputRefs.current[0]) {
-      inputRefs.current[0].focus()
-    }
+    // Auto focus first input on mount
+    const timer = setTimeout(() => {
+      inputRefs.current[0]?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -263,7 +266,7 @@ export default function RestaurantOTP() {
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         err?.message ||
-        "Invalid OTP. Please try again."
+        "Invalid OTP"
 
       if (/pending approval/i.test(message)) {
         const pendingPhone = authData?.phone || authData?.email || contactInfo
@@ -279,10 +282,12 @@ export default function RestaurantOTP() {
         return
       }
 
-      setError(message)
+      toast.error(message)
       setOtp(["", "", "", ""])
       hasSubmittedRef.current = false
-      inputRefs.current[0]?.focus()
+      setTimeout(() => {
+        inputRefs.current[0]?.focus()
+      }, 50)
     } finally {
       setIsLoading(false)
     }
@@ -409,11 +414,6 @@ export default function RestaurantOTP() {
               ))}
             </div>
 
-            {error && (
-              <p className="text-[#ef4f5f] text-xs font-bold text-center italic animate-pulse">
-                {error}
-              </p>
-            )}
 
             <div className="space-y-3">
               <Button

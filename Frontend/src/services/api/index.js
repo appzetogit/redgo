@@ -120,6 +120,7 @@ export const authAPI = {
         : null);
     return authService.logout(token, fcmToken, platform);
   },
+  logoutFromAllDevices: (module = "user") => authService.logoutFromAllDevices(module),
   deleteAccount: (module = "user") => authService.deleteAccount(module),
 };
 
@@ -1311,6 +1312,12 @@ export const restaurantAPI = {
     return authService.logout(token, fcmToken, "web");
   },
   /** Backend has no email/password login; use phone OTP only. */
+  logoutFromAllDevices: () => {
+    restaurantCurrentInFlight = null;
+    restaurantCurrentCached = null;
+    restaurantCurrentCacheTime = 0;
+    return authService.logoutFromAllDevices("restaurant");
+  },
   login: (_email, _password) =>
     Promise.reject(new Error("Please use phone number and OTP to sign in.")),
   /**
@@ -1602,6 +1609,14 @@ export const deliveryAPI = {
         : null);
     const fcmToken = typeof localStorage !== "undefined" ? localStorage.getItem("fcm_web_registered_token_delivery") : null;
     return authService.logout(token, fcmToken, "web");
+  },
+  logoutFromAllDevices: () => {
+    deliveryMeCached = null;
+    deliveryMeCacheTime = 0;
+    try {
+      localStorage.removeItem("app:isOnline");
+    } catch (_) {}
+    return authService.logoutFromAllDevices("delivery");
   },
   /** POST /food/delivery/register - multipart FormData (new partner, no token). */
   register: (formData) => {

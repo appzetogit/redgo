@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import AnimatedPage from "@food/components/user/AnimatedPage"
 import { Input } from "@food/components/ui/input"
 import { Button } from "@food/components/ui/button"
+import { toast } from "sonner"
 import { deliveryAPI } from "@food/api"
 import { setAuthData as storeAuthData } from "@food/utils/auth"
 const debugLog = (...args) => {}
@@ -81,14 +82,14 @@ export default function DeliveryOTP() {
   }, [])
 
   useEffect(() => {
-    // Don't auto-focus - let user manually enter OTP
-    // Focus first input only if all fields are empty (small delay to ensure inputs are rendered)
-    if (inputRefs.current[0] && otp.every(digit => digit === "")) {
-      setTimeout(() => {
+    // Auto focus first input on mount
+    if (!showNameInput) {
+      const timer = setTimeout(() => {
         inputRefs.current[0]?.focus()
       }, 100)
+      return () => clearTimeout(timer)
     }
-  }, [otp])
+  }, [showNameInput])
 
   const handleChange = (index, value) => {
     // Only allow digits
@@ -305,9 +306,14 @@ export default function DeliveryOTP() {
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         err?.message ||
-        "Failed to verify OTP. Please try again."
-      setError(message)
+        "Invalid OTP"
+      
+      toast.error(message)
+      setOtp(["", "", "", ""])
       setIsLoading(false)
+      setTimeout(() => {
+        inputRefs.current[0]?.focus()
+      }, 50)
     }
   }
 
@@ -559,11 +565,6 @@ export default function DeliveryOTP() {
           )}
 
           {/* Error message */}
-          {error && (
-            <p className="text-sm text-red-500 text-center">
-              {error}
-            </p>
-          )}
 
           {/* OTP Input Fields */}
           {!showNameInput && !pendingMessage && (
