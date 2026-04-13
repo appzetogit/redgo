@@ -224,29 +224,25 @@ export default function OTP() {
         fcmToken,
         platform
       )
-      const data = response?.data?.data || response?.data || {}
 
-      const accessToken = data.accessToken
-      const refreshToken = data.refreshToken ?? null
-      const user = data.user
+      const resBody = response?.data || {}
+      const resData = resBody.data || {}
+      
+      const accessToken = resData.accessToken || resBody.accessToken
+      const refreshToken = resData.refreshToken || resBody.refreshToken || null
+      const user = resData.user || resBody.user || resData.data?.user
 
-      if (!accessToken || !user) {
-        throw new Error("Invalid response from server")
-      }
-      if (!refreshToken) {
-        throw new Error("Invalid response from server: missing refresh token")
-      }
-
-      // Check if user needs name prompt (isNewUser flag or missing name)
-      const hasName = user.name && String(user.name).trim().length > 0 && String(user.name).toLowerCase() !== "null";
-      const needsName = data.isNewUser === true || !hasName;
-
-      if (needsName) {
+      if (!user?.name || user?.name === "" || user?.isNewUser) {
         setVerifiedOtp(code4)
         setShowNameInput(true)
         setIsLoading(false)
         submittingRef.current = false
         return
+      }
+
+      // If we reach here, we MUST have tokens and a user
+      if (!accessToken || !user) {
+        throw new Error("Invalid response from server: tokens or user missing")
       }
 
       // Clear auth data from sessionStorage
@@ -314,7 +310,7 @@ export default function OTP() {
       // Second call with name to auto-register and login
       const response = await authAPI.verifyOTP(
         phone,
-        verifiedOtp,
+        registrationToken ? null : verifiedOtp,
         purpose,
         trimmedName,
         email,
@@ -324,17 +320,15 @@ export default function OTP() {
         deviceToken,
         activePlatform
       )
-      const data = response?.data?.data || response?.data || {}
-
-      const accessToken = data.accessToken
-      const refreshToken = data.refreshToken ?? null
-      const user = data.user
+      const resBody = response?.data || {}
+      const resData = resBody.data || {}
+      
+      const accessToken = resData.accessToken || resBody.accessToken
+      const refreshToken = resData.refreshToken || resBody.refreshToken || null
+      const user = resData.user || resBody.user || resData.data?.user
 
       if (!accessToken || !user) {
-        throw new Error("Invalid response from server")
-      }
-      if (!refreshToken) {
-        throw new Error("Invalid response from server: missing refresh token")
+        throw new Error("Invalid response from server: registration complete but tokens missing")
       }
 
       sessionStorage.removeItem("userAuthData")

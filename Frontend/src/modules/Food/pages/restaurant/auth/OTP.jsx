@@ -46,17 +46,43 @@ export default function RestaurantOTP() {
         }
       }
 
-      // Check for initial block timer from login page
-      if (location.state?.initialBlockMins) {
-        setBlockTimer(location.state.initialBlockMins * 60)
-        setError("Too many failed attempts")
+      // 1. Resume Block Timer
+      const savedBlockExpiry = sessionStorage.getItem("restaurant_block_expires_at");
+      if (savedBlockExpiry) {
+        const remaining = Math.max(0, Math.floor((parseInt(savedBlockExpiry) - Date.now()) / 1000));
+        if (remaining > 0) {
+          setBlockTimer(remaining);
+          setError("Too many failed attempts");
+        } else {
+          sessionStorage.removeItem("restaurant_block_expires_at");
+        }
+      } else if (location.state?.initialBlockMins) {
+        // Handle initial block from login
+        const seconds = location.state.initialBlockMins * 60;
+        setBlockTimer(seconds);
+        setError("Too many failed attempts");
+        sessionStorage.setItem("restaurant_block_expires_at", (Date.now() + (seconds * 1000)).toString());
       }
+
+      // 2. Resume Resend Timer
+      const savedResendExpiry = sessionStorage.getItem("restaurant_resend_expires_at");
+      if (savedResendExpiry) {
+        const remaining = Math.max(0, Math.floor((parseInt(savedResendExpiry) - Date.now()) / 1000));
+        if (remaining > 0) {
+          setResendTimer(remaining);
+        } else {
+          sessionStorage.removeItem("restaurant_resend_expires_at");
+        }
+      } else {
+        // Only start a new timer if none exists
+        setResendTimer(59);
+        sessionStorage.setItem("restaurant_resend_expires_at", (Date.now() + (60 * 1000)).toString());
+      }
+
     } else {
       navigate("/restaurant/login")
       return
     }
-
-    setResendTimer(59)
   }, [navigate, location])
 
   useEffect(() => {
@@ -253,6 +279,8 @@ export default function RestaurantOTP() {
         window.dispatchEvent(new Event("restaurantAuthChanged"))
         sessionStorage.removeItem("restaurantAuthData")
         sessionStorage.removeItem("restaurantLoginPhone")
+        sessionStorage.removeItem("restaurant_resend_expires_at")
+        sessionStorage.removeItem("restaurant_block_expires_at")
 
         setTimeout(async () => {
           if (authData?.isSignUp) {
@@ -343,6 +371,9 @@ export default function RestaurantOTP() {
       }, 10);
     }
 
+    const expiry = Date.now() + (60 * 1000);
+    sessionStorage.setItem("restaurant_resend_expires_at", expiry.toString());
+    
     setResendTimer(59)
     setIsLoading(false)
     setOtp(["", "", "", ""])

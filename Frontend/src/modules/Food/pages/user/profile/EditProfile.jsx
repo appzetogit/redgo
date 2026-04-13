@@ -119,10 +119,10 @@ export default function EditProfile() {
   const goBack = useAppBackNavigation()
   const { userProfile, updateUserProfile } = useProfile()
 
-  // Load from localStorage or use context
+  // Load from context primarily to ensure freshest data after signup/update
   const storedProfile = loadProfileFromStorage()
   const draftProfile = loadEditProfileDraft()
-  const initialProfile = draftProfile || storedProfile || userProfile || {}
+  const initialProfile = userProfile || draftProfile || storedProfile || {}
 
   const initialFormData = buildFormDataFromProfile(initialProfile)
 

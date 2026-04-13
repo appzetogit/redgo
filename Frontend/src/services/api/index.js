@@ -98,8 +98,9 @@ export const authAPI = {
     _referralCode,
     fcmToken = null,
     platform = "web",
+    registrationToken = null,
   ) => {
-    if (!phone || !otp)
+    if (!registrationToken && (!phone || !otp))
       return Promise.reject(new Error("Phone and OTP are required"));
     return authService.verifyUserOtp(
       phone,
@@ -108,6 +109,7 @@ export const authAPI = {
       _name,
       fcmToken,
       platform,
+      registrationToken,
     );
   },
   getCurrentUser: () => getUserMeOnce(),

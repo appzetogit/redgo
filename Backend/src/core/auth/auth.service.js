@@ -8,7 +8,7 @@ import { FoodDeliveryPartner } from "../../modules/food/delivery/models/delivery
 import { FoodReferralSettings } from "../../modules/food/admin/models/referralSettings.model.js";
 import { FoodReferralLog } from "../../modules/food/admin/models/referralLog.model.js";
 import { createOrUpdateOtp, verifyOtp } from "../otp/otp.service.js";
-import { signAccessToken, signRefreshToken } from "./token.util.js";
+import { signAccessToken, signRefreshToken, signRegistrationToken, verifyRegistrationToken } from "./token.util.js";
 import { FoodRefreshToken } from "../refreshTokens/refreshToken.model.js";
 import { ValidationError, AuthError } from "./errors.js";
 import { config } from "../../config/env.js";
@@ -56,27 +56,63 @@ export const verifyUserOtpAndLogin = async (
   fcmToken,
   platform,
   name,
+  registrationToken,
 ) => {
-  const phone = String(phoneRaw).replace(/\D/g, "");
-  const result = await verifyOtp(phone, otp);
+  let phone = phoneRaw ? String(phoneRaw).replace(/\D/g, "") : null;
+  let isFromToken = false;
 
-  if (!result.valid) {
-    throw new AuthError(result.reason || "OTP verification failed");
+  // 1. Handle Registration via Token (Second Step)
+  if (registrationToken && !otp) {
+    try {
+      const decoded = verifyRegistrationToken(registrationToken);
+      phone = decoded.phone;
+      // Preference: body params over token params if provided, else use token's
+      if (!ref) ref = decoded.ref;
+      if (!fcmToken) fcmToken = decoded.fcmToken;
+      if (!platform) platform = decoded.platform;
+      isFromToken = true;
+    } catch (err) {
+      throw new AuthError("Registration session expired. Please verify OTP again.");
+    }
+  } else {
+    // 2. Regular OTP Verification (First Step)
+    const result = await verifyOtp(phone, otp);
+    if (!result.valid) {
+      throw new AuthError(result.reason || "OTP verification failed");
+    }
   }
 
   let userDoc = await FoodUser.findOne({ phone });
   
-  // Ensure user exists and mark as verified on successful OTP.
-  // Check if user is new or hasn't provided a name yet
+  // Logic: Registration is needed if user doesn't exist OR name is null/empty
   const needsNamePrompt = !userDoc || !userDoc.name || String(userDoc.name).trim() === "" || String(userDoc.name).toLowerCase() === "null";
   const isNewUser = needsNamePrompt;
   const trimmedName = typeof name === "string" ? name.trim() : "";
 
+  // If new user and NO name provided, return registration token instead of creating user
+  if (isNewUser && !trimmedName) {
+    const regToken = signRegistrationToken({ 
+      phone, 
+      ref: ref || null, 
+      fcmToken: fcmToken || null, 
+      platform: platform || "web" 
+    });
+    return { 
+      needsRegistration: true, 
+      registrationToken: regToken,
+      phone 
+    };
+  }
+
+  // Create or Update User ONLY if we have a name (or it's an existing user)
   if (!userDoc) {
+    if (!trimmedName) {
+        throw new ValidationError("Name is required for registration");
+    }
     userDoc = await FoodUser.create({
       phone,
       isVerified: true,
-      ...(trimmedName ? { name: trimmedName } : {}),
+      name: trimmedName,
     });
   } else {
     let needsSave = false;
@@ -84,7 +120,7 @@ export const verifyUserOtpAndLogin = async (
       userDoc.isVerified = true;
       needsSave = true;
     }
-    if (trimmedName && !userDoc.name) {
+    if (trimmedName && (!userDoc.name || String(userDoc.name).toLowerCase() === "null")) {
       userDoc.name = trimmedName;
       needsSave = true;
     }

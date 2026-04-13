@@ -1,3 +1,4 @@
+// Updated: 2026-04-14 00:50
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { ArrowLeft, Loader2 } from "lucide-react"
@@ -30,7 +31,7 @@ export default function DeliveryOTP() {
   const [rejectionReason, setRejectionReason] = useState("")
   const [deviceToken, setDeviceToken] = useState(null)
   const [activePlatform, setActivePlatform] = useState("web")
-  const [blockTimer, setBlockTimer] = useState(0) // Seconds remaining in block
+  const [blockTimer, setBlockTimer] = useState(0)
   const inputRefs = useRef([])
 
   useEffect(() => {
@@ -40,9 +41,35 @@ export default function DeliveryOTP() {
       const data = JSON.parse(stored)
       setAuthData(data)
       
-      // Check for initial block timer from login page
-      if (location.state?.initialBlockMins) {
-        setBlockTimer(location.state.initialBlockMins * 60)
+      // 1. Resume Block Timer
+      const savedBlockExpiry = sessionStorage.getItem("delivery_block_expires_at");
+      if (savedBlockExpiry) {
+        const remaining = Math.max(0, Math.floor((parseInt(savedBlockExpiry) - Date.now()) / 1000));
+        if (remaining > 0) {
+          setBlockTimer(remaining);
+        } else {
+          sessionStorage.removeItem("delivery_block_expires_at");
+        }
+      } else if (location.state?.initialBlockMins) {
+        // Handle initial block from login
+        const seconds = location.state.initialBlockMins * 60;
+        setBlockTimer(seconds);
+        sessionStorage.setItem("delivery_block_expires_at", (Date.now() + (seconds * 1000)).toString());
+      }
+
+      // 2. Resume Resend Timer
+      const savedResendExpiry = sessionStorage.getItem("delivery_resend_expires_at");
+      if (savedResendExpiry) {
+        const remaining = Math.max(0, Math.floor((parseInt(savedResendExpiry) - Date.now()) / 1000));
+        if (remaining > 0) {
+          setResendTimer(remaining);
+        } else {
+          sessionStorage.removeItem("delivery_resend_expires_at");
+        }
+      } else {
+        // Only start a new timer if none exists
+        setResendTimer(59);
+        sessionStorage.setItem("delivery_resend_expires_at", (Date.now() + (60 * 1000)).toString());
       }
     } else {
       // No active OTP flow: if already authenticated, go to delivery home
@@ -68,12 +95,6 @@ export default function DeliveryOTP() {
       navigate("/delivery/login", { replace: true })
       return
     }
-
-    // OTP field should be empty - delivery boy needs to enter it manually
-    // No auto-fill for delivery OTP
-
-    // Start resend timer (59 seconds)
-    setResendTimer(59)
   }, [navigate])
 
   useEffect(() => {
@@ -256,6 +277,8 @@ export default function DeliveryOTP() {
       if (needsRegistration) {
         // No DB record yet; redirect to registration details page WITHOUT creating anything in DB.
         sessionStorage.removeItem("deliveryAuthData")
+        sessionStorage.removeItem("delivery_resend_expires_at")
+        sessionStorage.removeItem("delivery_block_expires_at")
         sessionStorage.setItem("deliveryNeedsRegistration", "true")
         const digits = String(phone || "").replace(/\D/g, "")
         const details = {
@@ -278,6 +301,8 @@ export default function DeliveryOTP() {
       }
 
       sessionStorage.removeItem("deliveryAuthData")
+      sessionStorage.removeItem("delivery_resend_expires_at")
+      sessionStorage.removeItem("delivery_block_expires_at")
 
       try {
         debugLog("Storing auth data for delivery:", { hasToken: !!accessToken, hasUser: !!user })
@@ -380,6 +405,8 @@ export default function DeliveryOTP() {
 
       // Clear auth data from sessionStorage
       sessionStorage.removeItem("deliveryAuthData")
+      sessionStorage.removeItem("delivery_resend_expires_at")
+      sessionStorage.removeItem("delivery_block_expires_at")
 
       // Store auth data using utility function to ensure proper role handling
       // The setAuthData function includes error handling and verification
@@ -467,7 +494,9 @@ export default function DeliveryOTP() {
       setIsLoading(false)
     }
 
-    // Reset timer to 59 seconds
+    // Reset timer to 59 seconds with persistence
+    const expiry = Date.now() + (60 * 1000);
+    sessionStorage.setItem("delivery_resend_expires_at", expiry.toString());
     setResendTimer(59)
 
     setOtp(["", "", "", ""])
@@ -605,7 +634,7 @@ export default function DeliveryOTP() {
                     inputMode="numeric"
                     maxLength={1}
                     value={digit}
-                    onFocus={() => setFocusedIndex(index)}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => handleChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     onPaste={index === 0 ? handlePaste : undefined}

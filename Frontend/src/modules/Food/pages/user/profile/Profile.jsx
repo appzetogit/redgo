@@ -438,7 +438,18 @@ export default function Profile() {
       localStorage.removeItem("cart");
       USER_SESSION_PREFERENCE_KEYS.forEach((key) => localStorage.removeItem(key));
       
-      toast.success("Account deleted successfully");
+      toast.success("Account Deleted successfully", {
+        icon: (
+          <div className="relative mr-3 flex-shrink-0">
+            <Trash2 className="h-5 w-5 text-red-500" />
+            <div className="absolute -top-2 -right-1 bg-green-500 rounded-full border-2 border-white dark:border-[#1a1a1a] p-0.5">
+              <Check className="h-2.5 w-2.5 text-white stroke-[3.5]" />
+            </div>
+          </div>
+        ),
+        duration: 3000,
+      });
+        
       window.dispatchEvent(new Event("userAuthChanged"));
       setDeleteConfirmOpen(false);
       navigate("/auth/login", { replace: true });
@@ -486,7 +497,7 @@ export default function Profile() {
                 </Avatar>
               </motion.div>
               <div className="flex-1 pt-1">
-                <h2 className="text-xl font-bold text-black dark:text-white mb-1">
+                <h2 className={`font-bold text-black dark:text-white mb-1 whitespace-nowrap truncate leading-tight ${displayName.length > 20 ? 'text-lg' : 'text-xl'}`}>
                   {displayName}
                 </h2>
                 {hasValidEmail && (

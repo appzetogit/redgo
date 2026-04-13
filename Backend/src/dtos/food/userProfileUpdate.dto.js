@@ -8,7 +8,7 @@ const isoDate = z
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (expected YYYY-MM-DD)');
 
 const schema = z.object({
-    name: z.string().max(200).optional(),
+    name: z.string().trim().min(3, "Name must be at least 3 characters").max(25, "Name must be at most 25 characters").regex(/^[A-Za-z\s]+$/, "Name must contain only alphabets and spaces").optional(),
     email: z.string().email().max(200).optional(),
     phone: z.string().max(30).optional(),
     profileImage: z.string().max(2000).optional(),

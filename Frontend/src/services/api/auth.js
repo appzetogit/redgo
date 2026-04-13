@@ -66,7 +66,18 @@ export function verifyUserOtp(
   name = null,
   fcmToken = null,
   platform = "web",
+  registrationToken = null,
 ) {
+  // If we have a registration token, we only need that and the name
+  if (registrationToken) {
+    return apiClient.post(AUTH.USER_VERIFY_OTP, {
+      registrationToken,
+      name,
+      ...(fcmToken ? { fcmToken, platform } : {}),
+      ...(ref ? { ref } : {}),
+    });
+  }
+
   const digits = normalizePhone(phone);
   if (!digits) {
     return Promise.reject(new Error("Phone number is required"));
@@ -78,14 +89,18 @@ export function verifyUserOtp(
   if (normalized.length !== USER_PHONE_LENGTH) {
     return Promise.reject(new Error("Phone number must be exactly 10 digits"));
   }
-  const otpStr = String(otp ?? "")
-    .replace(/\D/g, "")
-    .slice(0, 4);
-  if (!otpStr) {
-    return Promise.reject(new Error("OTP is required"));
-  }
-  if (otpStr.length !== 4) {
-    return Promise.reject(new Error("OTP must be exactly 4 digits"));
+  // OTP is only required if we don't have a registration token
+  const otpStr = registrationToken 
+    ? null 
+    : String(otp ?? "").replace(/\D/g, "").slice(0, 4);
+
+  if (!registrationToken) {
+    if (!otpStr) {
+      return Promise.reject(new Error("OTP is required"));
+    }
+    if (otpStr.length !== 4) {
+      return Promise.reject(new Error("OTP must be exactly 4 digits"));
+    }
   }
   const refValue = typeof ref === "string" ? ref.trim() : "";
   return apiClient.post(AUTH.USER_VERIFY_OTP, {
@@ -94,6 +109,7 @@ export function verifyUserOtp(
     ...(refValue ? { ref: refValue } : {}),
     ...(name ? { name } : {}),
     ...(fcmToken ? { fcmToken, platform } : {}),
+    ...(registrationToken ? { registrationToken } : {}),
   });
 }
 

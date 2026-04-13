@@ -22,6 +22,7 @@ export default function UnifiedOTPFastLogin() {
   const [phoneFieldError, setPhoneFieldError] = useState("")
   const [showExitModal, setShowExitModal] = useState(false)
   const [blockTimer, setBlockTimer] = useState(0) // Seconds remaining in block
+  const [registrationToken, setRegistrationToken] = useState(null)
 
   const navigate = useNavigate()
   const submitting = useRef(false)
@@ -165,22 +166,32 @@ export default function UnifiedOTPFastLogin() {
       }
 
       const response = await authAPI.verifyOTP(phoneNumber, otpDigits, "login", null, null, "user", null, null, fcmToken, platform)
-      const data = response?.data?.data || response?.data || {}
-      const accessToken = data.accessToken
-      const refreshToken = data.refreshToken || null
-      const user = data.user
+      const resBody = response?.data || {}
+      const resData = resBody.data || resBody || {}
+      
+      const accessToken = resData.accessToken || resBody.accessToken
+      const refreshToken = resData.refreshToken || resBody.refreshToken || null
+      const user = resData.user || resBody.user || resData.data?.user
 
-      if (!accessToken || !user) {
-        throw new Error("Invalid response from server")
-      }
+      // Priority 1: Check if Registration is explicitly required by backend
+      const registrationRequired = resData.needsRegistration === true || resBody.needsRegistration === true;
+      
+      // Priority 2: Check if user is missing a name
+      const hasName = user?.name && String(user.name).trim().length > 0 && String(user.name).toLowerCase() !== "null";
+      const needsName = registrationRequired || (!hasName && !accessToken);
 
-      // Check if user has a name (to decide if we show Step 3)
-      if (!user.name || user.name.trim() === "" || user.isNewUser) {
-        setAuthData("user", accessToken, user, refreshToken) // Save auth first
+      if (needsName) {
+        const token = resData.registrationToken || resBody.registrationToken;
+        if (token) {
+          setRegistrationToken(token)
+        }
         setUserData({ accessToken, user, refreshToken })
         setStep(3)
+      } else if (!accessToken || !user) {
+        throw new Error("Invalid response from server: tokens or user missing")
       } else {
         setAuthData("user", accessToken, user, refreshToken)
+        clearSessionData()
         navigate("/", { replace: true })
       }
     } catch (err) {
@@ -207,7 +218,7 @@ export default function UnifiedOTPFastLogin() {
 
       setError(msg)
       setOtp(""); // Also reset on general invalid OTP
-      
+
       // Auto-focus first input on error
       setTimeout(() => {
         const firstInput = document.querySelector('input[name="otp-0"]');
@@ -229,16 +240,48 @@ export default function UnifiedOTPFastLogin() {
     submitting.current = true
     setLoading(true)
     try {
-      await userAPI.updateProfile({ name: fullName.trim() })
+      // If we have a registrationToken, we must complete verification with the name
+      if (registrationToken) {
+        const response = await authAPI.verifyOTP(
+          phoneNumber,
+          null, // No OTP needed if we have registrationToken
+          "login",
+          fullName.trim(),
+          null,
+          "user",
+          null,
+          null,
+          null,
+          "web",
+          registrationToken
+        )
+        const resBody = response?.data || {}
+        const resData = resBody.data || resBody || {}
+        
+        const accessToken = resData.accessToken || resBody.accessToken
+        const refreshToken = resData.refreshToken || resBody.refreshToken || null
+        const user = resData.user || resBody.user || resData.data?.user
 
-      // Update local storage user data with the new name
-      const updatedUser = { ...userData.user, name: fullName.trim() }
-      setAuthData("user", userData.accessToken, updatedUser, userData.refreshToken)
+        if (!accessToken || !user) {
+          throw new Error("Invalid response from server during registration")
+        }
 
-      toast.success("Profile completed!")
-      navigate("/", { replace: true })
+        setAuthData("user", accessToken, user, refreshToken)
+        clearSessionData()
+        navigate("/", { replace: true })
+      } else {
+        // Fallback for legacy flows where user already exists
+        await userAPI.updateProfile({ name: fullName.trim() })
+        if (userData) {
+          const updatedUser = { ...userData.user, name: fullName.trim() }
+          setAuthData("user", userData.accessToken, updatedUser, userData.refreshToken)
+        }
+        clearSessionData()
+        navigate("/", { replace: true })
+      }
     } catch (err) {
-      toast.error("Failed to update name. Please try again.")
+      const msg = err?.response?.data?.message || err?.message || "Failed to complete profile. Please try again."
+      toast.error(msg)
     } finally {
       setLoading(false)
       submitting.current = false
@@ -260,7 +303,8 @@ export default function UnifiedOTPFastLogin() {
     setStep(1)
     setOtpSent(false)
     setError("")
-    toast.info("Registration cancelled.")
+    clearSessionData()
+    toast.success("Exit Successful")
   }
 
   // Handle browser back button/gestures for Step 3
@@ -281,7 +325,11 @@ export default function UnifiedOTPFastLogin() {
   useEffect(() => {
     if (resendTimer <= 0) return
     const intervalId = setInterval(() => {
-      setResendTimer((prev) => (prev > 0 ? prev - 1 : 0))
+      setResendTimer((prev) => {
+        const next = prev > 0 ? prev - 1 : 0;
+        // Optionally update sessionStorage here, but better to do it once in a clean way
+        return next;
+      })
     }, 1000)
     return () => clearInterval(intervalId)
   }, [resendTimer])
@@ -293,6 +341,69 @@ export default function UnifiedOTPFastLogin() {
     }, 1000)
     return () => clearInterval(intervalId)
   }, [blockTimer])
+
+  // --- PERSISTENCE LOGIC START ---
+  const SESSION_KEY = "user_auth_session_data";
+
+  // Rehydrate state on mount
+  useEffect(() => {
+    const savedState = sessionStorage.getItem(SESSION_KEY);
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.phoneNumber) setPhoneNumber(parsed.phoneNumber);
+        if (parsed.fullName) setFullName(parsed.fullName);
+        if (parsed.step) setStep(parsed.step);
+        if (parsed.registrationToken) setRegistrationToken(parsed.registrationToken);
+        if (parsed.userData) setUserData(parsed.userData);
+        if (parsed.otpSent) setOtpSent(parsed.otpSent);
+
+        // Resume Resend Timer
+        if (parsed.resendExpiresAt) {
+          const remaining = Math.max(0, Math.floor((parsed.resendExpiresAt - Date.now()) / 1000));
+          if (remaining > 0) setResendTimer(remaining);
+        }
+
+        // Resume Block Timer
+        if (parsed.blockExpiresAt) {
+          const remaining = Math.max(0, Math.floor((parsed.blockExpiresAt - Date.now()) / 1000));
+          if (remaining > 0) {
+            setBlockTimer(remaining);
+            if (parsed.step === 1) setStep(2); // Ensure we show step 2 if blocked
+          }
+        }
+      } catch (e) {
+        console.error("Failed to rehydrate login state", e);
+      }
+    }
+  }, []);
+
+  // Persist state on change
+  useEffect(() => {
+    if (step === 1 && !phoneNumber && !blockTimer) {
+      // Don't save empty initial state
+      return;
+    }
+
+    const stateToSave = {
+      phoneNumber,
+      fullName,
+      step,
+      registrationToken,
+      userData,
+      otpSent,
+      // Save expiration timestamps instead of seconds
+      resendExpiresAt: resendTimer > 0 ? Date.now() + (resendTimer * 1000) : null,
+      blockExpiresAt: blockTimer > 0 ? Date.now() + (blockTimer * 1000) : null,
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(stateToSave));
+  }, [phoneNumber, fullName, step, registrationToken, userData, otpSent, resendTimer === 0, blockTimer === 0]);
+
+  // Combined cleanup helper
+  const clearSessionData = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+  };
+  // --- PERSISTENCE LOGIC END ---
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
@@ -423,7 +534,7 @@ export default function UnifiedOTPFastLogin() {
 
         <div className={`flex-1 flex flex-col items-center px-6 md:px-12 py-12 relative z-20 ${step === 3 ? 'bg-white justify-start pt-8 md:pt-16' : 'justify-center'}`}>
 
-          <div className="w-full max-w-[420px] flex flex-col pt-0 items-center">
+          <div className="w-full max-w-[480px] flex flex-col pt-0 items-center">
 
             {/* Step 1 & 2 Logo Section */}
             {step !== 3 && (
@@ -469,7 +580,7 @@ export default function UnifiedOTPFastLogin() {
                         const val = e.target.value.replace(/\D/g, "").slice(0, 10)
                         setPhoneNumber(val)
                         setError("")
-                        
+
                         if (val.length > 0 && !/^[6-9]/.test(val)) {
                           setPhoneFieldError("Enter a valid mobile number starting with 6–9")
                         } else {
@@ -586,7 +697,7 @@ export default function UnifiedOTPFastLogin() {
                   <div className="space-y-1">
                     <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
                     <div className="group relative flex items-center bg-white rounded-2xl h-[56px] border border-gray-200 focus-within:ring-2 focus-within:ring-[#EF4F5F] focus-within:border-transparent transition-all shadow-sm">
-                      <div className="pl-4 pr-3 border-r border-gray-100 mr-2 flex items-center justify-center">
+                      <div className="pl-3 pr-2 border-r border-gray-100 mr-1 flex items-center justify-center">
                         <User className="w-5 h-5 text-gray-300 group-focus-within:text-[#EF4F5F] transition-colors" />
                       </div>
                       <input
@@ -594,7 +705,10 @@ export default function UnifiedOTPFastLogin() {
                         required
                         autoFocus
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^A-Za-z\s]/g, "").slice(0, 25)
+                          setFullName(val)
+                        }}
                         placeholder="Enter your name"
                         className="flex-1 bg-transparent border-none outline-none text-gray-900 text-lg font-bold placeholder:text-gray-300 w-full"
                       />
@@ -607,8 +721,8 @@ export default function UnifiedOTPFastLogin() {
               <div className="pt-4 flex justify-center w-full">
                 <button
                   type="submit"
-                  disabled={loading || (step === 1 && (phoneNumber.length !== 10 || phoneFieldError)) || (step === 2 && blockTimer > 0)}
-                  className={`bg-[#EF4F5F] hover:bg-[#D63948] text-white font-[900] text-sm tracking-wider uppercase h-[52px] px-8 sm:px-12 w-full rounded-[20px] shadow-[0_8px_25px_rgba(239,79,95,0.4)] hover:shadow-[0_12px_30px_rgba(239,79,95,0.6)] hover:-translate-y-1 transition-all flex items-center justify-center whitespace-nowrap ${(loading || (step === 1 && (phoneNumber.length !== 10 || phoneFieldError)) || (step === 2 && blockTimer > 0)) ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  disabled={loading || (step === 1 && (phoneNumber.length !== 10 || phoneFieldError)) || (step === 2 && blockTimer > 0) || (step === 3 && fullName.length < 3)}
+                  className={`bg-[#EF4F5F] hover:bg-[#D63948] text-white font-[900] text-sm tracking-wider uppercase h-[52px] px-8 sm:px-12 w-full rounded-[20px] shadow-[0_8px_25px_rgba(239,79,95,0.4)] hover:shadow-[0_12px_30px_rgba(239,79,95,0.6)] hover:-translate-y-1 transition-all flex items-center justify-center whitespace-nowrap ${(loading || (step === 1 && (phoneNumber.length !== 10 || phoneFieldError)) || (step === 2 && blockTimer > 0) || (step === 3 && fullName.length < 3)) ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   {loading ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : null}
                   {loading ? "VERIFYING..." : (step === 1 ? "Get Verification Code" : step === 2 ? "Verify" : "Complete Profile")}
