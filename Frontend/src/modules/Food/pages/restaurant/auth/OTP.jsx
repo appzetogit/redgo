@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { ArrowLeft, ShieldCheck, Timer, RefreshCw } from "lucide-react"
 import { Button } from "@food/components/ui/button"
 import { toast } from "sonner"
@@ -14,6 +14,7 @@ import { useCompanyName } from "@food/hooks/useCompanyName"
 export default function RestaurantOTP() {
   const companyName = useCompanyName()
   const navigate = useNavigate()
+  const location = useLocation()
   const [otp, setOtp] = useState(["", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -22,6 +23,7 @@ export default function RestaurantOTP() {
   const [contactInfo, setContactInfo] = useState("") 
   const [focusedIndex, setFocusedIndex] = useState(null)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
+  const [blockTimer, setBlockTimer] = useState(0) // Seconds remaining in block
   const inputRefs = useRef([])
   const hasSubmittedRef = useRef(false)
   const otpSectionRef = useRef(null)
@@ -43,32 +45,45 @@ export default function RestaurantOTP() {
           setContactInfo(data.phone || "")
         }
       }
+
+      // Check for initial block timer from login page
+      if (location.state?.initialBlockMins) {
+        setBlockTimer(location.state.initialBlockMins * 60)
+        setError("Too many failed attempts")
+      }
     } else {
       navigate("/restaurant/login")
       return
     }
 
-    setResendTimer(60)
-    const timer = setInterval(() => {
-      setResendTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [navigate])
+    setResendTimer(59)
+  }, [navigate, location])
 
   useEffect(() => {
-    // Auto focus first input on mount
-    const timer = setTimeout(() => {
-      inputRefs.current[0]?.focus()
-    }, 100)
-    return () => clearTimeout(timer)
-  }, [])
+    if (resendTimer <= 0) return
+    const timer = setInterval(() => {
+      setResendTimer((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [resendTimer])
+
+  useEffect(() => {
+    if (blockTimer <= 0) return
+    const timer = setInterval(() => {
+      setBlockTimer((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [blockTimer])
+
+  useEffect(() => {
+    // Auto focus first input on mount or when block expires
+    if (blockTimer <= 0) {
+      const timer = setTimeout(() => {
+        inputRefs.current[0]?.focus()
+      }, 150)
+      return () => clearTimeout(timer)
+    }
+  }, [blockTimer])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -125,6 +140,7 @@ export default function RestaurantOTP() {
     const newOtp = [...otp]
     newOtp[index] = value
     setOtp(newOtp)
+    setError("") // Clear error on typing
     setError("")
 
     if (value && index < 3) {
@@ -263,38 +279,40 @@ export default function RestaurantOTP() {
       }
     } catch (err) {
       const message =
-        err?.response?.data?.message ||
         err?.response?.data?.error ||
+        err?.response?.data?.message ||
         err?.message ||
         "Invalid OTP"
 
-      if (/pending approval/i.test(message)) {
-        const pendingPhone = authData?.phone || authData?.email || contactInfo
-        if (pendingPhone) {
-          setRestaurantPendingPhone(pendingPhone)
+      if (message.toLowerCase().includes("blocked") || message.toLowerCase().includes("too many attempts")) {
+        const match = message.match(/(\d+)/);
+        if (match) {
+          const mins = parseInt(match[0]);
+          setBlockTimer(mins * 60);
+          setError("Too many failed attempts");
         }
-        sessionStorage.removeItem("restaurantAuthData")
-        sessionStorage.removeItem("restaurantLoginPhone")
-        navigate("/restaurant/pending-verification", {
-          replace: true,
-          state: { phone: pendingPhone || "" },
-        })
-        return
+      } else if (/pending approval/i.test(message)) {
+        const pendingPhone = authData?.phone || authData?.email || contactInfo
+        setPendingMessage(message)
+        setPhoneNumber(pendingPhone)
+      } else {
+        setError(message)
       }
 
-      toast.error(message)
       setOtp(["", "", "", ""])
       hasSubmittedRef.current = false
-      setTimeout(() => {
-        inputRefs.current[0]?.focus()
-      }, 50)
+      if (blockTimer <= 0) {
+        setTimeout(() => {
+          inputRefs.current[0]?.focus()
+        }, 50)
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleResend = async () => {
-    if (resendTimer > 0) return
+    if (resendTimer > 0 || blockTimer > 0) return
 
     setIsLoading(true)
     setError("")
@@ -316,19 +334,16 @@ export default function RestaurantOTP() {
         err?.message ||
         "Failed to resend OTP. Please try again."
       setError(message)
+      setOtp(["", "", "", ""]) // Clear OTP fields
+      
+      // Auto-focus first input on error
+      setTimeout(() => {
+        const firstInput = document.querySelector('input[name="otp-0"]');
+        if (firstInput) firstInput.focus();
+      }, 10);
     }
 
-    setResendTimer(60)
-    const timer = setInterval(() => {
-      setResendTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
+    setResendTimer(59)
     setIsLoading(false)
     setOtp(["", "", "", ""])
     inputRefs.current[0]?.focus()
@@ -360,7 +375,10 @@ export default function RestaurantOTP() {
         
         {/* Back Button */}
         <button
-          onClick={() => navigate("/restaurant/login")}
+          onClick={() => {
+            // Keep the data so it pre-fills the login page
+            navigate("/restaurant/login", { replace: true });
+          }}
           className="absolute top-10 sm:top-12 left-6 sm:left-8 p-2.5 sm:p-3 bg-white shadow-xl rounded-full text-[#ef4f5f] hover:scale-110 active:scale-95 transition-all"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -377,16 +395,20 @@ export default function RestaurantOTP() {
           </div>
         </div>
 
-        <div className="text-center space-y-1.5 sm:space-y-2 mb-6 sm:mb-10">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight capitalize">
-            verify otp
-          </h2>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-            Sent to <span className="text-[#ef4f5f] font-black">{contactInfo}</span>
+        <div className="text-center space-y-1 mb-8">
+          <p className="text-base text-black leading-relaxed">
+            We have sent a verification code to <br />
+            <span className="text-black font-bold tracking-tight">{contactInfo}</span>
           </p>
         </div>
 
-        <div className="w-full max-w-[400px] flex-1 flex flex-col justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleVerify();
+          }}
+          className="w-full max-w-[400px] flex-1 flex flex-col justify-between animate-in fade-in slide-in-from-bottom-4 duration-500"
+        >
           <div className="space-y-6">
             <div ref={otpSectionRef} className="flex justify-center gap-4">
               {otp.map((digit, index) => (
@@ -401,54 +423,72 @@ export default function RestaurantOTP() {
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={(e) => handlePaste(index, e)}
                   onFocus={() => setFocusedIndex(index)}
-                  onBlur={() => setFocusedIndex(null)}
-                  disabled={isLoading}
+                  disabled={isLoading || blockTimer > 0}
+                  required
                   className={`w-12 h-14 sm:w-14 sm:h-16 bg-slate-50 border-2 rounded-2xl text-center text-2xl font-black text-slate-900 focus:outline-none transition-all duration-300 ${
-                    error 
+                    error || blockTimer > 0
                       ? "border-red-500 bg-red-50" 
                       : focusedIndex === index 
                         ? "border-[#ef4f5f] ring-4 ring-[#ef4f5f]/10 shadow-lg bg-white" 
                         : "border-slate-100"
-                  }`}
+                  } ${blockTimer > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                 />
               ))}
             </div>
 
 
-            <div className="space-y-3">
-              <Button
-                onClick={() => handleVerify()}
-                disabled={isLoading || !isOtpComplete}
-                className={`w-full h-14 sm:h-16 rounded-[32px] font-black text-base sm:text-lg tracking-widest uppercase shadow-lg transition-all duration-300 ${
-                  isOtpComplete && !isLoading
-                    ? "bg-[#ef4f5f] hover:bg-[#d63a4a] text-white shadow-[#ef4f5f]/20 transform active:scale-[0.98]"
-                    : "bg-slate-100 text-slate-300 cursor-not-allowed"
-                }`}
-              >
-                {isLoading ? "Verifying..." : "Verify Code"}
-              </Button>
+              <div className="space-y-3">
+                {blockTimer > 0 && (
+                  <div className="p-3 bg-red-50 border border-red-100 rounded-2xl text-center">
+                      <p className="text-[10px] font-black text-[#EF4F5F] tracking-[0.2em] uppercase mb-1">Too many failed attempts</p>
+                    <p className="text-sm font-black text-[#ef4f5f]">
+                      Try again after {Math.floor((blockTimer - 1) / 60)}:{String((blockTimer - 1) % 60).padStart(2, '0')}
+                    </p>
+                  </div>
+                )}
 
-              <div className="flex flex-col items-center gap-4">
-                {resendTimer > 0 ? (
+                {error && blockTimer <= 0 && (
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-[#ef4f5f]">{error}</p>
+                  </div>
+                )}
+                
+                <Button
+                  type="submit"
+                  disabled={isLoading || blockTimer > 0}
+                  className={`w-full h-14 sm:h-16 rounded-[32px] font-black text-base sm:text-lg tracking-widest uppercase shadow-lg transition-all duration-300 bg-[#ef4f5f] hover:bg-[#d63a4a] text-white shadow-[#ef4f5f]/20 transform active:scale-[0.98] ${
+                    (isLoading || blockTimer > 0)
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                >
+                  {isLoading ? "VERIFYING..." : "VERIFY"}
+                </Button>
+              </div>
+
+              <div className="flex flex-col items-center gap-1 mt-4">
+                <p className="text-xs font-semibold text-slate-500">Didn't get the OTP?</p>
+                {blockTimer > 0 ? (
+                  <div className="flex items-center gap-2 text-slate-300 text-xs font-black tracking-[0.2em] uppercase">
+                    RESEND SMS
+                  </div>
+                ) : resendTimer > 0 ? (
                   <div className="flex items-center gap-2 text-slate-400 text-xs font-black tracking-widest uppercase">
-                    <Timer className="w-4 h-4 text-[#ef4f5f]" />
-                    RESEND IN <span className="text-[#ef4f5f]">{resendTimer}S</span>
+                    RESEND SMS IN <span className="text-[#ef4f5f]">{resendTimer}S</span>
                   </div>
                 ) : (
                   <button
                     onClick={handleResend}
                     disabled={isLoading}
-                    className="flex items-center gap-2 text-[#ef4f5f] font-black text-xs tracking-widest uppercase hover:underline"
+                    className="flex items-center gap-2 text-[#ef4f5f] font-black text-xs tracking-[0.2em] uppercase hover:underline"
                   >
-                    <RefreshCw className="w-4 h-4" />
-                    RESEND CODE
+                    RESEND SMS
                   </button>
                 )}
               </div>
             </div>
-          </div>
+          </form>
         </div>
-      </div>
 
       <div className="py-3 text-center">
           <p className="text-[10px] font-black text-slate-300 tracking-[0.2em] uppercase">

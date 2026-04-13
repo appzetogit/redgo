@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate, Link, useLocation } from "react-router-dom"
 import {
   Select,
   SelectContent,
@@ -107,11 +107,44 @@ export default function DeliverySignIn() {
     } catch (err) {
       debugError("Send OTP Error:", err)
       const message =
-        err?.response?.data?.message ||
         err?.response?.data?.error ||
+        err?.response?.data?.message ||
         err?.message ||
         "Failed to send OTP. Please try again."
-      setError(message)
+
+      const lowerMsg = message.toLowerCase();
+      // Improved detection for security block
+      const isBlocked = lowerMsg.includes("blocked") || 
+                        lowerMsg.includes("too many attempts") || 
+                        lowerMsg.includes("try again after");
+
+      if (isBlocked) {
+        // Try to parse time: "3:43 minutes" or "5 minutes"
+        let totalMins = 3;
+        const timeMatch = message.match(/(\d+)(?::(\d+))?/);
+        if (timeMatch) {
+          const mins = parseInt(timeMatch[1]);
+          const secs = timeMatch[2] ? parseInt(timeMatch[2]) / 60 : 0;
+          totalMins = mins + (secs / 60);
+        }
+
+        const authData = {
+          method: "phone",
+          phone: fullPhone,
+          isSignUp: false,
+          purpose: "login",
+          module: "delivery",
+        }
+        sessionStorage.setItem("deliveryAuthData", JSON.stringify(authData))
+        navigate("/delivery/otp", { state: { initialBlockMins: totalMins } })
+        return;
+      }
+
+      let displayMsg = message;
+      if (lowerMsg.includes("timeout") || lowerMsg.includes("network error")) {
+        displayMsg = "Server is not responding. Please try again later.";
+      }
+      setError(displayMsg);
     } finally {
       setIsSending(false)
     }
@@ -124,6 +157,7 @@ export default function DeliverySignIn() {
       ...formData,
       phone: value,
     })
+    setError("") // Clear error on typing
   }
 
   const handleCountryCodeChange = (value) => {
@@ -185,7 +219,7 @@ export default function DeliverySignIn() {
                 onChange={handlePhoneChange}
                 autoComplete="off"
                 autoFocus={false}
-                className={`flex-1 h-12 px-4 text-gray-900 placeholder-gray-400 focus:outline-none text-base border rounded-lg min-w-0 ${error ? "border-red-500" : "border-gray-300"
+                className={`flex-1 h-12 px-4 text-gray-900 placeholder-gray-400 focus:outline-none text-base border rounded-lg min-w-0 ${error ? "border-red-500 bg-red-50 text-red-600" : "border-gray-300"
                   }`}
               />
             </div>
@@ -212,7 +246,7 @@ export default function DeliverySignIn() {
             onClick={handleSendOTP}
             disabled={!isValid || isSending}
             className={`w-full py-4 rounded-lg font-bold text-base transition-colors ${isValid && !isSending
-              ? "bg-[#00B761] hover:bg-[#00A055] active:bg-[#009049] text-white"
+              ? "bg-[#ef4f5f] hover:bg-[#d63a4a] active:bg-[#c03442] text-white"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
           >
@@ -231,5 +265,3 @@ export default function DeliverySignIn() {
     </div>
   )
 }
-
-

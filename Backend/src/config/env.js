@@ -22,8 +22,8 @@ export const config = {
     otpMaxAttempts: Number(process.env.OTP_MAX_ATTEMPTS || 5),
     otpExpiryMinutes: Number(process.env.OTP_EXPIRY_MINUTES || 10),
     otpExpirySeconds: Number(process.env.OTP_EXPIRY_SECONDS || 300),
-    otpRateLimit: Number(process.env.OTP_RATE_LIMIT || 3),
-    otpRateWindow: Number(process.env.OTP_RATE_WINDOW || 600),
+    otpRateLimit: Number(process.env.OTP_RATE_LIMIT || 5),
+    otpRateWindow: Number(process.env.OTP_RATE_WINDOW || 300),
     useDefaultOtp: process.env.USE_DEFAULT_OTP === 'true',
 
     // SMS India Hub

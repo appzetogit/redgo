@@ -117,9 +117,38 @@ export default function RestaurantLogin() {
       navigate("/restaurant/otp")
     } catch (apiErr) {
       const message =
-        apiErr?.response?.data?.message ||
         apiErr?.response?.data?.error ||
+        apiErr?.response?.data?.message ||
+        apiErr?.message ||
         "Failed to send OTP. Please try again."
+      
+      const lowerMsg = message.toLowerCase();
+      // Improved detection for security block
+      const isBlocked = lowerMsg.includes("blocked") || 
+                        lowerMsg.includes("too many attempts") || 
+                        lowerMsg.includes("try again after");
+
+      if (isBlocked) {
+        // Try to parse time: "3:43 minutes" or "5 minutes"
+        let totalMins = 3;
+        const timeMatch = message.match(/(\d+)(?::(\d+))?/);
+        if (timeMatch) {
+          const mins = parseInt(timeMatch[1]);
+          const secs = timeMatch[2] ? parseInt(timeMatch[2]) / 60 : 0;
+          totalMins = mins + secs;
+        }
+
+        const authData = {
+          method: "phone",
+          phone: fullPhone,
+          isSignUp: false,
+          module: "restaurant",
+        }
+        sessionStorage.setItem("restaurantAuthData", JSON.stringify(authData))
+        navigate("/restaurant/otp", { state: { initialBlockMins: totalMins } })
+        return;
+      }
+      
       setError(message)
     } finally {
       setIsSending(false)

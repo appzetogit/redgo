@@ -9,7 +9,7 @@ import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
 import AnimatedPage from "@food/components/user/AnimatedPage"
 
 export default function UnifiedOTPFastLogin() {
-  const RESEND_COOLDOWN_SECONDS = 60
+  const RESEND_COOLDOWN_SECONDS = 59
   const [phoneNumber, setPhoneNumber] = useState("")
   const [fullName, setFullName] = useState("")
   const [otp, setOtp] = useState("")
@@ -18,8 +18,10 @@ export default function UnifiedOTPFastLogin() {
   const [userData, setUserData] = useState(null)
   const [otpSent, setOtpSent] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
+  const [error, setError] = useState("")
   const [showExitModal, setShowExitModal] = useState(false)
-  
+  const [blockTimer, setBlockTimer] = useState(0) // Seconds remaining in block
+
   const navigate = useNavigate()
   const submitting = useRef(false)
 
@@ -44,9 +46,32 @@ export default function UnifiedOTPFastLogin() {
       setOtp("")
       setStep(2)
       setResendTimer(RESEND_COOLDOWN_SECONDS)
-      toast.success("OTP sent! Check your phone.")
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || "Failed to send OTP."
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || "Failed to send OTP."
+      const lowerMsg = msg.toLowerCase();
+
+      // Better detection for security block
+      const isBlocked = lowerMsg.includes("blocked") ||
+        lowerMsg.includes("too many attempts") ||
+        lowerMsg.includes("try again after");
+
+      if (isBlocked) {
+        // Try to parse time: "3:43 minutes" or "5 minutes"
+        let totalSeconds = 180; // default 3 mins
+        const timeMatch = msg.match(/(\d+)(?::(\d+))?/); // Matches "3" or "3:43"
+
+        if (timeMatch) {
+          const mins = parseInt(timeMatch[1]);
+          const secs = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+          totalSeconds = (mins * 60) + secs;
+        }
+
+        setBlockTimer(totalSeconds);
+        setStep(2); // Redirect to Step 2 (OTP index)
+        toast.error("Account temporarily locked due to failed attempts.");
+        return;
+      }
+
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -66,9 +91,7 @@ export default function UnifiedOTPFastLogin() {
     try {
       await authAPI.sendOTP(phoneNumber, "login", null)
       setOtp("")
-      setOtpSent(true)
       setResendTimer(RESEND_COOLDOWN_SECONDS)
-      toast.success("OTP resent successfully.")
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to resend OTP."
       toast.error(msg)
@@ -82,7 +105,20 @@ export default function UnifiedOTPFastLogin() {
     setStep(1)
     setOtp("")
     setResendTimer(0)
+    setBlockTimer(0) // Clear block timer when changing number
+    setError("")
   }
+
+  // Auto-focus OTP input when moving to Step 2
+  useEffect(() => {
+    if (step === 2 && blockTimer <= 0) {
+      const timer = setTimeout(() => {
+        const firstInput = document.querySelector('input[name="otp-0"]');
+        if (firstInput) firstInput.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [step, blockTimer]);
 
   // Auto-verify when OTP is 4 digits
   useEffect(() => {
@@ -150,19 +186,33 @@ export default function UnifiedOTPFastLogin() {
     } catch (err) {
       const status = err?.response?.status
       let msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Invalid OTP"
-      if (status === 401) {
+
+      // Check for blocked status in message
+      if (msg.toLowerCase().includes("blocked") || msg.toLowerCase().includes("too many attempts")) {
+        // Parse minutes from message: e.g. "Blocked for 3 minutes"
+        const timeMatch = msg.match(/(\d+)(?::(\d+))?/);
+        if (timeMatch) {
+          const mins = parseInt(timeMatch[1]);
+          const secs = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+          setBlockTimer((mins * 60) + secs);
+          msg = ""; // Clear message so only Block UI shows
+        }
+      } else if (status === 401) {
         if (/deactivat(ed|e)/i.test(String(msg))) {
           msg = "Your account is deactivated. Please contact support."
         } else {
           msg = "Invalid OTP"
         }
       }
-      toast.error(msg)
-      // Reset OTP and focus first field
-      setOtp("");
+
+      setError(msg)
+      setOtp(""); // Also reset on general invalid OTP
+      
+      // Auto-focus first input on error
       setTimeout(() => {
-        document.getElementById(`otp-0`)?.focus();
-      }, 50);
+        const firstInput = document.querySelector('input[name="otp-0"]');
+        if (firstInput) firstInput.focus();
+      }, 10);
     } finally {
       setLoading(false)
       submitting.current = false
@@ -201,7 +251,7 @@ export default function UnifiedOTPFastLogin() {
     localStorage.removeItem("user_refreshToken")
     localStorage.removeItem("user_authenticated")
     localStorage.removeItem("user_user")
-    
+
     // Reset to step 1
     setShowExitModal(false)
     setPhoneNumber("")
@@ -209,6 +259,7 @@ export default function UnifiedOTPFastLogin() {
     setOtp("")
     setStep(1)
     setOtpSent(false)
+    setError("")
     toast.info("Registration cancelled.")
   }
 
@@ -220,7 +271,7 @@ export default function UnifiedOTPFastLogin() {
         setShowExitModal(true);
         window.history.pushState(null, null, window.location.pathname);
       };
-      
+
       window.history.pushState(null, null, window.location.pathname);
       window.addEventListener('popstate', handlePopState);
       return () => window.removeEventListener('popstate', handlePopState);
@@ -228,14 +279,22 @@ export default function UnifiedOTPFastLogin() {
   }, [step]);
 
   useEffect(() => {
-    if (step !== 2 || resendTimer <= 0) return
+    if (resendTimer <= 0) return
     const intervalId = setInterval(() => {
       setResendTimer((prev) => (prev > 0 ? prev - 1 : 0))
     }, 1000)
     return () => clearInterval(intervalId)
-  }, [step, resendTimer])
+  }, [resendTimer])
 
-  const formatResendTimer = (seconds) => {
+  useEffect(() => {
+    if (blockTimer <= 0) return
+    const intervalId = setInterval(() => {
+      setBlockTimer((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(intervalId)
+  }, [blockTimer])
+
+  const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
@@ -248,18 +307,18 @@ export default function UnifiedOTPFastLogin() {
 
   return (
     <AnimatedPage className="min-h-screen bg-[#FFF9F0] flex relative font-sans overflow-hidden">
-      
+
       {/* Exit Confirmation Modal */}
       {showExitModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center px-6">
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setShowExitModal(false)}
           />
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} 
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="bg-white rounded-[32px] p-8 w-full max-w-[340px] relative z-[1001] shadow-2xl text-center"
           >
@@ -295,7 +354,6 @@ export default function UnifiedOTPFastLogin() {
           <svg className="absolute bottom-[20%] right-[10%] w-6 h-8 text-[#EF4F5F] opacity-80 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
           <svg className="absolute top-[40%] right-[5%] w-4 h-6 text-black opacity-50 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
           <svg className="absolute bottom-[5%] left-[60%] w-5 h-7 text-black opacity-80 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-          <svg className="absolute top-[25%] left-[55%] w-6 h-8 text-black opacity-80 z-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
 
         </>
       )}
@@ -335,8 +393,8 @@ export default function UnifiedOTPFastLogin() {
       </div>
 
       {/* Main Container */}
-      <div className={`w-full min-h-screen flex flex-col transition-all duration-700 ${step === 3 ? 'bg-white' : 'lg:w-[45%] lg:ml-auto relative'}`}>
-        
+      <div className={`w-full min-h-screen flex flex-col transition-all duration-700 ${step === 3 || step === 2 ? 'bg-white' : 'lg:w-[45%] lg:ml-auto relative'}`}>
+
         {/* Step 2 Back Button */}
         {step === 2 && (
           <button
@@ -418,41 +476,43 @@ export default function UnifiedOTPFastLogin() {
 
               {step === 2 && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                  <div className="flex items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
-                    <div className="flex-1">
-                      <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest leading-none mb-1">Sent to</p>
-                      <p className="text-sm font-bold text-gray-900">+91 {phoneNumber}</p>
-                    </div>
+                  <div className="text-center space-y-1 mb-8">
+                    <p className="text-base text-black leading-relaxed">
+                      We have sent a verification code to <br />
+                      <span className="text-black font-bold tracking-tight">+91 {phoneNumber}</span>
+                    </p>
                   </div>
 
                   <div className="flex justify-between gap-2 mt-4 px-2">
-                    {[0, 1, 2, 3].map((index) => (
+                    {[0, 1, 2, 3].map((i) => (
                       <input
-                        key={index}
-                        id={`otp-${index}`}
+                        key={i}
+                        name={`otp-${i}`}
                         type="tel"
                         inputMode="numeric"
                         required
-                        autoFocus={index === 0}
-                        value={otp[index] || ""}
+                        autoFocus={i === 0}
+                        value={otp[i] || ""}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "").slice(-1);
-                          if (!val) return;
-                          const newOtp = otp.split("");
-                          newOtp[index] = val;
-                          const combined = newOtp.join("").slice(0, 4);
-                          setOtp(combined);
-                          if (index < 3 && val) {
-                            document.getElementById(`otp-${index + 1}`)?.focus();
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 1)
+                          setOtp(prev => {
+                            const newOtp = prev.split("")
+                            newOtp[i] = val
+                            return newOtp.join("")
+                          })
+                          setError("") // Clear error on typing
+                          if (val && i < 3) {
+                            const nextInput = document.querySelector(`input[name="otp-${i + 1}"]`)
+                            if (nextInput) nextInput.focus()
                           }
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Backspace") {
-                            if (!otp[index] && index > 0) {
-                              document.getElementById(`otp-${index - 1}`)?.focus();
+                            if (!otp[i] && i > 0) {
+                              document.querySelector(`input[name="otp-${i - 1}"]`)?.focus();
                             } else {
                               const newOtp = otp.split("");
-                              newOtp[index] = "";
+                              newOtp[i] = "";
                               setOtp(newOtp.join(""));
                             }
                           }
@@ -462,31 +522,45 @@ export default function UnifiedOTPFastLogin() {
                           const pasteData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
                           if (pasteData) {
                             setOtp(pasteData);
-                            document.getElementById(`otp-${Math.min(pasteData.length, 3)}`)?.focus();
+                            setError("");
                           }
                         }}
-                        className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-black bg-[#EBEBEB] border-2 border-transparent focus:border-[#EF4F5F] rounded-xl outline-none transition-all text-gray-900"
+                        disabled={blockTimer > 0}
+                        className={`w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-black rounded-xl outline-none transition-all ${blockTimer > 0
+                          ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                          : error
+                            ? "border-2 border-red-500 bg-red-50 text-red-600"
+                            : "bg-[#EBEBEB] border-2 border-transparent focus:border-[#EF4F5F] text-gray-900"
+                          }`}
+                        onFocus={(e) => {
+                          e.target.select();
+                        }}
                         placeholder="-"
                       />
                     ))}
                   </div>
 
-                  <div className="text-center mt-4">
-                    {resendTimer > 0 ? (
-                      <p className="text-xs font-semibold text-gray-500">
-                        Resend OTP in {formatResendTimer(resendTimer)}
+                  {blockTimer > 0 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-3 bg-red-50 rounded-xl border border-red-100">
+                      <p className="text-[11px] font-bold text-[#EF4F5F] uppercase tracking-wider">
+                        Too many failed attempts
                       </p>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleResendOTP}
-                        disabled={loading}
-                        className="text-xs font-bold text-[#EF4F5F] hover:underline disabled:opacity-60"
-                      >
-                        Resend OTP
-                      </button>
-                    )}
-                  </div>
+                      <p className="text-sm font-bold text-[#ef4f5f]">
+                        Try again after {Math.floor((blockTimer - 1) / 60)}:{String((blockTimer - 1) % 60).padStart(2, '0')}
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {/* Inline Error Message */}
+                  {error && !blockTimer && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-center"
+                    >
+                      <p className="text-sm font-bold text-red-600">{error}</p>
+                    </motion.div>
+                  )}
                 </motion.div>
               )}
 
@@ -516,15 +590,41 @@ export default function UnifiedOTPFastLogin() {
               <div className="pt-4 flex justify-center w-full">
                 <button
                   type="submit"
-                  disabled={loading}
-                  className={`bg-[#EF4F5F] hover:bg-[#D63948] text-white font-[900] text-sm tracking-wider uppercase h-[52px] px-8 sm:px-12 w-full rounded-[20px] shadow-[0_8px_25px_rgba(239,79,95,0.4)] hover:shadow-[0_12px_30px_rgba(239,79,95,0.6)] hover:-translate-y-1 transition-all flex items-center justify-center whitespace-nowrap ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  disabled={loading || (step === 1 && phoneNumber.length !== 10) || (step === 2 && blockTimer > 0)}
+                  className={`bg-[#EF4F5F] hover:bg-[#D63948] text-white font-[900] text-sm tracking-wider uppercase h-[52px] px-8 sm:px-12 w-full rounded-[20px] shadow-[0_8px_25px_rgba(239,79,95,0.4)] hover:shadow-[0_12px_30px_rgba(239,79,95,0.6)] hover:-translate-y-1 transition-all flex items-center justify-center whitespace-nowrap ${(loading || (step === 1 && phoneNumber.length !== 10) || (step === 2 && blockTimer > 0)) ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : (step === 1 ? "Get Verification Code" : step === 2 ? "Verify" : "Complete Profile")}
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : null}
+                  {loading ? "VERIFYING..." : (step === 1 ? "Get Verification Code" : step === 2 ? "Verify" : "Complete Profile")}
                 </button>
               </div>
             </form>
 
-            {step !== 3 && (
+            {/* Resend OTP - Below Verify Button */}
+            {step === 2 && (
+              <div className="mt-6 text-center space-y-2">
+                <p className="text-xs font-medium text-gray-500">Didn't get the OTP?</p>
+                {blockTimer > 0 ? (
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">
+                    RESEND SMS
+                  </p>
+                ) : resendTimer > 0 ? (
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">
+                    RESEND SMS IN {formatTime(resendTimer)}
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    disabled={loading}
+                    className="text-xs font-black text-[#EF4F5F] hover:text-[#d63a4a] uppercase tracking-[0.2em] transition-colors"
+                  >
+                    RESEND SMS
+                  </button>
+                )}
+              </div>
+            )}
+
+            {step === 1 && (
               <div className="mt-8 text-center space-y-2 relative z-[100] pointer-events-auto">
                 <p className="text-[10px] sm:text-[11px] text-gray-400 font-bold uppercase tracking-[0.2em] leading-relaxed">
                   By continuing, you agree to our <br />

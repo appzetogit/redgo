@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import AnimatedPage from "@food/components/user/AnimatedPage"
 import { Input } from "@food/components/ui/input"
@@ -14,6 +14,7 @@ const debugError = (...args) => {}
 
 export default function DeliveryOTP() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [otp, setOtp] = useState(["", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -29,6 +30,7 @@ export default function DeliveryOTP() {
   const [rejectionReason, setRejectionReason] = useState("")
   const [deviceToken, setDeviceToken] = useState(null)
   const [activePlatform, setActivePlatform] = useState("web")
+  const [blockTimer, setBlockTimer] = useState(0) // Seconds remaining in block
   const inputRefs = useRef([])
 
   useEffect(() => {
@@ -37,6 +39,11 @@ export default function DeliveryOTP() {
     if (stored) {
       const data = JSON.parse(stored)
       setAuthData(data)
+      
+      // Check for initial block timer from login page
+      if (location.state?.initialBlockMins) {
+        setBlockTimer(location.state.initialBlockMins * 60)
+      }
     } else {
       // No active OTP flow: if already authenticated, go to delivery home
       const token = localStorage.getItem("delivery_accessToken")
@@ -65,31 +72,35 @@ export default function DeliveryOTP() {
     // OTP field should be empty - delivery boy needs to enter it manually
     // No auto-fill for delivery OTP
 
-    // Start resend timer (60 seconds)
-    setResendTimer(60)
-    const timer = setInterval(() => {
-      setResendTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    // Start resend timer (59 seconds)
+    setResendTimer(59)
+  }, [navigate])
 
   useEffect(() => {
-    // Auto focus first input on mount
-    if (!showNameInput) {
+    if (resendTimer <= 0) return
+    const timer = setInterval(() => {
+      setResendTimer((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [resendTimer])
+
+  useEffect(() => {
+    if (blockTimer <= 0) return
+    const timer = setInterval(() => {
+      setBlockTimer((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [blockTimer])
+
+  useEffect(() => {
+    // Auto focus first input on mount or when block expires
+    if (!showNameInput && blockTimer <= 0) {
       const timer = setTimeout(() => {
         inputRefs.current[0]?.focus()
-      }, 100)
+      }, 150)
       return () => clearTimeout(timer)
     }
-  }, [showNameInput])
+  }, [showNameInput, blockTimer])
 
   const handleChange = (index, value) => {
     // Only allow digits
@@ -100,6 +111,7 @@ export default function DeliveryOTP() {
     const newOtp = [...otp]
     newOtp[index] = value
     setOtp(newOtp)
+    setError("") // Clear error on typing
     setError("")
 
     // Auto-focus next input
@@ -108,7 +120,7 @@ export default function DeliveryOTP() {
     }
 
     // Auto-submit when all 4 digits are entered and we are in OTP step
-    if (!showNameInput && newOtp.every((digit) => digit !== "") && newOtp.length === 4) {
+    if (!showNameInput && newOtp.every((digit) => digit !== "") && newOtp.length === 4 && blockTimer <= 0) {
       handleVerify(newOtp.join(""))
     }
   }
@@ -303,17 +315,30 @@ export default function DeliveryOTP() {
     } catch (err) {
       debugError("OTP Verification Error:", err)
       const message =
-        err?.response?.data?.message ||
         err?.response?.data?.error ||
+        err?.response?.data?.message ||
         err?.message ||
         "Invalid OTP"
       
-      toast.error(message)
+      if (message.toLowerCase().includes("blocked") || message.toLowerCase().includes("too many attempts")) {
+        const match = message.match(/(\d+)/);
+        if (match) {
+          const mins = parseInt(match[0]);
+          setBlockTimer(mins * 60);
+          setError("Too many failed attempts");
+        }
+      } else {
+        setError(message)
+      }
+
       setOtp(["", "", "", ""])
       setIsLoading(false)
-      setTimeout(() => {
-        inputRefs.current[0]?.focus()
-      }, 50)
+      
+      if (blockTimer <= 0) {
+        setTimeout(() => {
+          inputRefs.current[0]?.focus()
+        }, 50)
+      }
     }
   }
 
@@ -442,24 +467,17 @@ export default function DeliveryOTP() {
       setIsLoading(false)
     }
 
-    // Reset timer to 60 seconds
-    setResendTimer(60)
-    const timer = setInterval(() => {
-      setResendTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
+    // Reset timer to 59 seconds
+    setResendTimer(59)
 
     setOtp(["", "", "", ""])
     setShowNameInput(false)
     setName("")
     setNameError("")
     setVerifiedOtp("")
-    inputRefs.current[0]?.focus()
+    if (blockTimer <= 0) {
+      inputRefs.current[0]?.focus()
+    }
   }
 
   const getPhoneNumber = () => {
@@ -487,7 +505,10 @@ export default function DeliveryOTP() {
       {/* Header */}
       <div className="relative flex items-center justify-center py-4 px-4 border-b border-gray-200">
         <button
-          onClick={() => navigate("/delivery/login")}
+          onClick={() => {
+            // Keep the data so it pre-fills the login page
+            navigate("/delivery/login", { replace: true });
+          }}
           className="absolute left-4 top-1/2 -translate-y-1/2"
           aria-label="Go back"
         >
@@ -568,7 +589,13 @@ export default function DeliveryOTP() {
 
           {/* OTP Input Fields */}
           {!showNameInput && !pendingMessage && (
-            <>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleVerify(otp.join(""));
+              }}
+              className="space-y-6"
+            >
               <div className="flex justify-center gap-2">
                 {otp.map((digit, index) => (
                   <Input
@@ -578,24 +605,60 @@ export default function DeliveryOTP() {
                     inputMode="numeric"
                     maxLength={1}
                     value={digit}
+                    onFocus={() => setFocusedIndex(index)}
                     onChange={(e) => handleChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     onPaste={index === 0 ? handlePaste : undefined}
-                    disabled={isLoading}
+                    disabled={isLoading || blockTimer > 0}
+                    required
                     autoComplete="off"
                     autoFocus={false}
-                    className="w-12 h-12 text-center text-lg font-semibold p-0 border border-black rounded-md focus-visible:ring-0 focus-visible:border-black bg-white"
+                    className={`w-12 h-12 text-center text-lg font-semibold p-0 border rounded-md focus-visible:ring-0 focus-visible:border-black bg-white ${
+                      blockTimer > 0 ? "border-red-400 bg-red-50 text-red-800 opacity-60" : "border-black"
+                    }`}
                   />
                 ))}
               </div>
 
-              {/* Resend Section */}
+              {error && blockTimer <= 0 && (
+                <div className="text-center">
+                  <p className="text-sm font-bold text-red-600">{error}</p>
+                </div>
+              )}
+
+              <div className="px-4">
+                <Button
+                  type="submit"
+                  disabled={isLoading || blockTimer > 0}
+                  className={`w-full h-11 bg-[#ef4f5f] hover:bg-[#d63a4a] text-white font-black text-sm tracking-widest uppercase shadow-lg transition-all duration-300 transform active:scale-[0.98] ${
+                    (isLoading || blockTimer > 0)
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                >
+                  {isLoading ? "VERIFYING..." : "VERIFY"}
+                </Button>
+              </div>
+
+              {blockTimer > 0 && (
+                <div className="text-center p-3 bg-red-50 rounded-lg border border-red-100 mx-auto max-w-[280px]">
+                  <p className="text-[10px] font-black text-[#EF4F5F] tracking-[0.2em] uppercase mb-1">Too many failed attempts</p>
+                  <p className="text-xs font-bold text-red-600">
+                    Try again after {Math.floor((blockTimer - 1) / 60)}:{String((blockTimer - 1) % 60).padStart(2, '0')}
+                  </p>
+                </div>
+              )}
+
               <div className="text-center space-y-1">
                 <p className="text-sm text-black">
                   Didn't get the OTP?
                 </p>
-                {resendTimer > 0 ? (
-                  <p className="text-sm text-gray-500">
+                {blockTimer > 0 ? (
+                  <p className="text-sm text-gray-400 font-bold uppercase tracking-[0.2em]">
+                    Resend SMS
+                  </p>
+                ) : resendTimer > 0 ? (
+                  <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">
                     Resend SMS in {resendTimer}s
                   </p>
                 ) : (
@@ -603,13 +666,13 @@ export default function DeliveryOTP() {
                     type="button"
                     onClick={handleResend}
                     disabled={isLoading}
-                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                    className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 font-bold uppercase tracking-widest text-[#ef4f5f]"
                   >
                     Resend SMS
                   </button>
                 )}
               </div>
-            </>
+            </form>
           )}
 
           {/* Name Input (shown only after OTP verified and user is new) */}
