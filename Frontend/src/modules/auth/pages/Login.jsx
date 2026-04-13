@@ -19,6 +19,7 @@ export default function UnifiedOTPFastLogin() {
   const [otpSent, setOtpSent] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
   const [error, setError] = useState("")
+  const [phoneFieldError, setPhoneFieldError] = useState("")
   const [showExitModal, setShowExitModal] = useState(false)
   const [blockTimer, setBlockTimer] = useState(0) // Seconds remaining in block
 
@@ -33,8 +34,8 @@ export default function UnifiedOTPFastLogin() {
   const handleSendOTP = async (e) => {
     e.preventDefault()
     const phone = normalizedPhone()
-    if (phone.length < 8) {
-      toast.error("Please enter a valid phone number (at least 8 digits)")
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      setPhoneFieldError("Enter a valid mobile number starting with 6–9")
       return
     }
     if (submitting.current) return
@@ -81,8 +82,8 @@ export default function UnifiedOTPFastLogin() {
 
   const handleResendOTP = async () => {
     const phone = normalizedPhone()
-    if (phone.length < 8) {
-      toast.error("Please enter a valid phone number (at least 8 digits)")
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      setPhoneFieldError("Enter a valid mobile number starting with 6–9")
       return
     }
     if (resendTimer > 0 || submitting.current) return
@@ -180,7 +181,6 @@ export default function UnifiedOTPFastLogin() {
         setStep(3)
       } else {
         setAuthData("user", accessToken, user, refreshToken)
-        toast.success("Login successful!")
         navigate("/", { replace: true })
       }
     } catch (err) {
@@ -456,7 +456,7 @@ export default function UnifiedOTPFastLogin() {
                       Login & Signup
                     </h2>
                   </div>
-                  <div className="relative flex items-center bg-[#EBEBEB] rounded-full h-[52px] md:h-[56px] px-6 transition-all focus-within:ring-2 focus-within:ring-[#EF4F5F] focus-within:bg-white shadow-sm hover:shadow">
+                  <div className={`relative flex items-center rounded-full h-[52px] md:h-[56px] px-6 transition-all shadow-sm hover:shadow ${phoneFieldError ? "border-2 border-[#EF4F5F] bg-red-50" : "bg-[#EBEBEB] focus-within:ring-2 focus-within:ring-[#EF4F5F] focus-within:bg-white"}`}>
                     <span className="font-semibold text-gray-600 text-sm md:text-base border-r-2 border-gray-300 pr-3 mr-3 pt-0.5">
                       +91
                     </span>
@@ -465,12 +465,29 @@ export default function UnifiedOTPFastLogin() {
                       required
                       autoFocus
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10)
+                        setPhoneNumber(val)
+                        setError("")
+                        
+                        if (val.length > 0 && !/^[6-9]/.test(val)) {
+                          setPhoneFieldError("Enter a valid mobile number starting with 6–9")
+                        } else {
+                          setPhoneFieldError("")
+                        }
+                      }}
                       maxLength={10}
                       placeholder="Phone number"
                       className="flex-1 bg-transparent border-none outline-none text-gray-800 text-sm md:text-base font-medium placeholder:text-gray-400 h-full w-full"
                     />
                   </div>
+                  {phoneFieldError && (
+                    <div className="mt-2 px-6 w-full text-left">
+                      <p className="text-[12px] font-bold text-[#EF4F5F] transition-all">
+                        {phoneFieldError}
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
@@ -590,8 +607,8 @@ export default function UnifiedOTPFastLogin() {
               <div className="pt-4 flex justify-center w-full">
                 <button
                   type="submit"
-                  disabled={loading || (step === 1 && phoneNumber.length !== 10) || (step === 2 && blockTimer > 0)}
-                  className={`bg-[#EF4F5F] hover:bg-[#D63948] text-white font-[900] text-sm tracking-wider uppercase h-[52px] px-8 sm:px-12 w-full rounded-[20px] shadow-[0_8px_25px_rgba(239,79,95,0.4)] hover:shadow-[0_12px_30px_rgba(239,79,95,0.6)] hover:-translate-y-1 transition-all flex items-center justify-center whitespace-nowrap ${(loading || (step === 1 && phoneNumber.length !== 10) || (step === 2 && blockTimer > 0)) ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  disabled={loading || (step === 1 && (phoneNumber.length !== 10 || phoneFieldError)) || (step === 2 && blockTimer > 0)}
+                  className={`bg-[#EF4F5F] hover:bg-[#D63948] text-white font-[900] text-sm tracking-wider uppercase h-[52px] px-8 sm:px-12 w-full rounded-[20px] shadow-[0_8px_25px_rgba(239,79,95,0.4)] hover:shadow-[0_12px_30px_rgba(239,79,95,0.6)] hover:-translate-y-1 transition-all flex items-center justify-center whitespace-nowrap ${(loading || (step === 1 && (phoneNumber.length !== 10 || phoneFieldError)) || (step === 2 && blockTimer > 0)) ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   {loading ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : null}
                   {loading ? "VERIFYING..." : (step === 1 ? "Get Verification Code" : step === 2 ? "Verify" : "Complete Profile")}

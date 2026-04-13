@@ -63,15 +63,9 @@ export default function RestaurantLogin() {
   }, [])
 
   const validatePhone = (phone, countryCode) => {
-    if (!phone || phone.trim() === "") return "Phone number is required"
-
     const digitsOnly = phone.replace(/\D/g, "")
-    if (digitsOnly.length < 7) return "Phone number must be at least 7 digits"
-    if (digitsOnly.length > 15) return "Phone number is too long"
-
-    if (digitsOnly.length !== 10) return "Indian phone number must be 10 digits"
-    if (!["6", "7", "8", "9"].includes(digitsOnly[0])) {
-      return "Invalid Indian mobile number"
+    if (digitsOnly.length > 0 && !/^[6-9]/.test(digitsOnly)) {
+      return "Enter a valid mobile number starting with 6–9"
     }
 
     return ""
@@ -82,8 +76,10 @@ export default function RestaurantLogin() {
     setFormData((prev) => ({ ...prev, phone: value }))
     sessionStorage.setItem("restaurantLoginPhone", value)
 
-    if (error) {
+    if (value.length > 0) {
       setError(validatePhone(value, formData.countryCode))
+    } else {
+      setError("")
     }
   }
 
@@ -155,7 +151,7 @@ export default function RestaurantLogin() {
     }
   }
 
-  const isValidPhone = !validatePhone(formData.phone, formData.countryCode)
+  const isValidPhone = formData.phone.length === 10 && !validatePhone(formData.phone, formData.countryCode)
 
   return (
     <div
@@ -222,7 +218,7 @@ export default function RestaurantLogin() {
               </div>
 
               {error && (
-                <p className="text-[#ef4f5f] text-xs font-bold italic ml-4 animate-bounce">
+                <p className="text-[#ef4f5f] text-xs font-bold ml-4 mt-2">
                   {error}
                 </p>
               )}

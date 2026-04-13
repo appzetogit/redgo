@@ -4,8 +4,8 @@ import { ValidationError } from '../../core/auth/errors.js';
 const schema = z.object({
     phone: z
         .string()
-        .min(8, 'Phone must be at least 8 digits')
-        .max(15, 'Phone must be at most 15 digits')
+        .min(1, 'Phone is required')
+        .regex(/^[6-9]\d{9}$/, 'Enter a valid mobile number starting with 6–9')
 });
 
 export const validateDeliveryOtpRequestDto = (body) => {

@@ -54,20 +54,10 @@ export default function DeliverySignIn() {
   const selectedCountry = countryCodes.find(c => c.code === formData.countryCode) || countryCodes[2] // Default to India (+91)
 
   const validatePhone = (phone, countryCode) => {
-    if (!phone || phone.trim() === "") {
-      return "Phone number is required"
-    }
-
     const digitsOnly = phone.replace(/\D/g, "")
 
-    if (digitsOnly.length < 7) {
-      return "Phone number must be at least 7 digits"
-    }
-
-    // India-specific validation
-    // India-specific validation (Fixed to +91 only)
-    if (digitsOnly.length !== 10) {
-      return "Phone number must be exactly 10 digits"
+    if (digitsOnly.length > 0 && !/^[6-9]/.test(digitsOnly)) {
+      return "Enter a valid mobile number starting with 6–9"
     }
 
     return ""
@@ -157,7 +147,13 @@ export default function DeliverySignIn() {
       ...formData,
       phone: value,
     })
-    setError("") // Clear error on typing
+    
+    // Always update error on change if user has started typing
+    if (value.length > 0) {
+      setError(validatePhone(value, formData.countryCode))
+    } else {
+      setError("")
+    }
   }
 
   const handleCountryCodeChange = (value) => {
@@ -167,7 +163,7 @@ export default function DeliverySignIn() {
     })
   }
 
-  const isValid = !validatePhone(formData.phone, formData.countryCode)
+  const isValid = formData.phone.length === 10 && !validatePhone(formData.phone, formData.countryCode)
 
   return (
     <div className="max-h-screen h-screen bg-white flex flex-col">
@@ -219,20 +215,18 @@ export default function DeliverySignIn() {
                 onChange={handlePhoneChange}
                 autoComplete="off"
                 autoFocus={false}
-                className={`flex-1 h-12 px-4 text-gray-900 placeholder-gray-400 focus:outline-none text-base border rounded-lg min-w-0 ${error ? "border-red-500 bg-red-50 text-red-600" : "border-gray-300"
+                className={`flex-1 h-12 px-4 text-gray-900 placeholder-gray-400 focus:outline-none text-base border rounded-lg min-w-0 ${error ? "border-[#EF4F5F] bg-red-50 text-[#EF4F5F]" : "border-gray-300"
                   }`}
               />
             </div>
 
-            {/* Hint Text */}
-            <p className="text-sm text-gray-500">
-              Enter exactly 10 digits
-            </p>
 
             {error && (
-              <p className="text-sm text-red-500">
-                {error}
-              </p>
+              <div className="text-left w-full px-1">
+                <p className="text-[12px] font-bold text-[#EF4F5F]">
+                  {error}
+                </p>
+              </div>
             )}
           </div>
         </div>

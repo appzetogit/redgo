@@ -5,9 +5,7 @@ const schema = z.object({
     phone: z
         .string()
         .min(1, 'Phone is required')
-        .regex(/^[+0-9\s]+$/, 'Phone must contain only digits, +, or spaces')
-        .min(8, 'Phone must be at least 8 digits')
-        .max(20, 'Phone must be at most 20 digits')
+        .regex(/^[6-9]\d{9}$/, 'Enter a valid mobile number starting with 6–9')
 });
 
 export const validateUserOtpRequestDto = (body) => {

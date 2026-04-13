@@ -27,7 +27,8 @@ const AUTH = {
 function normalizePhone(phone) {
   if (!phone) return "";
   const digits = String(phone).replace(/\D/g, "");
-  return digits.slice(-15);
+  // For India, we only want the last 10 digits
+  return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
 /** User phone: exactly 10 digits, numeric only. */
@@ -41,19 +42,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * @returns {Promise<{ data }>}
  */
 export function requestUserOtp(phone) {
-  const digits = normalizePhone(phone);
-  if (!digits) {
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
     return Promise.reject(new Error("Phone number is required"));
   }
-  if (!/^\d+$/.test(digits)) {
-    return Promise.reject(new Error("Phone must contain only digits"));
-  }
-  const normalized =
-    digits.length > USER_PHONE_LENGTH
-      ? digits.slice(-USER_PHONE_LENGTH)
-      : digits;
-  if (normalized.length !== USER_PHONE_LENGTH) {
-    return Promise.reject(new Error("Phone number must be exactly 10 digits"));
+  if (!/^[6-9]\d{9}$/.test(normalized)) {
+    return Promise.reject(new Error("Enter a valid mobile number starting with 6–9"));
   }
   return apiClient.post(AUTH.USER_REQUEST_OTP, { phone: normalized });
 }
@@ -258,8 +252,8 @@ function getMeOnce(module) {
  */
 export function requestRestaurantOtp(phone) {
   const normalized = normalizePhone(phone);
-  if (normalized.length < 8) {
-    return Promise.reject(new Error("Phone must be at least 8 digits"));
+  if (!/^[6-9]\d{9}$/.test(normalized)) {
+    return Promise.reject(new Error("Mobile number must start with 6–9 and be exactly 10 digits"));
   }
   return apiClient.post(AUTH.RESTAURANT_REQUEST_OTP, { phone: normalized });
 }
@@ -282,8 +276,8 @@ export function verifyRestaurantOtp(phone, otp, fcmToken = null, platform = "web
  */
 export function requestDeliveryOtp(phone) {
   const normalized = normalizePhone(phone);
-  if (normalized.length < 8) {
-    return Promise.reject(new Error("Phone must be at least 8 digits"));
+  if (!/^[6-9]\d{9}$/.test(normalized)) {
+    return Promise.reject(new Error("Mobile number must start with 6–9 and be exactly 10 digits"));
   }
   return apiClient.post(AUTH.DELIVERY_REQUEST_OTP, { phone: normalized });
 }
