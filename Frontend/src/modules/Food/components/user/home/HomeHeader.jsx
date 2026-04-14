@@ -14,9 +14,12 @@ export default function HomeHeader({
   handleSearchFocus, 
   placeholderIndex, 
   placeholders,
-  orderType
+  orderType,
+  vegMode,
+  handleVegModeChange,
+  vegModeToggleRef
 }) {
-  const { userProfile, vegMode, setVegMode } = useProfile();
+  const { userProfile } = useProfile();
 
   const getInitials = (name) => {
     if (!name) return "U";
@@ -137,14 +140,16 @@ export default function HomeHeader({
         </div>
 
         {/* Veg Mode Switch */}
-        <div className="flex flex-col items-center justify-center gap-1 min-w-[44px]">
+        <div 
+          ref={vegModeToggleRef}
+          className="flex flex-col items-center justify-center gap-1 min-w-[44px]">
           <div className="flex flex-col items-center space-y-0.5">
             <span className="text-[11px] font-semibold text-white leading-none tracking-wide">VEG</span>
             <span className="text-[10px] font-semibold text-white/90 leading-none tracking-wide">MODE</span>
           </div>
           <Switch 
             checked={vegMode} 
-            onCheckedChange={setVegMode}
+            onCheckedChange={handleVegModeChange}
             className="scale-[0.8] data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-zinc-400 transition-transform active:scale-90"
           />
         </div>

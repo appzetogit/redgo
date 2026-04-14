@@ -93,7 +93,6 @@ import { API_BASE_URL } from "@food/api/config";
 import OptimizedImage from "@food/components/OptimizedImage";
 import { getRestaurantAvailabilityStatus } from "@food/utils/restaurantAvailability";
 import HomeHeader from "@food/components/user/home/HomeHeader";
-import PromoRow from "@food/components/user/home/PromoRow";
 import FestBanner from "@food/components/user/home/FestBanner";
 
 // Explore More Icons
@@ -101,6 +100,7 @@ import exploreOffers from "@food/assets/explore more icons/offers.png";
 import exploreGourmet from "@food/assets/explore more icons/gourmet.png";
 import exploreTop10 from "@food/assets/explore more icons/top 10.png";
 import exploreCollection from "@food/assets/explore more icons/collection.png";
+import allCategoriesIcon from "@food/assets/all-categories.png";
 
 // Banner images for hero carousel - will be fetched from API
 
@@ -417,7 +417,6 @@ export default function Home() {
   const [isApplyingVegMode, setIsApplyingVegMode] = useState(false);
   const [isSwitchingOffVegMode, setIsSwitchingOffVegMode] = useState(false);
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0, triangleLeft: 0 });
-  const vegModeToggleRef = useRef(null);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [heroBannerImages, setHeroBannerImages] = useState([]);
   const [heroBannersData, setHeroBannersData] = useState([]); // Store full banner data with linked restaurants
@@ -449,6 +448,8 @@ export default function Home() {
   const publicCategoriesCacheRef = useRef(new Map());
   const publicCategoriesInFlightRef = useRef(new Map());
   const isHandlingSwitchOff = useRef(false);
+  const headerToggleRef = useRef(null);
+  const [activeToggleRef, setActiveToggleRef] = useState(null);
   const heroShellRef = useRef(null);
   const stickyHeaderRef = useRef(null);
   const slugifyCategory = useCallback(
@@ -772,7 +773,7 @@ export default function Home() {
   }, []);
 
   // Handle vegMode toggle - show popup when turned ON or OFF
-  const handleVegModeChange = (newValue) => {
+  const handleVegModeChange = (newValue, customRef = null) => {
     // Skip if we're handling switch off confirmation
     if (isHandlingSwitchOff.current) {
       return;
@@ -781,8 +782,11 @@ export default function Home() {
     if (newValue && !prevVegMode) {
       // Veg mode was just turned ON
       // Calculate popup position relative to toggle
-      if (vegModeToggleRef.current) {
-        const rect = vegModeToggleRef.current.getBoundingClientRect();
+      const targetRef = customRef || activeToggleRef;
+      if (customRef) setActiveToggleRef(customRef);
+
+      if (targetRef?.current) {
+        const rect = targetRef.current.getBoundingClientRect();
         const screenWidth = window.innerWidth;
         const popupWidth = Math.min(screenWidth - 32, 320); // 320 is max-w-xs
 
@@ -816,8 +820,9 @@ export default function Home() {
     if (!showVegModePopup) return;
 
     const updatePosition = () => {
-      if (vegModeToggleRef.current) {
-        const rect = vegModeToggleRef.current.getBoundingClientRect();
+      const targetRef = activeToggleRef;
+      if (targetRef?.current) {
+        const rect = targetRef.current.getBoundingClientRect();
         const screenWidth = window.innerWidth;
         const popupWidth = Math.min(screenWidth - 32, 320);
 
@@ -841,7 +846,7 @@ export default function Home() {
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [showVegModePopup]);
+  }, [showVegModePopup, activeToggleRef]);
 
   // Fetch hero banners from public API (no auth required)
   useEffect(() => {
@@ -2019,9 +2024,13 @@ export default function Home() {
   const matchesVegMode = useCallback(
     (restaurant) => {
       if (!vegMode) return true;
-      return restaurant?.pureVegRestaurant === true;
+      if (vegModeOption === "pure-veg") {
+        return restaurant?.pureVegRestaurant === true;
+      }
+      // If "all" is selected, show all restaurants but keep veg mode state for dish-level filtering
+      return true;
     },
-    [vegMode],
+    [vegMode, vegModeOption],
   );
 
   // Filter restaurants and foods based on active filters
@@ -2319,6 +2328,24 @@ export default function Home() {
           className="flex gap-3 sm:gap-4 lg:gap-5 overflow-x-auto overflow-y-visible scrollbar-hide scroll-smooth px-2 sm:px-3 py-2 sm:py-3"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
+          {/* "All" Category Item */}
+          <Link
+            to="/user/category/all"
+            className="flex-shrink-0 flex flex-col items-center gap-2 group transition-all duration-300 hover:-translate-y-1"
+          >
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 group-hover:border-[#E23744] transition-colors bg-white dark:bg-[#1a1a1a]">
+              <OptimizedImage
+                src={allCategoriesIcon}
+                alt="All Categories"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                sizes="80px"
+              />
+            </div>
+            <span className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300 text-center truncate max-w-[72px]">
+              All
+            </span>
+          </Link>
+
           {/* Meals Under 200 Card */}
           <div
             className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-105 active:scale-95"
@@ -2357,18 +2384,6 @@ export default function Home() {
                 </span>
               </Link>
             ))
-          )}
-
-          {displayCategories.length > 12 && !showCategorySkeleton && (
-            <div
-              className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group"
-              onClick={() => navigate("/categories")}
-            >
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center border border-red-100 group-hover:border-[#E23744] transition-all">
-                <Plus className="w-6 h-6 text-[#E23744]" />
-              </div>
-              <span className="text-xs font-medium text-gray-700">See All</span>
-            </div>
           )}
         </div>
       </section>
@@ -2517,6 +2532,9 @@ export default function Home() {
               placeholderIndex={placeholderIndex}
               placeholders={placeholders}
               orderType={orderType}
+              vegMode={vegMode}
+              handleVegModeChange={(val) => handleVegModeChange(val, headerToggleRef)}
+              vegModeToggleRef={headerToggleRef}
             />
           ) : (
             <div className="bg-white dark:bg-[#0a0a0a] px-4 pt-6 pb-2 border-b dark:border-gray-800">
@@ -2550,16 +2568,6 @@ export default function Home() {
             <>
               {/* Flavour Fest Banner */}
               <FestBanner />
-
-              {/* Promo Row */}
-              <div className="relative z-20 -mt-4">
-                <PromoRow
-                  handleVegModeChange={handleVegModeChange}
-                  navigate={navigate}
-                  isVegMode={vegMode}
-                  toggleRef={vegModeToggleRef}
-                />
-              </div>
             </>
           )}
 
@@ -2583,18 +2591,43 @@ export default function Home() {
 
           {orderType !== "takeaway" && !isTakeawayPage && (
             <>
-              {/* "What's on your mind today?" Section */}
-              <div className="px-4 py-6 space-y-6 bg-white dark:bg-[#0a0a0a]">
-                <div className="flex items-center gap-2 min-w-0">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>
-                  <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
-                  <Link to="/categories" className="text-sm font-bold text-gray-400 dark:text-gray-500 flex items-center gap-0.5 whitespace-nowrap shrink-0">
-                    View All <ArrowDownUp className="h-3 w-3 rotate-90" />
-                  </Link>
-                </div>
+              {/* Categories Grid */}
+              <div className="px-4 pt-5 pb-2 space-y-4 bg-white dark:bg-[#0a0a0a]">
+                <div className="grid grid-cols-4 gap-y-6 gap-x-4">
+                  {/* "All" Category Item */}
+                  <Link
+                    to="/user/category/all"
+                    className="flex flex-col items-center gap-2 group"
+                  >
+                    <div className="relative w-full aspect-square rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
+                      {/* Shining Glint Effect */}
+                      <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                        <motion.div
+                          animate={{
+                            x: ['-200%', '200%'],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            repeatDelay: 3,
+                            ease: "easeInOut"
+                          }}
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%] h-full"
+                        />
+                      </div>
 
-                <div className="grid grid-cols-4 gap-y-8 gap-x-4">
-                  {displayCategories.slice(0, 8).map((category, index) => (
+                      <OptimizedImage
+                        src={allCategoriesIcon}
+                        alt="All Categories"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    </div>
+                    <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center leading-tight">
+                      All
+                    </span>
+                  </Link>
+
+                  {displayCategories.slice(0, 7).map((category, index) => (
                     <Link
                       key={category.id || index}
                       to={`/category/${category.slug}`}
@@ -2610,7 +2643,7 @@ export default function Home() {
                             transition={{
                               duration: 2,
                               repeat: Infinity,
-                              repeatDelay: 3 + index * 0.5,
+                              repeatDelay: 3 + (index + 1) * 0.5,
                               ease: "easeInOut"
                             }}
                             className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] w-[150%] h-full"
@@ -2833,21 +2866,13 @@ export default function Home() {
           initial={false}
           animate={{ opacity: 1 }}>
           <div className="px-4 mb-3 lg:mb-4">
-            <div className="flex flex-col gap-0.5 lg:gap-1">
-              <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
-                {orderType === "takeaway" || isTakeawayPage ? "Self-Pickup" : "Restaurants delivering to you"}
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 tracking-[0.2em] uppercase leading-tight">
+                {filteredRestaurants.length} {orderType === "takeaway" || isTakeawayPage ? "Restaurants for Pickup" : "Restaurants delivering to you"}
               </h2>
-              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-                {orderType === "takeaway" || isTakeawayPage ? (
-                  <>
-                    <span className="text-[#EF4F5F]">{filteredRestaurants.length}</span> Restaurants for Pickup
-                  </>
-                ) : (
-                  <>
-                    <span className="text-[#EF4F5F]">{filteredRestaurants.length}</span> Featured Restaurants
-                  </>
-                )}
-              </span>
+              <h1 className="text-sm sm:text-base font-medium text-gray-600 dark:text-gray-400 mt-0.5">
+                Featured Restaurants
+              </h1>
             </div>
           </div>
           <div

@@ -150,7 +150,7 @@ export default function UserRouter() {
             }
           />
           <Route path="under-250" element={<Under250 />} />
-          <Route path="categories" element={<Categories />} />
+          <Route path="categories" element={<Navigate to="/user/category/all" replace />} />
           <Route path="category/:category" element={<CategoryPage />} />
           <Route path="restaurants" element={<Restaurants />} />
           <Route path="restaurants/:slug" element={<RestaurantDetails />} />

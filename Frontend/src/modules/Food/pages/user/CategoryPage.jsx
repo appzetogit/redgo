@@ -20,6 +20,7 @@ import { API_BASE_URL } from "@food/api/config"
 import { useProfile } from "@food/context/ProfileContext"
 import { useLocation } from "@food/hooks/useLocation"
 import { useZone } from "@food/hooks/useZone"
+import allCategoriesIcon from "@food/assets/all-categories.png"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
 import { getMenuFromResponse } from "@food/utils/menuItems"
 
@@ -151,9 +152,9 @@ export default function CategoryPage() {
         const list = response?.data?.data?.foods || []
         const approvedFoods = Array.isArray(list)
           ? list.filter((food) =>
-              String(food?.approvalStatus || "").toLowerCase() === "approved" &&
-              food?.isAvailable !== false
-            )
+            String(food?.approvalStatus || "").toLowerCase() === "approved" &&
+            food?.isAvailable !== false
+          )
           : []
 
         approvedFoodsCacheRef.current = approvedFoods
@@ -252,26 +253,26 @@ export default function CategoryPage() {
 
     const restaurantsById = new Map()
     const restaurantsByName = new Map()
-    ;(Array.isArray(restaurants) ? restaurants : []).forEach((restaurant) => {
-      const idCandidates = [
-        restaurant?.restaurantId,
-        restaurant?.id,
-        restaurant?.mongoId,
-      ]
-        .filter(Boolean)
-        .map((value) => String(value).trim())
+      ; (Array.isArray(restaurants) ? restaurants : []).forEach((restaurant) => {
+        const idCandidates = [
+          restaurant?.restaurantId,
+          restaurant?.id,
+          restaurant?.mongoId,
+        ]
+          .filter(Boolean)
+          .map((value) => String(value).trim())
 
-      idCandidates.forEach((value) => {
-        if (!restaurantsById.has(value)) {
-          restaurantsById.set(value, restaurant)
+        idCandidates.forEach((value) => {
+          if (!restaurantsById.has(value)) {
+            restaurantsById.set(value, restaurant)
+          }
+        })
+
+        const normalizedName = String(restaurant?.name || "").trim().toLowerCase()
+        if (normalizedName && !restaurantsByName.has(normalizedName)) {
+          restaurantsByName.set(normalizedName, restaurant)
         }
       })
-
-      const normalizedName = String(restaurant?.name || "").trim().toLowerCase()
-      if (normalizedName && !restaurantsByName.has(normalizedName)) {
-        restaurantsByName.set(normalizedName, restaurant)
-      }
-    })
 
     return approvedFoodsData
       .filter((food) => {
@@ -577,7 +578,7 @@ export default function CategoryPage() {
 
           // Transform API categories to match expected format
           const transformedCategories = [
-            { id: 'all', name: "All", image: null, slug: 'all' },
+            { id: 'all', name: "All", image: allCategoriesIcon, slug: 'all' },
             ...categoriesArray.map((cat) => ({
               id: cat.slug || cat.id,
               name: cat.name,
@@ -1301,7 +1302,7 @@ export default function CategoryPage() {
           {/* Browse Category Section */}
           <div
             ref={categoryScrollRef}
-            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide px-4 md:px-6 py-3 bg-white dark:bg-[#1a1a1a] border-b border-gray-100 dark:border-gray-800"
+            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide px-4 md:px-6 pt-3 pb-2 bg-white dark:bg-[#1a1a1a] border-b border-gray-100 dark:border-gray-800"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
@@ -1322,12 +1323,8 @@ export default function CategoryPage() {
                     className={`flex flex-col items-center gap-1.5 flex-shrink-0 pb-2 transition-all ${isSelected ? 'border-b-2 border-[#EB590E]' : ''
                       }`}
                   >
-                    {isAllCategory ? (
-                      <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border-2 transition-all flex items-center justify-center ${isSelected ? 'border-[#EB590E] shadow-lg bg-[#FFF2EB] dark:bg-[#EB590E]/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-[#222222]'}`}>
-                        <Grid2x2 className={`h-6 w-6 md:h-7 md:w-7 ${isSelected ? 'text-[#EB590E]' : 'text-gray-500 dark:text-gray-400'}`} />
-                      </div>
-                    ) : cat.image ? (
-                  <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 transition-all ${isSelected ? 'border-[#EB590E] shadow-lg' : 'border-transparent'
+                    {cat.image ? (
+                      <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 transition-all ${isSelected ? 'border-[#EB590E] shadow-lg' : 'border-transparent'
                         }`}>
                         <img
                           src={cat.image}
@@ -1544,9 +1541,14 @@ export default function CategoryPage() {
 
           {/* ALL RESTAURANTS Section */}
           <section className="relative">
-            <h2 className="text-xs sm:text-sm md:text-base font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-4 md:mb-6">
-              ALL RESTAURANTS
-            </h2>
+            <div className="flex flex-col gap-1 mb-5">
+              <h2 className="text-xs md:text-sm font-semibold text-gray-500 dark:text-gray-400 tracking-[0.2em] uppercase leading-tight">
+                {filteredAllRestaurants.length} {orderType === "takeaway" || isTakeawayPage ? "Restaurants for Pickup" : "Restaurants delivering to you"}
+              </h2>
+              <h1 className="text-sm md:text-base font-medium text-gray-600 dark:text-gray-400 mt-0.5">
+                All Restaurants
+              </h1>
+            </div>
 
             {/* Loading Overlay */}
             {showRestaurantSkeleton && (
