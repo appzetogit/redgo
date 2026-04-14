@@ -8,7 +8,7 @@ export default function BottomNavigation() {
   const pathname = location.pathname
   
   const [isVisible, setIsVisible] = useState(true)
-  const [lastScrollY, setLastScrollY] = useState(0)
+  const [lastScrollY, setLastScrollY] = useState(typeof window !== 'undefined' ? window.scrollY : 0)
   const [accumulatedScrollUp, setAccumulatedScrollUp] = useState(0)
   const [accumulatedScrollDown, setAccumulatedScrollDown] = useState(0)
 
@@ -21,6 +21,15 @@ export default function BottomNavigation() {
       if (typeof window !== 'undefined') {
         const currentScrollY = window.scrollY
         
+        // If we are at the top of the page, always show the footer
+        if (currentScrollY < 50) {
+          setIsVisible(true)
+          setLastScrollY(currentScrollY)
+          setAccumulatedScrollDown(0)
+          setAccumulatedScrollUp(0)
+          return
+        }
+
         if (currentScrollY > lastScrollY) {
           // Scrolling Down
           const delta = currentScrollY - lastScrollY
