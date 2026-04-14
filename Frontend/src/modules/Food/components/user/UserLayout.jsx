@@ -10,6 +10,7 @@ const debugError = (...args) => {}
 
 import SearchOverlay from "./SearchOverlay"
 import BottomNavigation from "./BottomNavigation"
+import BackToTop from "./BackToTop"
 import DesktopNavbar from "./DesktopNavbar"
 import { useUserNotifications } from "@food/hooks/useUserNotifications"
 import LogoutConfirmationDialog from "../LogoutConfirmationDialog"
@@ -245,6 +246,7 @@ export default function UserLayout() {
                 <main className={showBottomNav ? "md:pt-40" : ""}>
                   <Outlet />
                 </main>
+                {(normalizedPath === "/" || normalizedPath === "" || normalizedPath === "/user") && <BackToTop />}
                 {showBottomNav && <BottomNavigation />}
               </LocationSelectorProvider>
             </SearchOverlayProvider>
