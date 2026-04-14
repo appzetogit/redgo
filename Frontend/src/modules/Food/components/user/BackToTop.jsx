@@ -4,50 +4,103 @@ import { useState, useEffect } from "react"
 
 export default function BackToTop() {
   const [show, setShow] = useState(false)
+  const [lastScrollY, setLastScrollY] = useState(0)
   const [isAutoScrolling, setIsAutoScrolling] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
-      // If we are currently auto-scrolling to top, don't show the button
-      if (isAutoScrolling) return
+      const currentScrollY = window.scrollY
 
-      // Show when scrolled down more than 2500px (approx 7-8 restaurants on mobile)
-      if (window.scrollY > 2500) {
-        setShow(true)
+      // If we are near the top, always hide and reset
+      if (currentScrollY < 500) {
+        setShow(false)
+        setIsAutoScrolling(false)
+        setLastScrollY(currentScrollY)
+        return
+      }
+
+      // If we are currently auto-scrolling to top, keep it hidden
+      if (isAutoScrolling) {
+        setLastScrollY(currentScrollY)
+        return
+      }
+
+      // Logic: Show button only if:
+      // 1. We are deep enough in the page (> 2500px)
+      // 2. We are specifically scrolling UP (current < last)
+      // 3. We are not scrolling too fast down (optional, but keep it simple first)
+      if (currentScrollY > 2500) {
+        const isScrollingUp = currentScrollY < lastScrollY
+        // Buffer of 5px to avoid flicker on tiny movements
+        if (isScrollingUp && (lastScrollY - currentScrollY > 5)) {
+          setShow(true)
+        } else if (!isScrollingUp && (currentScrollY - lastScrollY > 5)) {
+          setShow(false)
+        }
       } else {
         setShow(false)
       }
 
-      // Reset auto-scrolling flag if we've reached near the top
-      if (window.scrollY < 100) {
-        setIsAutoScrolling(false)
-      }
+      setLastScrollY(currentScrollY)
     }
 
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [isAutoScrolling])
+    const throttledScroll = () => {
+      requestAnimationFrame(handleScroll)
+    }
+
+    window.addEventListener("scroll", throttledScroll, { passive: true })
+    return () => window.removeEventListener("scroll", throttledScroll)
+  }, [isAutoScrolling, lastScrollY])
 
   const scrollToTop = () => {
     setIsAutoScrolling(true)
     setShow(false)
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    })
+    
+    // Zomato-style "warped" scroll:
+    // We smooth scroll for a short distance (1000px) to give visual feedback,
+    // then snap to top to avoid scrolling through thousands of items.
+    
+    const startY = window.scrollY
+    const startTime = performance.now()
+    const warpDistance = 1000 // How many pixels to "show" scrolling
+    const duration = 250 // Duration for the visual "zip"
+
+    const step = (currentTime) => {
+      const elapsed = currentTime - startTime
+      const progress = Math.min(elapsed / duration, 1)
+
+      // Ease out quad for the initial zip
+      const easeOutQuad = progress * (2 - progress)
+      
+      // Calculate how much we've traveled in this warp
+      const travel = warpDistance * easeOutQuad
+      
+      if (progress < 1) {
+        window.scrollTo(0, startY - travel)
+        requestAnimationFrame(step)
+      } else {
+        // Snap to absolute top at the end
+        window.scrollTo(0, 0)
+        // Small timeout to ensure the snap is processed before resetting state
+        setTimeout(() => setIsAutoScrolling(false), 50)
+      }
+    }
+
+    requestAnimationFrame(step)
   }
 
   return (
     <AnimatePresence>
       {show && (
         <motion.div
-          initial={{ opacity: 0, y: -20, scale: 0.8, x: "-50%" }}
+          initial={{ opacity: 0, y: -40, scale: 0.8, x: "-50%" }}
           animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-          exit={{ opacity: 0, y: -10, scale: 0.8, x: "-50%" }}
+          exit={{ opacity: 0, y: -20, scale: 0.8, x: "-50%" }}
           transition={{ 
-            type: "spring", 
-            stiffness: 400, 
-            damping: 30 
+            type: "spring",
+            stiffness: 260,
+            damping: 20,
+            mass: 0.5
           }}
           className="fixed top-80 left-1/2 z-[60] pointer-events-auto"
         >

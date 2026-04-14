@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { loadBusinessSettings, getCachedSettings, getCompanyName } from '@food/utils/businessSettings';
 
 const sanitizeCompanyName = (name) => {
-  if (!name) return 'RedGo';
+  if (!name) return 'RedGo Food';
   const lower = name.toLowerCase();
-  if (lower.includes('master') || lower.includes('appzeto')) {
-    return 'RedGo';
+  if (lower.includes('redgo') || lower.includes('appzeto') || lower.includes('master')) {
+    return 'RedGo Food';
   }
   return name;
 };
