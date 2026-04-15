@@ -34,9 +34,15 @@ export default function Checkout() {
         .then(res => {
           setIsCodEnabled(res.data?.data?.takeaway_cod_enabled !== false)
         })
-        .catch(() => setIsCodEnabled(false))
+        .catch(() => setIsCodEnabled(true))
     }
   }, [orderType])
+
+  useEffect(() => {
+    if (orderType === "takeaway" && !isCodEnabled && selectedPayment === "cod") {
+      setSelectedPayment("razorpay")
+    }
+  }, [orderType, isCodEnabled, selectedPayment])
 
   const selectedAddress = addresses.find(addr => getAddressId(addr) === selectedAddressId) || getDefaultAddress()
   const defaultPayment = paymentMethods.find(pm => pm.id === selectedPayment) || getDefaultPaymentMethod()

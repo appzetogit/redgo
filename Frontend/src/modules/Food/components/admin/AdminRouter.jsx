@@ -113,6 +113,7 @@ const AISetup = lazy(() => import("@food/pages/admin/system/AISetup"));
 const AppWebSettings = lazy(() => import("@food/pages/admin/system/AppWebSettings"));
 const AdminNotifications = lazy(() => import("@food/pages/admin/system/AdminNotifications"));
 const NotificationBroadcast = lazy(() => import("@food/pages/admin/system/NotificationBroadcast"));
+const CustomizationSettings = lazy(() => import("@food/pages/admin/system/CustomizationSettings"));
 const NotificationChannels = lazy(() => import("@food/pages/admin/system/NotificationChannels"));
 const LandingPageSettings = lazy(() => import("@food/pages/admin/system/LandingPageSettings"));
 const PageMetaData = lazy(() => import("@food/pages/admin/system/PageMetaData"));
@@ -271,6 +272,7 @@ export default function AdminRouter() {
           <Route path="app-web-settings" element={<AppWebSettings />} />
           <Route path="notifications" element={<AdminNotifications />} />
           <Route path="broadcast-notification" element={<NotificationBroadcast />} />
+          <Route path="customization-settings" element={<CustomizationSettings />} />
           <Route path="notification-channels" element={<NotificationChannels />} />
           <Route path="landing-page-settings/admin" element={<LandingPageSettings type="admin" />} />
           <Route path="landing-page-settings/react" element={<LandingPageSettings type="react" />} />

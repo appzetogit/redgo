@@ -237,9 +237,13 @@ export const adminAPI = {
       contextModule: "admin",
     }),
   getSystemConfigs: () =>
-    apiClient.get("/admin/system-config", { contextModule: "admin" }),
+    apiClient.get("/food/admin/system-configs", { contextModule: "admin" }),
   updateSystemConfig: (key, value) =>
-    apiClient.patch(`/admin/system-config/${key}`, { value }, { contextModule: "admin" }),
+    apiClient.post("/food/admin/system-configs", { key, value }, { contextModule: "admin" }),
+  getCustomizationSettings: () =>
+    apiClient.get("/food/admin/customization-settings", { contextModule: "admin" }),
+  updateCustomizationSettings: (payload = {}) =>
+    apiClient.patch("/food/admin/customization-settings", payload, { contextModule: "admin" }),
   approveRestaurant: (id) =>
     apiClient.patch(
       `/food/admin/restaurants/${id}/approve`,
@@ -2197,7 +2201,7 @@ export const uploadAPI = {
 /** Order API (user app – Bearer USER token). Minimal calls: single create/verify, list/details cached by caller. */
 export const orderAPI = {
   getTakeawayCodStatus: () =>
-    apiClient.get("/admin/system-config/takeaway-cod-status"),
+    apiClient.get("/food/admin/system-config/takeaway-cod-status"),
   calculateOrder: (payload) =>
     apiClient.post("/food/orders/calculate", payload ?? {}, {
       contextModule: "user",

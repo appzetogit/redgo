@@ -203,6 +203,7 @@ export default function Cart() {
   // Restaurant and pricing state
   const [restaurantData, setRestaurantData] = useState(null)
   const [loadingRestaurant, setLoadingRestaurant] = useState(false)
+  const [adminTakeawayCodEnabled, setAdminTakeawayCodEnabled] = useState(true)
   const [pricing, setPricing] = useState(null)
   const [loadingPricing, setLoadingPricing] = useState(false)
 
@@ -926,6 +927,22 @@ export default function Cart() {
     fetchWalletBalance()
   }, [])
 
+  // Fetch global admin customization for takeaway COD.
+  useEffect(() => {
+    const fetchTakeawayCodStatus = async () => {
+      if (orderType !== "takeaway") return
+      try {
+        const response = await orderAPI.getTakeawayCodStatus()
+        setAdminTakeawayCodEnabled(response?.data?.data?.takeaway_cod_enabled !== false)
+      } catch (_error) {
+        // Backward compatibility fallback: keep existing behavior when setting is unavailable.
+        setAdminTakeawayCodEnabled(true)
+      }
+    }
+
+    fetchTakeawayCodStatus()
+  }, [orderType])
+
   // Fetch user order count (used for first-time coupon eligibility)
   useEffect(() => {
     const fetchOrderCount = async () => {
@@ -1034,6 +1051,14 @@ export default function Cart() {
       : selectedPaymentMethod === "razorpay"
         ? "Online Payment"
         : "Cash on Delivery"
+  const existingTakeawayCOD = !(orderType === "takeaway" && restaurantData?.takeawaySettings?.codEnabled === false)
+  const showTakeawayCOD = existingTakeawayCOD && adminTakeawayCodEnabled
+
+  useEffect(() => {
+    if (orderType === "takeaway" && !showTakeawayCOD && selectedPaymentMethod === "cash") {
+      setSelectedPaymentMethod("razorpay")
+    }
+  }, [orderType, showTakeawayCOD, selectedPaymentMethod])
 
   // Restaurant name from data or cart
   const restaurantName = restaurantData?.name || cart[0]?.restaurant || "Restaurant"
@@ -2991,10 +3016,10 @@ export default function Cart() {
                           icon: <Banknote className="w-5 h-5" />,
                           color: 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400',
                           selectedColor: 'bg-orange-500 text-white',
-                          disabled: orderType === 'takeaway' && restaurantData?.takeawaySettings?.codEnabled === false,
+                          disabled: orderType === 'takeaway' && !showTakeawayCOD,
                           disabledText: 'Not available'
                         }
-                      ].map((option) => (
+                      ].filter((option) => !(orderType === "takeaway" && option.id === "cash" && !showTakeawayCOD)).map((option) => (
                         <button
                           key={option.id}
                           onClick={() => {

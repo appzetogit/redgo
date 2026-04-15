@@ -201,6 +201,8 @@ router.delete('/orders/:orderId', orderController.deleteOrderAdminController);
 router.get('/system-configs', systemConfigController.getConfigs);
 router.get('/system-configs/:key', systemConfigController.getConfigByKey);
 router.post('/system-configs', systemConfigController.updateConfig);
+router.get('/customization-settings', systemConfigController.getCustomizationSettings);
+router.patch('/customization-settings', systemConfigController.updateCustomizationSettings);
 
 // ----- CMS Pages (About + legal) -----
 router.get('/pages-social-media/:key', getAdminPageController);
