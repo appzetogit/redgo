@@ -38,17 +38,16 @@ export default function BackToTop() {
           // Scrolling up — accumulate distance
           accumulatorRef.current += delta
 
-          // DEBOUNCE: If user pauses scrolling for 300ms, reset the accumulator.
-          // This prevents slow casual browsing from building up to the threshold.
+          // DEBOUNCE: If user pauses scrolling for 200ms, reset the accumulator.
+          // This aggressively prevents casual browsing from building up distance.
           clearTimeout(pauseTimerRef.current)
           pauseTimerRef.current = setTimeout(() => {
             accumulatorRef.current = 0
-          }, 300)
+          }, 200)
 
-          // Show ONLY if:
-          // A) Fast velocity flick (> 25px in a single frame) — user clearly wants to go up
-          // B) Continuous fast scroll-up accumulated > 400px without pausing
-          if (delta > 25 || accumulatorRef.current > 400) {
+          // Show ONLY after 600px of continuous, uninterrupted scroll-up.
+          // No velocity shortcut — only sustained intent triggers this.
+          if (accumulatorRef.current > 600) {
             setShow(true)
           }
         } else {
