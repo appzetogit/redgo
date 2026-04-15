@@ -266,7 +266,7 @@ export const upsertFirebaseDeviceToken = async ({ ownerType, ownerId, token, pla
 
     const field = getTokenFieldForPlatform(normalizedPlatform);
     const existingTokens = Array.isArray(doc[field]) ? doc[field] : [];
-    console.log(`[FCM-DEBUG] upsert - Current tokens in DB count: ${existingTokens.length}`);
+    // console.log(`[FCM-DEBUG] upsert - Current tokens in DB count: ${existingTokens.length}`);
     
     const tokens = normalizeTokenList([...existingTokens, normalizedToken]);
     doc[field] = tokens;

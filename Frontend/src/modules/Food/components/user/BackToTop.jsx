@@ -1,93 +1,109 @@
 import { ArrowUp } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 
 export default function BackToTop() {
   const [show, setShow] = useState(false)
-  const [lastScrollY, setLastScrollY] = useState(0)
-  const [isAutoScrolling, setIsAutoScrolling] = useState(false)
+
+  // Use refs so the scroll handler always reads fresh values without re-registering
+  const lastScrollYRef = useRef(0)
+  const accumulatorRef = useRef(0)
+  const isAutoScrollingRef = useRef(false)
+  const pauseTimerRef = useRef(null)
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
 
-      // If we are near the top, always hide and reset
+      // Near top → always hide and reset
       if (currentScrollY < 500) {
         setShow(false)
-        setIsAutoScrolling(false)
-        setLastScrollY(currentScrollY)
+        isAutoScrollingRef.current = false
+        accumulatorRef.current = 0
+        lastScrollYRef.current = currentScrollY
+        clearTimeout(pauseTimerRef.current)
         return
       }
 
-      // If we are currently auto-scrolling to top, keep it hidden
-      if (isAutoScrolling) {
-        setLastScrollY(currentScrollY)
+      // Auto-scrolling in progress → skip all logic
+      if (isAutoScrollingRef.current) {
+        lastScrollYRef.current = currentScrollY
         return
       }
 
-      // Logic: Show button only if:
-      // 1. We are deep enough in the page (> 2500px)
-      // 2. We are specifically scrolling UP (current < last)
-      // 3. We are not scrolling too fast down (optional, but keep it simple first)
+      const delta = lastScrollYRef.current - currentScrollY // positive = scrolling up
+
       if (currentScrollY > 2500) {
-        const isScrollingUp = currentScrollY < lastScrollY
-        // Buffer of 5px to avoid flicker on tiny movements
-        if (isScrollingUp && (lastScrollY - currentScrollY > 5)) {
-          setShow(true)
-        } else if (!isScrollingUp && (currentScrollY - lastScrollY > 5)) {
-          setShow(false)
+        if (delta > 0) {
+          // Scrolling up — accumulate distance
+          accumulatorRef.current += delta
+
+          // DEBOUNCE: If user pauses scrolling for 300ms, reset the accumulator.
+          // This prevents slow casual browsing from building up to the threshold.
+          clearTimeout(pauseTimerRef.current)
+          pauseTimerRef.current = setTimeout(() => {
+            accumulatorRef.current = 0
+          }, 300)
+
+          // Show ONLY if:
+          // A) Fast velocity flick (> 25px in a single frame) — user clearly wants to go up
+          // B) Continuous fast scroll-up accumulated > 400px without pausing
+          if (delta > 25 || accumulatorRef.current > 400) {
+            setShow(true)
+          }
+        } else {
+          // Scrolling down → reset accumulator and hide
+          clearTimeout(pauseTimerRef.current)
+          accumulatorRef.current = 0
+          if (Math.abs(delta) > 10) {
+            setShow(false)
+          }
         }
       } else {
         setShow(false)
+        accumulatorRef.current = 0
       }
 
-      setLastScrollY(currentScrollY)
+      lastScrollYRef.current = currentScrollY
     }
 
-    const throttledScroll = () => {
-      requestAnimationFrame(handleScroll)
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+      clearTimeout(pauseTimerRef.current)
     }
+  }, []) // Empty deps — refs keep values fresh
 
-    window.addEventListener("scroll", throttledScroll, { passive: true })
-    return () => window.removeEventListener("scroll", throttledScroll)
-  }, [isAutoScrolling, lastScrollY])
-
-  const scrollToTop = () => {
-    setIsAutoScrolling(true)
+  const scrollToTop = useCallback(() => {
+    isAutoScrollingRef.current = true
+    accumulatorRef.current = 0
     setShow(false)
-    
-    // Zomato-style "warped" scroll:
-    // We smooth scroll for a short distance (1000px) to give visual feedback,
-    // then snap to top to avoid scrolling through thousands of items.
-    
+
+    // Zomato-style "warped" scroll: zip up 1000px then snap to top
     const startY = window.scrollY
     const startTime = performance.now()
-    const warpDistance = 1000 // How many pixels to "show" scrolling
-    const duration = 250 // Duration for the visual "zip"
+    const warpDistance = 1000
+    const duration = 250
 
     const step = (currentTime) => {
       const elapsed = currentTime - startTime
       const progress = Math.min(elapsed / duration, 1)
-
-      // Ease out quad for the initial zip
       const easeOutQuad = progress * (2 - progress)
-      
-      // Calculate how much we've traveled in this warp
       const travel = warpDistance * easeOutQuad
-      
+
       if (progress < 1) {
         window.scrollTo(0, startY - travel)
         requestAnimationFrame(step)
       } else {
-        // Snap to absolute top at the end
         window.scrollTo(0, 0)
-        // Small timeout to ensure the snap is processed before resetting state
-        setTimeout(() => setIsAutoScrolling(false), 50)
+        setTimeout(() => {
+          isAutoScrollingRef.current = false
+        }, 50)
       }
     }
 
     requestAnimationFrame(step)
-  }
+  }, [])
 
   return (
     <AnimatePresence>
