@@ -763,7 +763,21 @@ export default function Inventory() {
     }
     return []
   })
-  const [expandedCategories, setExpandedCategories] = useState([])
+  const [expandedCategories, setExpandedCategories] = useState(() => {
+    try {
+      if (typeof window === "undefined") return []
+      const saved = localStorage.getItem(INVENTORY_STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          return parsed.map(c => c.id)
+        }
+      }
+    } catch {
+      return []
+    }
+    return []
+  })
   const [togglePopupOpen, setTogglePopupOpen] = useState(false)
   const [toggleTarget, setToggleTarget] = useState(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -853,7 +867,10 @@ export default function Inventory() {
   useEffect(() => {
     const fetchMenuData = async () => {
       try {
-        setLoadingInventory(true)
+        // Only show full-page loading if we don't have any data yet
+        if (categories.length === 0) {
+          setLoadingInventory(true)
+        }
         
         // Fetch menu from API
         const menuResponse = await restaurantAPI.getMenu()
@@ -972,11 +989,17 @@ export default function Inventory() {
           })
           
           setCategories(withStockRules)
-          setExpandedCategories(withStockRules.map(c => c.id))
+          
+          // Only expand all if no categories were previously expanded
+          if (expandedCategories.length === 0) {
+            setExpandedCategories(withStockRules.map(c => c.id))
+          }
         } else {
-          // Empty menu - start fresh
-          setCategories([])
-          setExpandedCategories([])
+          // Empty menu - start fresh if we don't have local data
+          if (categories.length === 0) {
+            setCategories([])
+            setExpandedCategories([])
+          }
         }
       } catch (error) {
         // Only log and show toast if it's not a network/timeout error
@@ -995,7 +1018,7 @@ export default function Inventory() {
     }
     
     fetchMenuData()
-  }, [recommendedMap])
+  }, []) // Remove recommendedMap as dependency to prevent redundant fetches; map usage is handled inside the fetch logic.
 
   // Note: Menu items are now displayed from menu API
   // Stock status updates should be managed through the menu API, not inventory API
@@ -2272,7 +2295,7 @@ export default function Inventory() {
                           </p>
                         )}
                         <p className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                          {(categoryItems.filter((item) => item.isRecommended).length)} recommended
+                          {(categoryItems.filter((item) => item.isRecommended).length)} Recommended
                         </p>
                       </div>
                     </div>
@@ -2350,6 +2373,11 @@ export default function Inventory() {
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="truncate text-sm font-semibold text-slate-900">{item.name}</p>
+                                    {item.isRecommended ? (
+                                      <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
+                                        Recommended
+                                      </span>
+                                    ) : null}
                                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                                       item.isVeg
                                         ? "bg-emerald-50 text-emerald-700"
@@ -2360,11 +2388,6 @@ export default function Inventory() {
                                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${approvalMeta.className}`}>
                                       {approvalMeta.label}
                                     </span>
-                                    {item.isRecommended ? (
-                                      <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
-                                        Recommended
-                                      </span>
-                                    ) : null}
                                   </div>
                                   <p className={`mt-1 text-xs font-medium ${
                                     item.inStock ? "text-green-600" : "text-rose-600"
@@ -2391,21 +2414,6 @@ export default function Inventory() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-3">
-                                {/* Recommend Thumb Icon */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleRecommendToggle(category.id, item.id)
-                                  }}
-                                  className={`rounded-2xl p-2 transition-colors ${
-                                    item.isRecommended
-                                      ? "bg-blue-100 text-blue-600"
-                                      : "bg-white text-gray-400 hover:bg-slate-100"
-                                  }`}
-                                  title={item.isRecommended ? "Recommended" : "Click to recommend"}
-                                >
-                                  <ThumbsUp className="w-4 h-4" />
-                                </button>
                                 {/* Item Toggle Switch */}
                                 <div
                                   onClick={(e) => e.stopPropagation()}

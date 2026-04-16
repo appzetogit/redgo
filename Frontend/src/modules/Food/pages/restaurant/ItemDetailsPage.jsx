@@ -713,7 +713,7 @@ export default function ItemDetailsPage() {
           ? `Item created successfully with ${imageCount} image(s)`
           : `Item updated and sent for approval again with ${imageCount} image(s)`
       )
-      await new Promise((resolve) => setTimeout(resolve, 200))
+      // navigate directly without artificial delay
       navigate("/restaurant/inventory", { replace: true })
       window.dispatchEvent(new CustomEvent('foodsChanged'))
     } catch (error) {
@@ -744,10 +744,13 @@ export default function ItemDetailsPage() {
     setVariants((prev) => prev.filter((variant) => variant.localId !== localId))
   }
 
-  const handleDelete = () => {
-    // Delete logic here
-    debugLog("Deleting item:", id)
-    goBack()
+  const handleCancel = () => {
+    // Instant navigation back
+    if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      goBack()
+    }
   }
 
   return (
@@ -761,23 +764,27 @@ export default function ItemDetailsPage() {
         }
       `}</style>
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 flex-shrink-0">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <button
-            onClick={goBack}
-            className="p-1 rounded-full hover:bg-gray-100"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">Item details</h1>
+      <div className="sticky top-0 z-40 bg-[#0f172a] border-b border-white/10 flex-shrink-0 transition-all duration-300">
+        <div className="px-4 py-1.5 flex items-center justify-center relative min-h-[44px]">
+          {isNewItem && (
+            <button
+              onClick={goBack}
+              className="p-1 rounded-full hover:bg-gray-100 absolute left-4"
+            >
+              <ArrowLeft className="w-5 h-5 text-white" />
+            </button>
+          )}
+          <h1 className="text-lg font-bold text-white">
+            {isNewItem ? "Add New Dish" : "Item Details"}
+          </h1>
         </div>
       </div>
 
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: `${96 + keyboardInset}px` }}>
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: `${72 + keyboardInset}px` }}>
         {!isNewItem && currentApprovalStatus === "rejected" && currentRejectionReason ? (
-          <div className="px-4 pt-4">
+          <div className="px-4 pt-2">
             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
               <p className="text-sm font-semibold text-red-700">Approval rejected</p>
               <p className="mt-1 text-sm leading-5 text-red-600">Reason: {currentRejectionReason}</p>
@@ -841,9 +848,9 @@ export default function ItemDetailsPage() {
                 {/* Delete image button */}
                 <button
                   onClick={() => handleImageDelete(currentImageIndex)}
-                  className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all z-10"
+                  className="absolute top-4 right-4 w-10 h-10 bg-[#0f172a] rounded-full flex items-center justify-center shadow-lg hover:bg-[#1e293b] transition-all z-10"
                 >
-                  <Trash2 className="w-5 h-5 text-gray-900" />
+                  <Trash2 className="w-5 h-5 text-red-500" />
                 </button>
 
                 {/* Image counter */}
@@ -1145,24 +1152,27 @@ export default function ItemDetailsPage() {
           </div>
 
           {/* Recommend and In Stock */}
-          <div className="flex items-center justify-between py-3 border-t border-gray-200">
-            <button
-              onClick={() => setIsRecommended(!isRecommended)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isRecommended
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-            >
-              <ThumbsUp className="w-4 h-4" />
-              <span>Recommend</span>
-            </button>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1 py-3 border-t border-gray-200">
+            {/* Recommend Toggle */}
+            <div className="flex items-center justify-between px-1 py-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Recommended</span>
+              </div>
+              <Switch
+                checked={isRecommended}
+                onCheckedChange={setIsRecommended}
+                className="data-[state=unchecked]:bg-gray-300"
+              />
+            </div>
+
+            {/* In Stock Toggle */}
+            <div className="flex items-center justify-between px-1 py-1.5">
+              <span className="text-sm font-medium text-gray-700">In stock</span>
               <Switch
                 checked={isInStock}
                 onCheckedChange={setIsInStock}
                 className="data-[state=unchecked]:bg-gray-300"
               />
-              <span className="text-sm text-gray-700">In stock</span>
             </div>
           </div>
 
@@ -1316,23 +1326,23 @@ export default function ItemDetailsPage() {
 
       {/* Bottom Sticky Buttons */}
       <div
-        className="fixed left-0 right-0 bg-white border-t border-gray-200 z-40"
+        className="fixed left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100/50 z-40 pb-safe"
         style={{ bottom: `${keyboardInset}px` }}
       >
         <div className={`flex gap-3 px-4 py-4 ${isNewItem ? 'justify-end' : ''}`}>
           {!isNewItem && (
             <button
-              onClick={handleDelete}
-              className="flex-1 py-3 px-4 border border-black rounded-lg text-sm font-semibold text-black bg-white hover:bg-gray-50 transition-colors"
+              onClick={handleCancel}
+              className="flex-1 py-3.5 px-4 border border-black rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] text-black bg-white active:scale-[0.98] transition-all"
             >
-              Delete
+              Cancel
             </button>
           )}
           <button
             onClick={handleSave}
             disabled={uploadingImages}
-            className={`${isNewItem ? 'w-full' : 'flex-1'} py-3 px-4 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${!uploadingImages
-              ? "bg-black text-white hover:bg-black"
+            className={`${isNewItem ? 'w-full' : 'flex-1'} py-3.5 px-4 rounded-2xl text-[15px] font-semibold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-md ${!uploadingImages
+              ? "bg-gradient-to-r from-gray-900 to-gray-800 text-white"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
           >

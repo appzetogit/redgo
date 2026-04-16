@@ -16,6 +16,87 @@ const debugWarn = (...args) => {}
 const debugError = (...args) => {}
 
 
+const ComparisonField = ({ label, oldVal, newVal, type = 'text' }) => {
+  const isChanged = String(oldVal ?? '') !== String(newVal ?? '');
+  if (!isChanged) return null;
+
+  const formatValue = (val) => {
+    if (type === 'price') return `₹${val || 0}`;
+    if (type === 'boolean') return val ? 'On' : 'Off';
+    return val || 'None';
+  };
+
+  return (
+    <div className="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">{label}</label>
+      <div className="flex items-center gap-3">
+        <span className={`text-sm font-medium line-through decoration-2 ${type === 'boolean' ? (oldVal ? 'text-blue-500 decoration-blue-500/30' : 'text-gray-400 decoration-gray-400/50') : 'text-red-500 decoration-red-500/50'}`}>
+          {formatValue(oldVal)}
+        </span>
+        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-50 text-gray-400">
+           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="9 5l7 7-7 7" /></svg>
+        </div>
+        <span className={`text-sm font-bold px-2 py-0.5 rounded ${type === 'boolean' ? (newVal ? 'text-green-600 bg-green-50' : 'text-gray-600 bg-gray-100') : 'text-green-600 bg-green-50'}`}>
+          {formatValue(newVal)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const ImageComparison = ({ oldImage, newImage, oldImages = [], newImages = [] }) => {
+    // Single image comparison
+    const isSingleImageChanged = oldImage !== newImage;
+    
+    // Array images comparison
+    const oldSet = new Set(oldImages || []);
+    const newSet = new Set(newImages || []);
+    const removed = (oldImages || []).filter(img => !newSet.has(img));
+    const added = (newImages || []).filter(img => !oldSet.has(img));
+    
+    const hasChanges = isSingleImageChanged || removed.length > 0 || added.length > 0;
+    if (!hasChanges) return null;
+
+    return (
+        <div className="col-span-full space-y-4 pt-4 border-t border-gray-100">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Image Variations</label>
+            <div className="flex flex-wrap gap-6">
+                {isSingleImageChanged && (
+                    <div className="flex gap-4 items-center p-3 bg-slate-50 rounded-xl border border-dashed border-gray-200">
+                        <div className="relative">
+                            <img src={oldImage} className="w-20 h-20 object-cover rounded-lg border-2 border-red-100 opacity-40 grayscale" alt="Old" />
+                            <div className="absolute inset-0 flex items-center justify-center"><XCircle className="w-6 h-6 text-red-500/50" /></div>
+                            <span className="absolute -top-2 -left-2 bg-red-100 text-red-600 text-[8px] font-bold px-1.5 py-0.5 rounded">OLD</span>
+                        </div>
+                        <div className="text-gray-300">
+                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="9 5l7 7-7 7" /></svg>
+                        </div>
+                        <div className="relative">
+                            <img src={newImage} className="w-20 h-20 object-cover rounded-lg border-2 border-green-400 shadow-md transition-transform hover:scale-105" alt="New" />
+                            <span className="absolute -top-2 -left-2 bg-green-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm">NEW</span>
+                        </div>
+                    </div>
+                )}
+                
+                {removed.map((img, idx) => (
+                    <div key={`rem-${idx}`} className="relative opacity-60">
+                        <img src={img} className="w-20 h-20 object-cover rounded-lg border-2 border-red-200 grayscale" alt="Removed" />
+                        <div className="absolute inset-0 flex items-center justify-center"><XCircle className="w-6 h-6 text-red-500" /></div>
+                        <span className="absolute -bottom-4 left-0 right-0 text-[8px] text-center text-red-500 font-bold">REMOVED</span>
+                    </div>
+                ))}
+                
+                {added.map((img, idx) => (
+                    <div key={`add-${idx}`} className="relative">
+                        <img src={img} className="w-20 h-20 object-cover rounded-lg border-2 border-green-500 shadow-sm" alt="Added" />
+                        <span className="absolute -bottom-4 left-0 right-0 text-[8px] text-center text-green-600 font-bold">ADDED</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export default function FoodApproval() {
   const [foodRequests, setFoodRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -106,7 +187,8 @@ export default function FoodApproval() {
     try {
       setProcessing(true)
       const id = request._id || request.id
-      
+      setFoodRequests(prev => prev.filter(item => (item._id || item.id) !== id))
+
       if (request.entityType === 'addon') {
         await adminAPI.approveRestaurantAddon(id)
         toast.success('Add-on approved successfully')
@@ -115,12 +197,13 @@ export default function FoodApproval() {
         toast.success('Food item approved successfully')
       }
       
-      await fetchFoodRequests()
+      await fetchFoodRequests({ silent: true })
       setShowDetailModal(false)
       setSelectedRequest(null)
     } catch (error) {
       debugError('Error approving item:', error)
       toast.error(error?.response?.data?.message || 'Failed to approve item')
+      await fetchFoodRequests()
     } finally {
       setProcessing(false)
     }
@@ -140,7 +223,8 @@ export default function FoodApproval() {
     try {
       setProcessing(true)
       const id = selectedRequest._id || selectedRequest.id
-      
+      setFoodRequests(prev => prev.filter(item => (item._id || item.id) !== id))
+
       if (selectedRequest.entityType === 'addon') {
         await adminAPI.rejectRestaurantAddon(id, rejectReason)
         toast.success('Add-on rejected')
@@ -149,7 +233,7 @@ export default function FoodApproval() {
         toast.success('Food item rejected')
       }
       
-      await fetchFoodRequests()
+      await fetchFoodRequests({ silent: true })
       setShowRejectModal(false)
       setShowDetailModal(false)
       setSelectedRequest(null)
@@ -157,6 +241,7 @@ export default function FoodApproval() {
     } catch (error) {
       debugError('Error rejecting item:', error)
       toast.error(error?.response?.data?.message || 'Failed to reject item')
+      await fetchFoodRequests()
     } finally {
       setProcessing(false)
     }
@@ -251,6 +336,9 @@ export default function FoodApproval() {
                       <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Requested Date
                       </th>
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Action Type
+                      </th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Action
                       </th>
@@ -281,7 +369,7 @@ export default function FoodApproval() {
                           <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-semibold">
                             {request.itemName || '-'}
                           </td>
-                          <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 capitalize text-center">
+                          <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 capitalize text-left">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${request.entityType === 'addon' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                                 {request.entityType || 'food'}
                             </span>
@@ -302,6 +390,17 @@ export default function FoodApproval() {
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
                             {request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : '-'}
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap text-sm text-left">
+                            {request.actionType === 'UPDATED' ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-700">
+                                    Changes
+                                </span>
+                            ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">
+                                    New Added
+                                </span>
+                            )}
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap text-right text-sm">
                             <div className="flex justify-end gap-1.5">
@@ -362,82 +461,117 @@ export default function FoodApproval() {
                    <p className="text-sm font-semibold text-gray-900">{selectedRequest.restaurantName || '-'}</p>
                    <p className="text-xs text-gray-500">ID: {selectedRequest.restaurantId || '-'}</p>
                 </div>
-                <div className="px-3 py-1 bg-white rounded-full border border-blue-100 text-[10px] font-bold text-blue-600">
-                    {selectedRequest.entityType?.toUpperCase()}
+                <div className="flex flex-col items-end gap-1">
+                    <div className="px-3 py-1 bg-white rounded-full border border-blue-100 text-[10px] font-bold text-blue-600">
+                        {selectedRequest.entityType?.toUpperCase()}
+                    </div>
+                    {selectedRequest.actionType === 'UPDATED' && (
+                        <div className="px-2 py-0.5 bg-yellow-100 rounded text-[9px] font-bold text-yellow-700 uppercase">
+                            Changes
+                        </div>
+                    )}
                 </div>
               </div>
 
-              {/* Item Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Item Name</label>
-                        <p className="text-sm font-semibold text-gray-900">{selectedRequest.itemName || '-'}</p>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category</label>
-                        <p className="text-sm text-gray-700">{selectedRequest.category || '-'}</p>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Price</label>
-                        <p className="text-sm font-bold text-green-600">{selectedRequest.price !== null && selectedRequest.price !== undefined ? `₹${selectedRequest.price}` : '-'}</p>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status</label>
-                        <p className="text-sm text-gray-700 capitalize font-medium">{selectedRequest.approvalStatus || 'pending'}</p>
-                    </div>
+              {selectedRequest.actionType === 'UPDATED' && selectedRequest.oldData ? (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <ComparisonField label="Item Name" oldVal={selectedRequest.oldData.name} newVal={selectedRequest.newData?.name} />
+                       <ComparisonField label="Category" oldVal={selectedRequest.oldData.categoryName || selectedRequest.oldData.category} newVal={selectedRequest.newData?.categoryName || selectedRequest.newData?.category} />
+                       <ComparisonField label="Price" oldVal={selectedRequest.oldData.price} newVal={selectedRequest.newData?.price} type="price" />
+                       <ComparisonField label="Food Type" oldVal={selectedRequest.oldData.foodType} newVal={selectedRequest.newData?.foodType} />
+                       <ComparisonField label="Preparation Time" oldVal={selectedRequest.oldData.preparationTime} newVal={selectedRequest.newData?.preparationTime} />
+                       <ComparisonField label="Recommend" oldVal={selectedRequest.oldData.isRecommended} newVal={selectedRequest.newData?.isRecommended} type="boolean" />
+                       <ComparisonField label="In Stock" oldVal={selectedRequest.oldData.isAvailable} newVal={selectedRequest.newData?.isAvailable} type="boolean" />
+                       
+                       <div className="col-span-full">
+                          <ComparisonField label="Description" oldVal={selectedRequest.oldData.description} newVal={selectedRequest.newData?.description} />
+                       </div>
+                       
+                       <ImageComparison 
+                          oldImage={selectedRequest.oldData.image} 
+                          newImage={selectedRequest.newData?.image} 
+                          oldImages={selectedRequest.oldData.images} 
+                          newImages={selectedRequest.newData?.images} 
+                       />
+                   </div>
+                   
+                   {/* Unchanged data preview - optional but good for context if needed, 
+                       but user said "Only show changed fields" */}
                 </div>
-
-                <div className="space-y-4">
-                    {selectedRequest.foodType && (
-                        <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Food Type</label>
-                            <p className="text-sm text-gray-700">{selectedRequest.foodType}</p>
-                        </div>
-                    )}
-                    {selectedRequest.requestedAt && (
-                        <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Requested On</label>
-                            <p className="text-sm text-gray-700">{new Date(selectedRequest.requestedAt).toLocaleString()}</p>
-                        </div>
-                    )}
-                </div>
-
-                {selectedRequest.description && (
-                  <div className="col-span-full">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</label>
-                    <p className="text-sm text-gray-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">{selectedRequest.description}</p>
-                  </div>
-                )}
-
-                {/* Images */}
-                {(() => {
-                  const allImages = (selectedRequest.images || []).filter(img => img && typeof img === 'string');
-                  if (selectedRequest.image && !allImages.includes(selectedRequest.image)) {
-                      allImages.unshift(selectedRequest.image);
-                  }
-                  
-                  return allImages.length > 0 ? (
-                    <div className="col-span-full">
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        Images ({allImages.length})
-                      </label>
-                      <div className="flex flex-wrap gap-3">
-                        {allImages.map((img, idx) => (
-                            <img 
-                              key={idx}
-                              src={img} 
-                              alt="Item preview"
-                              className="w-24 h-24 object-cover rounded-xl border border-gray-100 shadow-sm hover:scale-105 transition-transform cursor-zoom-in"
-                              onClick={() => window.open(img, '_blank')}
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                        ))}
+              ) : (
+                /* Item Info (Existing View) */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Item Name</label>
+                          <p className="text-sm font-semibold text-gray-900">{selectedRequest.itemName || '-'}</p>
                       </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Category</label>
+                          <p className="text-sm text-gray-700">{selectedRequest.category || '-'}</p>
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Price</label>
+                          <p className="text-sm font-bold text-green-600">{selectedRequest.price !== null && selectedRequest.price !== undefined ? `₹${selectedRequest.price}` : '-'}</p>
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status</label>
+                          <p className="text-sm text-gray-700 capitalize font-medium">{selectedRequest.approvalStatus || 'pending'}</p>
+                      </div>
+                  </div>
+
+                  <div className="space-y-4">
+                      {selectedRequest.foodType && (
+                          <div>
+                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Food Type</label>
+                              <p className="text-sm text-gray-700">{selectedRequest.foodType}</p>
+                          </div>
+                      )}
+                      {selectedRequest.requestedAt && (
+                          <div>
+                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Requested On</label>
+                              <p className="text-sm text-gray-700">{new Date(selectedRequest.requestedAt).toLocaleString()}</p>
+                          </div>
+                      )}
+                  </div>
+
+                  {selectedRequest.description && (
+                    <div className="col-span-full">
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</label>
+                      <p className="text-sm text-gray-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">{selectedRequest.description}</p>
                     </div>
-                  ) : null;
-                })()}
-              </div>
+                  )}
+
+                  {/* Images */}
+                  {(() => {
+                    const allImages = (selectedRequest.images || []).filter(img => img && typeof img === 'string');
+                    if (selectedRequest.image && !allImages.includes(selectedRequest.image)) {
+                        allImages.unshift(selectedRequest.image);
+                    }
+                    
+                    return allImages.length > 0 ? (
+                      <div className="col-span-full">
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                          Images ({allImages.length})
+                        </label>
+                        <div className="flex flex-wrap gap-3">
+                          {allImages.map((img, idx) => (
+                              <img 
+                                key={idx}
+                                src={img} 
+                                alt="Item preview"
+                                className="w-24 h-24 object-cover rounded-xl border border-gray-100 shadow-sm hover:scale-105 transition-transform cursor-zoom-in"
+                                onClick={() => window.open(img, '_blank')}
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter className="p-6 pt-4 border-t border-gray-100 bg-slate-50/50 flex gap-2">

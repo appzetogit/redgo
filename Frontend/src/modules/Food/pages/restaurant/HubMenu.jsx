@@ -1380,8 +1380,13 @@ export default function HubMenu() {
                                 }`} />
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h5 className="text-base font-bold text-gray-900">{item.name}</h5>
+                              {item.isRecommended && (
+                                <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
+                                  Recommended
+                                </span>
+                              )}
                               {/* Approval Status Tag */}
                               {item.approvalStatus && (
                                 <span

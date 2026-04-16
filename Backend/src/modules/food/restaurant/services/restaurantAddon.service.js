@@ -35,7 +35,10 @@ const normalizeAddonDoc = (doc) => {
             }
             : null,
         createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt
+        updatedAt: doc.updatedAt,
+        actionType: doc.actionType || 'NEW',
+        oldData: doc.oldData || null,
+        newData: doc.newData || null
     };
 };
 
@@ -116,7 +119,16 @@ export async function createRestaurantAddon(restaurantId, body) {
         approvedAt: null,
         rejectedAt: null,
         isAvailable: true,
-        isDeleted: false
+        isDeleted: false,
+        actionType: 'NEW',
+        oldData: null,
+        newData: {
+            name,
+            description: String(body.description || '').trim(),
+            price: Number(body.price) || 0,
+            image: String(body.image || '').trim(),
+            images: Array.isArray(body.images) ? body.images.filter(Boolean).slice(0, 10) : []
+        }
     });
 
     try {
@@ -193,6 +205,20 @@ export async function updateRestaurantAddon(restaurantId, addonId, updateDto) {
         set.requestedAt = new Date();
         set.approvedAt = null;
         set.rejectedAt = null;
+
+        const existingDoc = await FoodAddon.findOne({ _id, restaurantId: rid, isDeleted: { $ne: true } }).lean();
+        if (existingDoc) {
+            set.actionType = 'UPDATED';
+            set.oldData = existingDoc.published || existingDoc.draft;
+            set.newData = {
+                ...(existingDoc.draft || {}),
+                name: d.name !== undefined ? String(d.name || '').trim() : existingDoc.draft?.name,
+                description: d.description !== undefined ? String(d.description || '').trim() : existingDoc.draft?.description,
+                price: d.price !== undefined ? Number(d.price) : existingDoc.draft?.price,
+                image: d.image !== undefined ? String(d.image || '').trim() : existingDoc.draft?.image,
+                images: d.images !== undefined ? (Array.isArray(d.images) ? d.images.filter(Boolean).slice(0, 10) : []) : existingDoc.draft?.images
+            };
+        }
     }
 
     if (Object.keys(set).length === 0) {
