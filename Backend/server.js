@@ -1,6 +1,4 @@
 import dns from 'dns';
-import crypto from 'crypto';
-import { exec } from 'child_process';
 
 import http from 'http';
 import app from './src/app.js';
@@ -86,35 +84,6 @@ const startServer = async () => {
             logger.warn('BullMQ is enabled but Redis is disabled. Queue initialization skipped.');
         }
 
-        // GitHub Webhook deployment route with signature verification
-        //Webhook Test
-        app.get('/api/deploy', (req, res) => {
-            res.send("Webhook route working");
-        });
-
-        app.post('/api/deploy', (req, res) => {
-            const signature = req.headers['x-hub-signature-256'];
-            const secret = 'redgosecret123';
-
-            const hash = 'sha256=' + crypto
-                .createHmac('sha256', secret)
-                .update(JSON.stringify(req.body))
-                .digest('hex');
-
-            if (signature !== hash) {
-                return res.status(403).send('Unauthorized');
-            }
-
-            exec('cd ~ && ./deploy.sh', (err, stdout, stderr) => {
-                if (err) {
-                    console.error(err);
-                    return res.send('Deploy failed');
-                }
-
-                console.log(stdout);
-                res.send('Deploy success');
-            });
-        });
 
         // 6. Start the HTTP server
         server = httpServer.listen(config.port, config.host, () => {
