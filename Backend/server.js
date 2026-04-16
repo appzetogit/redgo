@@ -87,6 +87,10 @@ const startServer = async () => {
         }
 
         // GitHub Webhook deployment route with signature verification
+        app.get('/api/deploy', (req, res) => {
+            res.send("Webhook route working");
+        });
+
         app.post('/api/deploy', (req, res) => {
             const signature = req.headers['x-hub-signature-256'];
             const secret = 'redgosecret123';
