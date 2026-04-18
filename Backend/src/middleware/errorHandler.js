@@ -6,10 +6,12 @@ const errorHandler = (err, req, res, next) => {
     const message = err.message || 'Server Error';
     const requestId = req.requestId || '-';
 
-    logger.error(
+    const logMethod = statusCode >= 500 ? 'error' : 'warn';
+    logger[logMethod](
         `[${requestId}] ${req.method} ${req.originalUrl} ${statusCode} - ${err.name || 'Error'} - ${message}`
     );
-    if (config.nodeEnv === 'development' && err.stack) {
+
+    if (config.nodeEnv === 'development' && err.stack && statusCode >= 500) {
         logger.error(`[${requestId}] ${err.stack}`);
     }
 

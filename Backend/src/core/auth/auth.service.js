@@ -523,15 +523,18 @@ export const logoutAllDevices = async (userId) => {
   }
 
   try {
+    const id = typeof userId === "string" ? new mongoose.Types.ObjectId(userId) : userId;
+
     // 1. Remove all refresh tokens for this user
-    const deleted = await FoodRefreshToken.deleteMany({ userId });
+    const deleted = await FoodRefreshToken.deleteMany({ userId: id });
+    // logger.info(`[Logout-All] Removed ${deleted.deletedCount} sessions for ID=${userId}`);
 
     // 2. Remove all FCM tokens for this user from all collections
     const models = [FoodUser, FoodRestaurant, FoodDeliveryPartner, FoodAdmin];
     await Promise.all(
       models.map(model => 
         model.updateOne(
-          { _id: userId },
+          { _id: id },
           { $set: { fcmTokens: [], fcmTokenMobile: [] } }
         )
       )
@@ -598,7 +601,6 @@ export const deleteAccount = async (userId, role) => {
       throw new AuthError("Account not found or already deleted");
     }
 
-    logger.info(`[Account-Deletion] Role=${role}, ID=${userId} permanently deleted.`);
     return { success: true, message: "Account and all related data deleted permanently" };
   } catch (error) {
     logger.error(`[Account-Deletion] Failed Role=${role}, ID=${userId}: ${error.message}`);

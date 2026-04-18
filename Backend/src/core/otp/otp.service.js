@@ -104,8 +104,8 @@ export const createOrUpdateOtp = async (phoneRaw) => {
 
     let otp;
     if (config.useDefaultOtp) {
-        otp = '1234';
-        logger.info(`Default OTP mode enabled – OTP is ${otp} for phone ${phone}`);
+      otp = '1234';
+      // Silenced noisy default OTP log
     } else {
         otp = generateOtpCode();
     }
@@ -154,7 +154,6 @@ export const createOrUpdateOtp = async (phoneRaw) => {
 export const verifyOtp = async (phoneRaw, otp) => {
     // Normalize phone for consistent DB lookup
     const phone = String(phoneRaw || '').replace(/\D/g, '');
-    logger.info(`[OTP VERIFY] Checking OTP for phone: ${phone}`);
     
     const record = await FoodOtp.findOne({ phone });
     const now = new Date();

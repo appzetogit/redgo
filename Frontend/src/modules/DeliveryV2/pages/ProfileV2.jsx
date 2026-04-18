@@ -15,8 +15,10 @@ import {
   AlertTriangle
 } from "lucide-react"
 import { deliveryAPI, authAPI } from "@food/api"
+import { useDeliveryStore } from "@/modules/DeliveryV2/store/useDeliveryStore"
 import { toast } from "sonner"
-import { clearModuleAuth } from "@food/utils/auth"
+import { clearModuleAuth, clearAuthData } from "@food/utils/auth"
+import { firebaseAuth, ensureFirebaseInitialized } from "@food/firebase"
 
 /**
  * ProfileV2 - 1:1 EXACT Restoration of the Legacy Profile Hub.
@@ -90,19 +92,75 @@ export const ProfileV2 = () => {
   const handleLogout = async (allDevices = false) => {
     if (logoutSubmitting) return
     setShowLogoutConfirm(false)
+    
     try {
       setLogoutSubmitting(true)
-      if (allDevices) {
-        await authAPI.logoutFromAllDevices("delivery")
-      } else {
-        await deliveryAPI.logout()
+
+      // 1. Force Offline status in DB before logout
+      try {
+        await deliveryAPI.updateOnlineStatus(false);
+        useDeliveryStore.getState().setOnline(false);
+      } catch (err) {
+        console.warn("Failed to set offline status during logout:", err);
       }
-    } catch (error) {}
-    clearModuleAuth("delivery")
-    localStorage.removeItem("app:isOnline")
-    toast.success(allDevices ? "Logged out from all devices" : "Logged out successfully")
-    navigate("/delivery/login", { replace: true })
-    setLogoutSubmitting(false)
+
+      // 2. Background API Call (Non-blocking for normal logout to ensure snappiness)
+      // For Logout All, we still await to ensure the command is sent before we lose context
+      if (allDevices) {
+        try {
+          await authAPI.logoutFromAllDevices("delivery")
+        } catch (apiError) {
+          console.warn("Logout-All API failed:", apiError)
+        }
+      } else {
+        // Normal logout: Fire and forget
+        deliveryAPI.logout().catch(() => {})
+      }
+
+      // 2. Clear all local auth data (INSTANT)
+      if (allDevices) {
+        clearAuthData()
+        
+        // Clear all module session storage
+        sessionStorage.removeItem("restaurantAuthData")
+        sessionStorage.removeItem("adminAuthData")
+        sessionStorage.removeItem("deliveryAuthData")
+        sessionStorage.removeItem("userAuthData")
+
+        // Dispatch events for all modules
+        window.dispatchEvent(new Event("restaurantAuthChanged"))
+        window.dispatchEvent(new Event("adminAuthChanged"))
+        window.dispatchEvent(new Event("deliveryAuthChanged"))
+        window.dispatchEvent(new Event("userAuthChanged"))
+      } else {
+        clearModuleAuth("delivery")
+        sessionStorage.removeItem("deliveryAuthData")
+        window.dispatchEvent(new Event("deliveryAuthChanged"))
+      }
+
+      // 3. Additional app state cleanup
+      localStorage.removeItem("app:isOnline")
+      
+      // 4. Instant Feedback & Navigation
+      toast.success(allDevices ? "Logged out from all devices" : "Logged out successfully", { duration: 3000 })
+      
+      // Navigate immediately for normal logout, 
+      // small delay ONLY for 'all devices' to ensure events propagate to any other visible components
+      if (allDevices) {
+        setTimeout(() => {
+          navigate("/delivery/login", { replace: true })
+        }, 100)
+      } else {
+        navigate("/delivery/login", { replace: true })
+      }
+
+    } catch (error) {
+      console.error("Error during logout:", error)
+      clearModuleAuth("delivery")
+      navigate("/delivery/login", { replace: true })
+    } finally {
+      setLogoutSubmitting(false)
+    }
   }
 
   const handleDeleteAccount = async () => {

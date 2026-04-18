@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import { API_BASE_URL } from '@food/api/config';
 import { restaurantAPI } from '@food/api';
-import alertSound from '@food/assets/audio/alert.mp3';
+const AUDIO_CACHE_VERSION = Date.now();
+const alertSound = `/assets/audio/alert.mp3?v=${AUDIO_CACHE_VERSION}`;
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}

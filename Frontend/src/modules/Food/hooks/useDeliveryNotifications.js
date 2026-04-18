@@ -2,20 +2,21 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import io from 'socket.io-client';
 import { API_BASE_URL } from '@food/api/config';
 import { deliveryAPI } from '@food/api';
-import alertSound from '@food/assets/audio/alert.mp3';
-import originalSound from '@food/assets/audio/original.mp3';
+import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
+const AUDIO_CACHE_VERSION = Date.now();
+const alertSound = `/assets/audio/alert.mp3?v=${AUDIO_CACHE_VERSION}`;
+const originalSound = `/assets/audio/original.mp3?v=${AUDIO_CACHE_VERSION}`;
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 
 const shouldLogDeliverySocket = () => {
-  if (typeof window === 'undefined') return import.meta.env.DEV;
+  if (typeof window === 'undefined') return false;
   try {
     return (
-      import.meta.env.DEV ||
       window.localStorage.getItem('delivery_socket_debug') === '1' ||
       window.location.search.includes('delivery_socket_debug=1')
     );
   } catch {
-    return import.meta.env.DEV;
+    return false;
   }
 };
 
@@ -33,10 +34,7 @@ const debugError = (...args) => {
   console.error('[DeliverySocket]', ...args);
 };
 
-if (typeof window !== 'undefined') {
-  debugLog('alertSound URL:', alertSound);
-  debugLog('originalSound URL:', originalSound);
-}
+// Removed noisy audio init logs
 
 const resolveAudioSource = (source) => {
   if (!source) return '';
@@ -188,6 +186,7 @@ export const useDeliveryNotifications = () => {
   const [orderStatusUpdate, setOrderStatusUpdate] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [deliveryPartnerId, setDeliveryPartnerId] = useState(null);
+  const isOnline = useDeliveryStore(state => state.isOnline);
   const joinedDeliveryRoomRef = useRef(null);
   const ALERT_LOOP_INTERVAL_MS = 4500;
   const ALERT_LOOP_MAX_MS = 120000;
@@ -384,7 +383,7 @@ export const useDeliveryNotifications = () => {
           : null;
 
       if (currentTrip) {
-        debugLog('Recovered current delivery trip after reconnect/focus:', currentTrip);
+        // debugLog('Recovered current delivery trip after reconnect/focus:', currentTrip);
         setOrderStatusUpdate({
           ...currentTrip,
           recoverySource: 'delivery_reconnect',
@@ -415,7 +414,7 @@ export const useDeliveryNotifications = () => {
       });
 
       if (recoverableOrder && !activeOrderRef.current) {
-        debugLog('Recovered available delivery order after reconnect/focus:', recoverableOrder);
+        // debugLog('Recovered available delivery order after reconnect/focus:', recoverableOrder);
         setNewOrder(recoverableOrder);
         handleIncomingOrderAlert(recoverableOrder);
       }
@@ -851,6 +850,7 @@ export const useDeliveryNotifications = () => {
     });
 
     socketRef.current.on('new_order', (orderData) => {
+      if (!isOnline) return;
       debugLog('New order received via socket', {
         orderId: orderData?.orderId || orderData?.orderMongoId || orderData?._id,
         dispatchStatus: orderData?.dispatch?.status,
@@ -861,6 +861,7 @@ export const useDeliveryNotifications = () => {
 
     // Listen for priority-based order notifications (new_order_available)
     socketRef.current.on('new_order_available', (orderData) => {
+      if (!isOnline) return;
       debugLog('New order available received via socket', {
         orderId: orderData?.orderId || orderData?.orderMongoId || orderData?._id,
         phase: orderData?.phase || 'unknown',
@@ -987,6 +988,13 @@ export const useDeliveryNotifications = () => {
       }
     };
   }, [deliveryPartnerId, handleIncomingOrderAlert, joinDeliveryRoomIfPossible, playNotificationSound, recoverDeliveryState, showBackgroundOrderNotification, startAlertLoop, stopAlertLoop]);
+
+  useEffect(() => {
+    if (!isOnline) {
+      stopAlertLoop();
+      clearNewOrder();
+    }
+  }, [isOnline, stopAlertLoop]);
 
   useEffect(() => {
     if (!deliveryPartnerId) {

@@ -157,9 +157,17 @@ export function clearModuleAuth(module) {
   localStorage.removeItem(`${module}_user`);
   // Clear cached FCM web token for this module
   localStorage.removeItem(`fcm_web_registered_token_${module}`);
+  
   if (module === "restaurant") {
     clearRestaurantSessionCache();
   }
+  
+  if (module === "delivery") {
+    localStorage.removeItem("delivery-v2-session");
+    // Clear other possible delivery-related keys
+    localStorage.removeItem("delivery_online_status");
+  }
+
   // Also clear any sessionStorage data
   sessionStorage.removeItem(`${module}AuthData`);
 }

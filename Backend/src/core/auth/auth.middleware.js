@@ -2,6 +2,7 @@ import { verifyAccessToken } from './token.util.js';
 import { sendError } from '../../utils/response.js';
 import { FoodUser } from '../users/user.model.js';
 import { FoodRefreshToken } from '../refreshTokens/refreshToken.model.js';
+import mongoose from 'mongoose';
 
 export const requireAdmin = (req, res, next) => {
     if (req.user?.role !== 'ADMIN') {
@@ -28,7 +29,8 @@ export const authMiddleware = (req, res, next) => {
         // Globally enforce that the user has at least one active refresh token session.
         // If "logout from all devices" was triggered, ALL refresh tokens are deleted,
         // and this explicitly and instantly invalidates any lingering access tokens across all devices.
-        FoodRefreshToken.exists({ userId: decoded.userId }).then((hasSession) => {
+        const userObjectId = new mongoose.Types.ObjectId(decoded.userId);
+        FoodRefreshToken.exists({ userId: userObjectId }).then((hasSession) => {
             if (!hasSession) {
                 return sendError(res, 401, 'Session forcefully terminated on all devices');
             }

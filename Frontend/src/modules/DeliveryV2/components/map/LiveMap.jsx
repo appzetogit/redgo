@@ -10,6 +10,7 @@ import {
 } from '@react-google-maps/api';
 import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
 import { zoneAPI } from '@food/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const mapContainerStyle = {
   width: '100%',
@@ -43,10 +44,13 @@ const LIBRARIES = ['places', 'geometry'];
 export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineReceived, zoom = 12 }) => {
   const { riderLocation, activeOrder, tripStatus } = useDeliveryStore();
   
-  const { isLoaded, loadError } = useJsApiLoader({
+  // Memoize loader config to avoid unintentional script reloads (Performance Fix)
+  const loaderOptions = useMemo(() => ({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries: LIBRARIES
-  });
+  }), []);
+
+  const { isLoaded, loadError } = useJsApiLoader(loaderOptions);
 
   const [directions, setDirections] = useState(null);
   const [map, setMapInternal] = useState(null);
@@ -223,9 +227,24 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
 
         {parsedRiderLocation && (
           <OverlayView position={parsedRiderLocation} mapPaneName={OverlayView.MARKER_LAYER}>
-            <div style={{ transform: `translate(-50%, -50%) rotate(${parsedRiderLocation.heading || 0}deg)`, transition: 'transform 0.5s linear' }} className="relative w-[72px] h-[72px]">
+            <motion.div 
+              initial={{ y: -150, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 120, 
+                damping: 12,
+                duration: 1.2,
+                delay: 0.2 // Wait a bit for map to settle
+              }}
+              style={{ 
+                transform: `translate(-50%, -50%) rotate(${parsedRiderLocation.heading || 0}deg)`,
+                transition: 'transform 0.5s linear'
+              }} 
+              className="relative w-[72px] h-[72px]"
+            >
               <img src="/MapRider.png" alt="Rider" className="w-full h-full object-contain" />
-            </div>
+            </motion.div>
           </OverlayView>
         )}
 

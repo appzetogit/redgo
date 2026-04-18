@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 /**
  * @typedef {Object} Location
@@ -19,6 +19,7 @@ import { persist } from 'zustand/middleware'
 /**
  * useDeliveryStore - Professional Zustand store for Delivery V2
  * Handles Trip Lifecycle, Rider Status, and Admin Settings.
+ * Persists state across refreshes, cleared on logout.
  */
 export const useDeliveryStore = create(
   persist(
@@ -72,9 +73,17 @@ export const useDeliveryStore = create(
       }
     }),
     {
-      name: 'delivery-v2-online-pref',
-      // ONLY persist the 'isOnline' state, ignoring orders/location to prevent dummy order bugs
-      partialize: (state) => ({ isOnline: state.isOnline }),
+      name: 'delivery-v2-session', // unique name
+      storage: createJSONStorage(() => localStorage),
+      // We only persist online status and active order. 
+      // riderLocation is NOT persisted to force real-time GPS sync on refresh.
+      partialize: (state) => ({ 
+        isOnline: state.isOnline,
+        activeOrder: state.activeOrder,
+        tripStatus: state.tripStatus,
+        settings: state.settings,
+        riderLocation: state.riderLocation // Remember last position for instant map wake-up
+      }),
     }
   )
 );

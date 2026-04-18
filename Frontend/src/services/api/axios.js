@@ -145,7 +145,7 @@ apiClient.interceptors.request.use(
     // Skip Authorization header for public auth routes (login/OTP) to avoid stale token interference.
     // Protected auth routes like /me, /delete-account, /admin/profile still need the Bearer token.
     const normalizedUrl = (config.url || "").toLowerCase();
-    const PROTECTED_AUTH_PATHS = ["/auth/me", "/auth/delete-account", "/auth/admin/profile", "/auth/admin/change-password"];
+    const PROTECTED_AUTH_PATHS = ["/auth/me", "/auth/delete-account", "/auth/logout-all", "/auth/admin/profile", "/auth/admin/change-password"];
     const isProtectedAuthRoute = PROTECTED_AUTH_PATHS.some((p) => normalizedUrl.includes(p));
 
     const isAuthRoute =
