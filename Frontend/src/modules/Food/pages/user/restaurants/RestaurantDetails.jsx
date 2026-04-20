@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, Component, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, useNavigationType } from "react-router-dom"
 import { restaurantAPI, diningAPI, orderAPI } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
 import { toast } from "sonner"
@@ -105,7 +105,6 @@ function RestaurantDetailsContent() {
   const [expandedAddButtons, setExpandedAddButtons] = useState(new Set())
   const [expandedSections, setExpandedSections] = useState(new Set([0])) // Default: Recommended section is expanded
   const [highlightedDishId, setHighlightedDishId] = useState(null)
-  const [loadingMenuItems, setLoadingMenuItems] = useState(true)
   const [selectedMenuCategory, setSelectedMenuCategory] = useState("all")
   const dishCardRefs = useRef({})
 
@@ -166,8 +165,10 @@ function RestaurantDetailsContent() {
   })
 
   // Restaurant data state
+  const navigationType = useNavigationType()
   const [restaurant, setRestaurant] = useState(null)
   const [loadingRestaurant, setLoadingRestaurant] = useState(true)
+  const [loadingMenuItems, setLoadingMenuItems] = useState(true)
   const [restaurantError, setRestaurantError] = useState(null)
   const fetchedRestaurantRef = useRef(false) // Track if restaurant has been fetched for current slug
   const fetchedSlugRef = useRef(null)
@@ -853,8 +854,11 @@ function RestaurantDetailsContent() {
 
                 setRestaurant(prev => ({
                   ...prev,
+                  ...transformedRestaurant,
                   menuSections: finalMenuSections,
                 }))
+                setLoadingMenuItems(false)
+                setLoadingRestaurant(false)
 
                 // Set first 3 sections (Recommended, Starters, Main Course) as expanded by default
                 const defaultExpandedSections = new Set(
@@ -2089,7 +2093,7 @@ function RestaurantDetailsContent() {
             onClick={() => setShowLocationSheet(true)}
           >
             <MapPin className="h-4 w-4" />
-            <span>{restaurant?.distance || "1.2 km"} � {restaurant?.location || "Location"}</span>
+            <span>{restaurant?.distance || "1.2 km"}  {restaurant?.location || "Location"}</span>
             <ChevronDown className="h-4 w-4 text-gray-500" />
           </div>
 

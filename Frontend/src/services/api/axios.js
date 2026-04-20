@@ -148,14 +148,16 @@ apiClient.interceptors.request.use(
     const PROTECTED_AUTH_PATHS = ["/auth/me", "/auth/delete-account", "/auth/logout-all", "/auth/admin/profile", "/auth/admin/change-password"];
     const isProtectedAuthRoute = PROTECTED_AUTH_PATHS.some((p) => normalizedUrl.includes(p));
 
-    const isAuthRoute =
-      !isProtectedAuthRoute && (
-        normalizedUrl.includes("/auth/") ||
-        normalizedUrl.includes("/login") ||
-        normalizedUrl.includes("/verify-otp") ||
-        normalizedUrl.includes("/request-otp") ||
-        normalizedUrl.includes("/register")
-      );
+    const isLoginVerifyRoute = 
+      normalizedUrl.includes("/login") || 
+      normalizedUrl.includes("/verify-otp") || 
+      normalizedUrl.includes("/request-otp") ||
+      normalizedUrl.includes("/register") ||
+      normalizedUrl.includes("/auth/user/verify-otp") ||
+      normalizedUrl.includes("/auth/restaurant/verify-otp") ||
+      normalizedUrl.includes("/auth/delivery/verify-otp");
+
+    const isAuthRoute = !isProtectedAuthRoute && (normalizedUrl.includes("/auth/") || isLoginVerifyRoute);
 
     if (!isAuthRoute) {
       const token = getAccessToken(config);

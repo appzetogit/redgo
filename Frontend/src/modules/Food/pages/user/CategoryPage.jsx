@@ -1,8 +1,9 @@
-import { useState, useMemo, useRef, useEffect, startTransition, useDeferredValue } from "react"
-import { useParams, Link, useNavigate } from "react-router-dom"
+import { useState, useMemo, useRef, useEffect, startTransition, useDeferredValue, useCallback } from "react"
+import { useParams, Link, useNavigate, useNavigationType } from "react-router-dom"
 import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { ArrowLeft, Star, Clock, Search, SlidersHorizontal, ChevronDown, Bookmark, BadgePercent, MapPin, ArrowDownUp, Timer, IndianRupee, UtensilsCrossed, ShieldCheck, X, Loader2, Grid2x2 } from "lucide-react"
+
 import { Card, CardContent } from "@food/components/ui/card"
 import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
@@ -42,9 +43,12 @@ const CATEGORY_PAGE_FILTERS_STORAGE_KEY = "food-category-page-filters-v1"
 export default function CategoryPage() {
   const { category } = useParams()
   const navigate = useNavigate()
-  const { vegMode } = useProfile()
+  const navigationType = 
+    typeof useNavigationType === 'function' ? useNavigationType() : 'PUSH';
+  const { vegMode, orderType } = useProfile()
   const { location } = useLocation()
   const { zoneId, isOutOfService } = useZone(location)
+  const isTakeawayPage = window.location.pathname.includes('/takeaway')
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState(category?.toLowerCase() || 'all')
   const [activeFilters, setActiveFilters] = useState(new Set())
@@ -901,9 +905,10 @@ export default function CategoryPage() {
               }
             }).filter(Boolean)
 
+          const nextRestaurants = restaurantsWithIds;
           startTransition(() => {
-            setRestaurantsData(restaurantsWithIds)
-          })
+            setRestaurantsData(nextRestaurants);
+          });
 
           setIsEnrichingMenus(true)
           const enrichmentRequestId = ++menuEnrichmentRequestRef.current
@@ -1112,6 +1117,38 @@ export default function CategoryPage() {
     }, 500)
   }
 
+  // Scroll Restoration - Specific to CategoryPage
+  useEffect(() => {
+    const categoryKey = selectedCategory || category?.toLowerCase() || 'all';
+    
+    if (navigationType === 'POP') {
+      try {
+        const lastScrollY = parseInt(sessionStorage.getItem(`category-${categoryKey}-scrollY`) || "0", 10);
+        if (lastScrollY > 0) {
+          const handle = requestAnimationFrame(() => {
+            window.scrollTo({ top: lastScrollY, behavior: 'instant' });
+            setTimeout(() => {
+               if (Math.abs(window.scrollY - lastScrollY) > 100) {
+                  window.scrollTo({ top: lastScrollY, behavior: 'instant' });
+               }
+            }, 100);
+          });
+          return () => cancelAnimationFrame(handle);
+        }
+      } catch (e) {}
+    }
+  }, [navigationType, selectedCategory, category]);
+
+  const handleContainerClick = useCallback((e) => {
+    const cardLink = e.target.closest('a');
+    if (cardLink && cardLink.href.includes('/user/restaurants/')) {
+      const categoryKey = selectedCategory || category?.toLowerCase() || 'all';
+      try {
+        sessionStorage.setItem(`category-${categoryKey}-scrollY`, window.scrollY.toString());
+      } catch (err) {}
+    }
+  }, [selectedCategory, category]);
+
   // Scroll tracking effect for filter modal
   useEffect(() => {
     if (!isFilterOpen || !rightContentRef.current) return
@@ -1275,7 +1312,10 @@ export default function CategoryPage() {
   const isCategoryView = selectedCategory && selectedCategory !== 'all'
 
   return (
-    <div className={`min-h-screen bg-white dark:bg-[#0a0a0a] ${shouldShowGrayscale ? 'grayscale opacity-75' : ''}`}>
+    <div 
+      className={`min-h-screen bg-white dark:bg-[#0a0a0a] ${shouldShowGrayscale ? 'grayscale opacity-75' : ''}`}
+      onClickCapture={handleContainerClick}
+    >
       {/* Sticky Header */}
       <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 shadow-sm">
         <div className="max-w-7xl mx-auto">

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useState, useEffect, useCallback } from "react"
+import { Link, useNavigate, useNavigationType } from "react-router-dom"
 import { ArrowLeft, Search, MoreVertical, ChevronRight, Star, RotateCcw, AlertCircle, Loader2, Clock, X, Share2, MessageCircle, Send, Copy, Mail, MessagesSquare, Link2 } from "lucide-react"
 import { orderAPI } from "@food/api"
 import { useCart } from "@food/context/CartContext"
@@ -12,6 +12,7 @@ const debugError = (...args) => {}
 
 export default function Orders() {
   const navigate = useNavigate()
+  const navigationType = useNavigationType()
   const { replaceCart } = useCart()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -376,6 +377,9 @@ export default function Orders() {
     return () => clearInterval(pollInterval)
   }, [])
 
+  const handleContainerClick = useCallback((e) => {
+  }, []);
+
   // Format date helper
   const formatDate = (dateString) => {
     const date = new Date(dateString)
@@ -687,7 +691,10 @@ Order again from this restaurant in the ${companyName} app.`
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10 font-sans">
+    <div 
+      className="min-h-screen bg-gray-50 pb-10 font-sans"
+      onClickCapture={handleContainerClick}
+    >
       {/* Header */}
       <div className="bg-white p-4 flex items-center shadow-sm sticky top-0 z-10">
         <Link to="/user">

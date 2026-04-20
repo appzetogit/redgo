@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -260,7 +261,10 @@ export default function Profile() {
       .getReferralStats()
       .then((res) => {
         const reward = res?.data?.data?.stats?.rewardAmount;
-        if (mounted) setReferralReward(Number(reward) || 0);
+        const val = Number(reward) || 0;
+        if (mounted) {
+           setReferralReward(val);
+        }
       })
       .catch(() => { });
     return () => {
@@ -275,7 +279,10 @@ export default function Profile() {
       .then((res) => {
         const w = res?.data?.data?.wallet || res?.data?.wallet;
         const bal = Number(w?.balance);
-        if (mounted) setWalletBalance(Number.isFinite(bal) ? bal : 0);
+        const val = Number.isFinite(bal) ? bal : 0;
+        if (mounted) {
+           setWalletBalance(val);
+        }
       })
       .catch(() => { });
     return () => {

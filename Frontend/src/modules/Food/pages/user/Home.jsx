@@ -316,25 +316,35 @@ const RestaurantImageCarousel = React.memo(
           className={`absolute inset-0 flex h-full group-hover:scale-105 ${isTransitioning ? 'transition-transform duration-500 ease-in-out' : 'transition-none'}`}
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
-          {infiniteSlides.map((item, idx) => (
-            <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0 relative">
-              <img
-                src={item.src}
-                alt={`${restaurant.name} - Image ${idx + 1}`}
-                className="w-full h-full object-cover"
-                loading={priority && idx === 0 ? "eager" : "lazy"}
-                fetchPriority={priority && idx === 0 ? "high" : "auto"}
-                decoding="async"
-                onLoad={() => {
-                  if (idx === currentIndex) setShowShimmer(false);
-                  setLoadedBySrc((prev) => ({ ...prev, [item.src]: true }));
-                }}
-                onError={() => {
-                  if (idx === currentIndex && slideItems.length === 1) setIsImageUnavailable(true);
-                }}
-              />
-            </div>
-          ))}
+          {infiniteSlides.map((item, idx) => {
+            // Performance Optimization: Only render the current, next, and previous slides 
+            // to save DOM nodes and massive network bandwidth.
+            const isVisible = 
+              Math.abs(idx - currentIndex) <= 1 || 
+              (currentIndex === 0 && idx === infiniteSlides.length - 1) ||
+              (currentIndex === infiniteSlides.length - 1 && idx === 0);
+            
+            if (!isVisible) return <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0" />;
+
+            return (
+              <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0 relative">
+                <img
+                  src={item.src}
+                  alt={`${restaurant.name} - Image ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  loading={priority && idx === currentIndex ? "eager" : "lazy"}
+                  decoding="async"
+                  onLoad={() => {
+                    if (idx === currentIndex) setShowShimmer(false);
+                    setLoadedBySrc((prev) => ({ ...prev, [item.src]: true }));
+                  }}
+                  onError={() => {
+                    if (idx === currentIndex && slideItems.length === 1) setIsImageUnavailable(true);
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {/* Dish Recommended Badge Floating Left Top */}
@@ -393,15 +403,6 @@ const RestaurantImageCarousel = React.memo(
     );
   },
 );
-let homeDataCache = {
-  restaurants: [],
-  banners: [],
-  landingConfig: null,
-  realCategories: [],
-  menuCategories: [],
-  visibleCount: 9,
-  lastScrollY: 0
-};
 
 export default function Home() {
   const HERO_BANNER_AUTO_SLIDE_MS = 3500;
@@ -428,31 +429,36 @@ export default function Home() {
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0, triangleLeft: 0 });
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [heroBannerImages, setHeroBannerImages] = useState([]);
-  const [heroBannersData, setHeroBannersData] = useState(homeDataCache.banners); // Store full banner data with linked restaurants
-  const [loadingBanners, setLoadingBanners] = useState(homeDataCache.banners.length === 0);
+  const [heroBannersData, setHeroBannersData] = useState([]); // Store full banner data with linked restaurants
+  const [loadingBanners, setLoadingBanners] = useState(true);
   const [hasScrolledPastBanner, setHasScrolledPastBanner] = useState(false);
-  const [landingCategories, setLandingCategories] = useState(homeDataCache.landingConfig?.categories || []);
-  const [landingExploreMore, setLandingExploreMore] = useState(homeDataCache.landingConfig?.exploreMore || []);
-  const [exploreMoreHeading, setExploreMoreHeading] = useState(homeDataCache.landingConfig?.exploreMoreHeading || "Explore More");
+  const [landingCategories, setLandingCategories] = useState([]);
+  const [landingExploreMore, setLandingExploreMore] = useState([]);
+  const [exploreMoreHeading, setExploreMoreHeading] = useState("Explore More");
   const [recommendedRestaurantIds, setRecommendedRestaurantIds] = useState([]);
   const [
     recommendedRestaurantsFromSettings,
     setRecommendedRestaurantsFromSettings,
   ] = useState([]);
-  const [loadingLandingConfig, setLoadingLandingConfig] = useState(!homeDataCache.landingConfig);
-  const [restaurantsData, setRestaurantsData] = useState(homeDataCache.restaurants);
-  const [loadingRestaurants, setLoadingRestaurants] = useState(homeDataCache.restaurants.length === 0);
-  const [realCategories, setRealCategories] = useState(homeDataCache.realCategories);
-  const [loadingRealCategories, setLoadingRealCategories] = useState(homeDataCache.realCategories.length === 0);
-  const [menuCategories, setMenuCategories] = useState(homeDataCache.menuCategories);
+  const [loadingLandingConfig, setLoadingLandingConfig] = useState(true);
+  const [restaurantsData, setRestaurantsData] = useState([]);
+  const [loadingRestaurants, setLoadingRestaurants] = useState(true);
+  const [realCategories, setRealCategories] = useState([]);
+  const [loadingRealCategories, setLoadingRealCategories] = useState(true);
+  const [menuCategories, setMenuCategories] = useState([]);
   const [loadingMenuCategories, setLoadingMenuCategories] = useState(false);
   const [, setRestaurantDietMeta] = useState({});
   const [showAllCategoriesModal, setShowAllCategoriesModal] = useState(false);
   const [availabilityTick, setAvailabilityTick] = useState(Date.now());
   const RESTAURANTS_BATCH_SIZE = 9;
-  const [visibleRestaurantCount, setVisibleRestaurantCount] = useState(
-    homeDataCache.visibleCount || RESTAURANTS_BATCH_SIZE,
-  );
+  const [visibleRestaurantCount, setVisibleRestaurantCount] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem("homeVisibleCount");
+      return stored ? parseInt(stored, 10) : RESTAURANTS_BATCH_SIZE;
+    } catch {
+      return RESTAURANTS_BATCH_SIZE;
+    }
+  });
   const restaurantLoadMoreRef = useRef(null);
   const publicCategoriesCacheRef = useRef(new Map());
   const publicCategoriesInFlightRef = useRef(new Map());
@@ -513,7 +519,7 @@ export default function Home() {
           const parsed = new URL(normalizedInput, window.location.origin);
 
           // In mobile production, localhost/127.0.0.1 inside image URLs is unreachable.
-          // Use BACKEND_ORIGIN (API server) for image host, not frontend host�uploads are served by the backend.
+          // Use BACKEND_ORIGIN (API server) for image host, not frontend hostuploads are served by the backend.
           if (
             appHost &&
             appHost !== "localhost" &&
@@ -875,7 +881,6 @@ export default function Home() {
           .filter(Boolean);
         setHeroBannerImages(images);
         setHeroBannersData(list);
-        homeDataCache.banners = list;
         setCurrentBannerIndex(0);
       })
       .catch((err) => {
@@ -883,7 +888,6 @@ export default function Home() {
         debugError("Failed to fetch hero banners", err);
         setHeroBannerImages([]);
         setHeroBannersData([]);
-        homeDataCache.banners = [];
       })
       .finally(() => {
         if (!cancelled) setLoadingBanners(false);
@@ -931,12 +935,7 @@ export default function Home() {
           settings.recommendedRestaurants || [],
         );
         
-        homeDataCache.landingConfig = {
-          exploreMore: exploreItems,
-          exploreMoreHeading: settings.exploreMoreHeading || "Explore More",
-          recommendedRestaurantIds: settings.recommendedRestaurantIds,
-          recommendedRestaurants: settings.recommendedRestaurants
-        };
+
       })
       .catch(() => {
         if (!cancelled) {
@@ -1467,7 +1466,6 @@ export default function Home() {
           if (restaurantsArray.length === 0) {
             debugWarn("No restaurants found in API response");
             setRestaurantsData([]);
-            homeDataCache.restaurants = [];
             return;
           }
 
@@ -1673,11 +1671,16 @@ export default function Home() {
             "Transformed and sorted restaurants:",
             transformedRestaurants,
           );
-          startTransition(() => {
-            const sorted = sortRestaurantsForDisplay(transformedRestaurants);
-            setRestaurantsData(sorted);
-            homeDataCache.restaurants = sorted;
-          });
+          // SWR Logic: Only update UI if data has actually changed to prevent flickering
+          const sorted = sortRestaurantsForDisplay(transformedRestaurants);
+          const currentJson = JSON.stringify(restaurantsData);
+          const nextJson = JSON.stringify(sorted);
+          
+          if (currentJson !== nextJson) {
+            startTransition(() => {
+              setRestaurantsData(sorted);
+            });
+          }
 
           const restaurantsNeedingOutletTimings = transformedRestaurants.filter(
             (restaurant) => restaurant.mongoId && !restaurant.outletTimings,
@@ -1727,9 +1730,11 @@ export default function Home() {
                     return { ...restaurant, outletTimings };
                   });
 
-                  return hasChanges
-                    ? sortRestaurantsForDisplay(nextRestaurants)
-                    : currentRestaurants;
+                  if (hasChanges) {
+                    const sorted = sortRestaurantsForDisplay(nextRestaurants);
+                    return sorted;
+                  }
+                  return currentRestaurants;
                 });
               });
             })();
@@ -1779,31 +1784,42 @@ export default function Home() {
     [activeFilters, sortBy, selectedCuisine, fetchRestaurants],
   );
 
-  // Fetch restaurants when appliedFilters change
   useEffect(() => {
     fetchRestaurants(appliedFilters);
   }, [appliedFilters, fetchRestaurants, orderType, isTakeawayPage]);
 
-  // Manual scroll restoration for back-navigation
+  // Scroll Restoration - Higher precision for long pages
   useEffect(() => {
-    if (navigationType === 'POP' && homeDataCache.lastScrollY > 0) {
-      // Small delay to allow the immediate cached render to calculate layout
-      const timer = setTimeout(() => {
-        window.scrollTo({ top: homeDataCache.lastScrollY, behavior: 'instant' });
-      }, 50);
-      return () => clearTimeout(timer);
+    if (navigationType === 'POP') {
+      try {
+        const lastScrollY = parseInt(sessionStorage.getItem("homeScrollY") || "0", 10);
+        if (lastScrollY > 0) {
+          // Use requestAnimationFrame for smoother placement after paint
+          const handle = requestAnimationFrame(() => {
+            window.scrollTo({ top: lastScrollY, behavior: 'instant' });
+            // Fallback for slower devices
+            setTimeout(() => {
+               if (Math.abs(window.scrollY - lastScrollY) > 100) {
+                  window.scrollTo({ top: lastScrollY, behavior: 'instant' });
+               }
+            }, 100);
+          });
+          return () => cancelAnimationFrame(handle);
+        }
+      } catch (e) {
+        // Ignore JSON parse errors if any
+      }
     }
   }, [navigationType]);
 
-  // Save scroll position for back-navigation restoration
-  useEffect(() => {
-    const handleScroll = () => {
-      // Throttle/Debounce not strictly needed for just a number update but good for safety
-      homeDataCache.lastScrollY = window.scrollY;
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // Capture scroll position and load state at the MOMENT of clicking a restaurant
+  // This prevents the router from resetting it to 0 before we save it.
+  const handleRestaurantClick = useCallback(() => {
+    try {
+      sessionStorage.setItem("homeScrollY", window.scrollY.toString());
+      sessionStorage.setItem("homeVisibleCount", visibleRestaurantCount.toString());
+    } catch (e) {}
+  }, [visibleRestaurantCount]);
 
   // Recalculate distances when user location updates
   useEffect(() => {
@@ -2109,26 +2125,31 @@ export default function Home() {
 
   const loadMoreRestaurants = useCallback(() => {
     setVisibleRestaurantCount((previous) => {
-      const next = Math.min(previous + RESTAURANTS_BATCH_SIZE, filteredRestaurants.length);
-      homeDataCache.visibleCount = next;
-      return next;
+      return Math.min(previous + RESTAURANTS_BATCH_SIZE, filteredRestaurants.length);
     });
   }, [filteredRestaurants.length, RESTAURANTS_BATCH_SIZE]);
 
   useEffect(() => {
     // Only reset to batch size if it's a NEW load, not a back-navigation landing.
-    // If homeDataCache.visibleCount is already high, it means we came back from a restaurant details page.
-    if (homeDataCache.visibleCount > RESTAURANTS_BATCH_SIZE) return;
+    const storedVisibleCount = (() => {
+      try {
+        const stored = sessionStorage.getItem("homeVisibleCount");
+        return stored ? parseInt(stored, 10) : 0;
+      } catch {
+        return 0;
+      }
+    })();
+    
+    if (storedVisibleCount > RESTAURANTS_BATCH_SIZE) return;
     
     setVisibleRestaurantCount(
-      Math.min(RESTAURANTS_BATCH_SIZE, filteredRestaurants.length),
+      Math.min(RESTAURANTS_BATCH_SIZE, filteredRestaurants.length)
     );
   }, [restaurantLazyLoadResetKey, filteredRestaurants.length, RESTAURANTS_BATCH_SIZE]);
 
   useEffect(() => {
     if (visibleRestaurantCount <= filteredRestaurants.length) return;
     setVisibleRestaurantCount(filteredRestaurants.length);
-    homeDataCache.visibleCount = filteredRestaurants.length;
   }, [filteredRestaurants.length, visibleRestaurantCount]);
 
   useEffect(() => {
@@ -2440,7 +2461,10 @@ export default function Home() {
 
   return (
 
-    <div className="relative min-h-screen bg-white dark:bg-[#0a0a0a] pb-16 md:pb-6 overflow-x-clip">
+    <div 
+      className="relative min-h-screen bg-white dark:bg-[#0a0a0a] pb-16 md:pb-6 overflow-x-clip"
+      onClickCapture={handleRestaurantClick}
+    >
       {shouldShowOutOfZoneHome && (
         <div className="fixed inset-0 z-[90] pointer-events-none">
           <div className="absolute inset-0 bg-slate-300/35 backdrop-blur-[1px]" />
