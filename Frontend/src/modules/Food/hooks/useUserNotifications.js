@@ -6,9 +6,7 @@ import { userAPI } from '@food/api';
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 
 const debugLog = (...args) => {
-  if (import.meta.env.DEV) {
-    console.log('📬 [UserSocket]', ...args);
-  }
+  // Silent in production and development to keep console clean
 };
 
 /**

@@ -315,6 +315,9 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
     let isMounted = true;
 
     const fetchOrders = async () => {
+      const token = localStorage.getItem('restaurant_accessToken');
+      if (!token) return;
+
       try {
         const response = await restaurantAPI.getOrders();
 
@@ -547,6 +550,9 @@ function TableBookings() {
     let isMounted = true;
 
     const fetchBookings = async () => {
+      const token = localStorage.getItem('restaurant_accessToken');
+      if (!token) return;
+
       try {
         const res = await restaurantAPI.getCurrentRestaurant();
         const restaurant =
@@ -669,6 +675,9 @@ function AllOrders({ onSelectOrder, onCancel }) {
     let countdownIntervalId = null;
 
     const fetchOrders = async () => {
+      const token = localStorage.getItem('restaurant_accessToken');
+      if (!token) return;
+
       try {
         const response = await restaurantAPI.getOrders();
 
@@ -935,6 +944,9 @@ export default function OrdersMain() {
   // Fetch restaurant verification status
   useEffect(() => {
     const fetchRestaurantStatus = async () => {
+      const token = localStorage.getItem('restaurant_accessToken');
+      if (!token) return;
+
       try {
         const response = await restaurantAPI.getCurrentRestaurant();
         const restaurant =

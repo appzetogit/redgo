@@ -657,35 +657,14 @@ function RestaurantDetailsContent() {
                   ].map(normalize).filter(Boolean)
                 )
 
-                const FETCH_LIMIT = 100
-                const firstResponse = await orderAPI.getOrders({ limit: FETCH_LIMIT, page: 1 })
+                const firstResponse = await orderAPI.getOrders({ limit: 50, page: 1 })
                 let allOrders = []
-                let totalPages = 1
-
                 if (firstResponse?.data?.success && firstResponse?.data?.data?.orders) {
                   allOrders = firstResponse.data.data.orders || []
-                  totalPages = firstResponse.data.data?.pagination?.pages || 1
                 } else if (firstResponse?.data?.orders) {
                   allOrders = firstResponse.data.orders || []
-                  totalPages = firstResponse.data?.pagination?.pages || 1
                 } else if (Array.isArray(firstResponse?.data?.data)) {
                   allOrders = firstResponse.data.data || []
-                }
-
-                if (totalPages > 1) {
-                  const pagePromises = []
-                  for (let p = 2; p <= totalPages; p += 1) {
-                    pagePromises.push(orderAPI.getOrders({ limit: FETCH_LIMIT, page: p }))
-                  }
-
-                  const pageResponses = await Promise.all(pagePromises)
-                  const remainingOrders = pageResponses.flatMap((resp) => {
-                    if (resp?.data?.success && resp?.data?.data?.orders) return resp.data.data.orders || []
-                    if (resp?.data?.orders) return resp.data.orders || []
-                    if (Array.isArray(resp?.data?.data)) return resp.data.data || []
-                    return []
-                  })
-                  allOrders = [...allOrders, ...remainingOrders]
                 }
 
                 hasPreviousOrderForRestaurant = allOrders.some((order) => {
@@ -852,10 +831,23 @@ function RestaurantDetailsContent() {
                 }
 
                 let finalMenuSections = [...menuSections]
-                if (hasPreviousOrderForRestaurant || (recommendedItems && recommendedItems.length > 0)) {
+                
+                const hasRecommended = (hasPreviousOrderForRestaurant || (recommendedItems && recommendedItems.length > 0))
+                if (hasRecommended) {
                   finalMenuSections = [{ name: "Recommended for you", items: recommendedItems, subsections: [] }, ...finalMenuSections]
                 }
-                if (searchedDishSection) {
+                
+                // FIXED: Deduplicate Searched Dish Section
+                // If the searched dish is already in the recommended section, don't show the "Result for your search" section
+                const itemAlreadyInRecommended = recommendedItems.some(ri => {
+                  const riId = String(ri.id || "").trim()
+                  const riMongoId = String(ri._id || "").trim()
+                  const targetId = String(targetDishId || "").trim()
+                  
+                  return (riId === targetId || riMongoId === targetId) && targetId !== ""
+                })
+
+                if (searchedDishSection && !itemAlreadyInRecommended) {
                   finalMenuSections = [searchedDishSection, ...finalMenuSections]
                 }
 
@@ -1000,7 +992,7 @@ function RestaurantDetailsContent() {
     }
 
     fetchRestaurant()
-  }, [slug, zoneId, restaurant])
+  }, [slug, zoneId])
 
   // Track previous values to prevent unnecessary recalculations
   const prevCoordsRef = useRef({ userLat: null, userLng: null, restaurantLat: null, restaurantLng: null })
@@ -1286,7 +1278,13 @@ function RestaurantDetailsContent() {
   }
 
   const getSectionDisplayName = (section) => {
-    if (isRecommendedSection(section)) {
+    const rawName = section?.name || section?.title || ""
+    const normalized = typeof rawName === "string" ? rawName.trim().toLowerCase() : ""
+    
+    if (normalized === "result for your search") {
+      return "Searched Item"
+    }
+    if (normalized === "recommended for you") {
       return "Recommended for you"
     }
     if (section?.name && typeof section.name === "string" && section.name.trim()) {
@@ -2271,7 +2269,7 @@ function RestaurantDetailsContent() {
                   {isRecommended && (
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                        Recommended for you
+                        {getSectionDisplayName(section)}
                       </h2>
                       <button
                         onClick={(e) => {
@@ -2389,15 +2387,6 @@ function RestaurantDetailsContent() {
 
                               <h3 className="font-bold text-gray-800 dark:text-white text-lg leading-tight">{item.name}</h3>
 
-                              {/* Highly Reordered Progress Bar - Show if recommended */}
-                              {isRecommendedItem(item) && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <div className="h-1.5 w-16 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#E23744] w-3/4"></div>
-                                  </div>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Highly reordered</span>
-                                </div>
-                              )}
 
                               <div className="flex items-center gap-3 mt-1">
                                 <p className="font-semibold text-gray-900 dark:text-white">{getFoodPriceLabel(item)}</p>
@@ -2608,15 +2597,6 @@ function RestaurantDetailsContent() {
 
                                         <h3 className="font-bold text-gray-800 dark:text-white text-lg leading-tight">{item.name}</h3>
 
-                                        {/* Highly Reordered Progress Bar - Show if recommended */}
-                                        {isRecommendedItem(item) && (
-                                          <div className="flex items-center gap-2 mt-1">
-                                            <div className="h-1.5 w-16 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                              <div className="h-full bg-[#E23744] w-3/4"></div>
-                                            </div>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Highly reordered</span>
-                                          </div>
-                                        )}
 
                                         <div className="flex items-center gap-3 mt-1">
                                           <p className="font-semibold text-gray-900 dark:text-white">{getFoodPriceLabel(item)}</p>
@@ -2999,25 +2979,6 @@ function RestaurantDetailsContent() {
                       </div>
                     </div>
 
-                    {/* Top picks */}
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Top picks:</h3>
-                      <button
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            highlyReordered: !prev.highlyReordered,
-                          }))
-                        }
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 transition-all w-full ${filters.highlyReordered
-                          ? "border-[#E23744] dark:border-[#E23744] bg-[#FFF2EB] dark:bg-[#E23744]/20 text-[#E23744] dark:text-[#E23744]"
-                          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
-                          }`}
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                        <span className="font-medium">Highly reordered</span>
-                      </button>
-                    </div>
 
                     {/* Dietary preference */}
                     <div className="space-y-2">
@@ -3379,17 +3340,6 @@ function RestaurantDetailsContent() {
                       {selectedItem.description}
                     </p>
 
-                    {/* Highly Reordered Progress Bar */}
-                    {isRecommendedItem(selectedItem) && (
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="flex-1 h-0.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500 dark:bg-green-400 rounded-full" style={{ width: '50%' }} />
-                        </div>
-                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
-                          highly reordered
-                        </span>
-                      </div>
-                    )}
 
                     {/* Not Eligible for Coupons */}
                     {selectedItem.notEligibleForCoupons && (

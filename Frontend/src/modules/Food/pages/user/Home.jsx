@@ -1,4 +1,4 @@
-import { useSearchParams, Link, useNavigate, useLocation as useRouterLocation } from "react-router-dom";
+import { useSearchParams, Link, useNavigate, useLocation as useRouterLocation, useNavigationType } from "react-router-dom";
 import React, {
   useRef,
   useEffect,
@@ -95,7 +95,6 @@ import { getRestaurantAvailabilityStatus } from "@food/utils/restaurantAvailabil
 import HomeHeader from "@food/components/user/home/HomeHeader";
 import FestBanner from "@food/components/user/home/FestBanner";
 
-// Explore More Icons
 import exploreOffers from "@food/assets/explore more icons/offers.png";
 import exploreGourmet from "@food/assets/explore more icons/gourmet.png";
 import exploreTop10 from "@food/assets/explore more icons/top 10.png";
@@ -394,6 +393,15 @@ const RestaurantImageCarousel = React.memo(
     );
   },
 );
+let homeDataCache = {
+  restaurants: [],
+  banners: [],
+  landingConfig: null,
+  realCategories: [],
+  menuCategories: [],
+  visibleCount: 9,
+  lastScrollY: 0
+};
 
 export default function Home() {
   const HERO_BANNER_AUTO_SLIDE_MS = 3500;
@@ -405,6 +413,7 @@ export default function Home() {
     routerLocation.pathname.startsWith("/takeaway") ||
     routerLocation.pathname.startsWith("/user/takeaway");
   const query = searchParams.get("q") || "";
+  const navigationType = useNavigationType();
   const [heroSearch, setHeroSearch] = useState("");
   const { openSearch, closeSearch, searchValue, setSearchValue } =
     useSearchOverlay();
@@ -419,30 +428,30 @@ export default function Home() {
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0, triangleLeft: 0 });
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [heroBannerImages, setHeroBannerImages] = useState([]);
-  const [heroBannersData, setHeroBannersData] = useState([]); // Store full banner data with linked restaurants
-  const [loadingBanners, setLoadingBanners] = useState(true);
+  const [heroBannersData, setHeroBannersData] = useState(homeDataCache.banners); // Store full banner data with linked restaurants
+  const [loadingBanners, setLoadingBanners] = useState(homeDataCache.banners.length === 0);
   const [hasScrolledPastBanner, setHasScrolledPastBanner] = useState(false);
-  const [landingCategories, setLandingCategories] = useState([]);
-  const [landingExploreMore, setLandingExploreMore] = useState([]);
-  const [exploreMoreHeading, setExploreMoreHeading] = useState("Explore More");
+  const [landingCategories, setLandingCategories] = useState(homeDataCache.landingConfig?.categories || []);
+  const [landingExploreMore, setLandingExploreMore] = useState(homeDataCache.landingConfig?.exploreMore || []);
+  const [exploreMoreHeading, setExploreMoreHeading] = useState(homeDataCache.landingConfig?.exploreMoreHeading || "Explore More");
   const [recommendedRestaurantIds, setRecommendedRestaurantIds] = useState([]);
   const [
     recommendedRestaurantsFromSettings,
     setRecommendedRestaurantsFromSettings,
   ] = useState([]);
-  const [loadingLandingConfig, setLoadingLandingConfig] = useState(true);
-  const [restaurantsData, setRestaurantsData] = useState([]);
-  const [loadingRestaurants, setLoadingRestaurants] = useState(true);
-  const [realCategories, setRealCategories] = useState([]);
-  const [loadingRealCategories, setLoadingRealCategories] = useState(true);
-  const [menuCategories, setMenuCategories] = useState([]);
+  const [loadingLandingConfig, setLoadingLandingConfig] = useState(!homeDataCache.landingConfig);
+  const [restaurantsData, setRestaurantsData] = useState(homeDataCache.restaurants);
+  const [loadingRestaurants, setLoadingRestaurants] = useState(homeDataCache.restaurants.length === 0);
+  const [realCategories, setRealCategories] = useState(homeDataCache.realCategories);
+  const [loadingRealCategories, setLoadingRealCategories] = useState(homeDataCache.realCategories.length === 0);
+  const [menuCategories, setMenuCategories] = useState(homeDataCache.menuCategories);
   const [loadingMenuCategories, setLoadingMenuCategories] = useState(false);
   const [, setRestaurantDietMeta] = useState({});
   const [showAllCategoriesModal, setShowAllCategoriesModal] = useState(false);
   const [availabilityTick, setAvailabilityTick] = useState(Date.now());
   const RESTAURANTS_BATCH_SIZE = 9;
   const [visibleRestaurantCount, setVisibleRestaurantCount] = useState(
-    RESTAURANTS_BATCH_SIZE,
+    homeDataCache.visibleCount || RESTAURANTS_BATCH_SIZE,
   );
   const restaurantLoadMoreRef = useRef(null);
   const publicCategoriesCacheRef = useRef(new Map());
@@ -866,6 +875,7 @@ export default function Home() {
           .filter(Boolean);
         setHeroBannerImages(images);
         setHeroBannersData(list);
+        homeDataCache.banners = list;
         setCurrentBannerIndex(0);
       })
       .catch((err) => {
@@ -873,6 +883,7 @@ export default function Home() {
         debugError("Failed to fetch hero banners", err);
         setHeroBannerImages([]);
         setHeroBannersData([]);
+        homeDataCache.banners = [];
       })
       .finally(() => {
         if (!cancelled) setLoadingBanners(false);
@@ -907,19 +918,25 @@ export default function Home() {
           : Array.isArray(exploreData)
             ? exploreData
             : [];
-        setLandingExploreMore(
-          items.map((it) => ({
-            ...it,
-            imageUrl: it.imageUrl || it.iconUrl,
-            label: it.label || it.name,
-          })),
-        );
+        const exploreItems = items.map((it) => ({
+          ...it,
+          imageUrl: it.imageUrl || it.iconUrl,
+          label: it.label || it.name,
+        }));
+        setLandingExploreMore(exploreItems);
         const settings = settingsRes?.data?.data || {};
         setExploreMoreHeading(settings.exploreMoreHeading || "Explore More");
         setRecommendedRestaurantIds(settings.recommendedRestaurantIds || []);
         setRecommendedRestaurantsFromSettings(
           settings.recommendedRestaurants || [],
         );
+        
+        homeDataCache.landingConfig = {
+          exploreMore: exploreItems,
+          exploreMoreHeading: settings.exploreMoreHeading || "Explore More",
+          recommendedRestaurantIds: settings.recommendedRestaurantIds,
+          recommendedRestaurants: settings.recommendedRestaurants
+        };
       })
       .catch(() => {
         if (!cancelled) {
@@ -1450,6 +1467,7 @@ export default function Home() {
           if (restaurantsArray.length === 0) {
             debugWarn("No restaurants found in API response");
             setRestaurantsData([]);
+            homeDataCache.restaurants = [];
             return;
           }
 
@@ -1656,7 +1674,9 @@ export default function Home() {
             transformedRestaurants,
           );
           startTransition(() => {
-            setRestaurantsData(sortRestaurantsForDisplay(transformedRestaurants));
+            const sorted = sortRestaurantsForDisplay(transformedRestaurants);
+            setRestaurantsData(sorted);
+            homeDataCache.restaurants = sorted;
           });
 
           const restaurantsNeedingOutletTimings = transformedRestaurants.filter(
@@ -1763,6 +1783,27 @@ export default function Home() {
   useEffect(() => {
     fetchRestaurants(appliedFilters);
   }, [appliedFilters, fetchRestaurants, orderType, isTakeawayPage]);
+
+  // Manual scroll restoration for back-navigation
+  useEffect(() => {
+    if (navigationType === 'POP' && homeDataCache.lastScrollY > 0) {
+      // Small delay to allow the immediate cached render to calculate layout
+      const timer = setTimeout(() => {
+        window.scrollTo({ top: homeDataCache.lastScrollY, behavior: 'instant' });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [navigationType]);
+
+  // Save scroll position for back-navigation restoration
+  useEffect(() => {
+    const handleScroll = () => {
+      // Throttle/Debounce not strictly needed for just a number update but good for safety
+      homeDataCache.lastScrollY = window.scrollY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Recalculate distances when user location updates
   useEffect(() => {
@@ -2067,12 +2108,18 @@ export default function Home() {
     visibleRestaurantCount < filteredRestaurants.length;
 
   const loadMoreRestaurants = useCallback(() => {
-    setVisibleRestaurantCount((previous) =>
-      Math.min(previous + RESTAURANTS_BATCH_SIZE, filteredRestaurants.length),
-    );
+    setVisibleRestaurantCount((previous) => {
+      const next = Math.min(previous + RESTAURANTS_BATCH_SIZE, filteredRestaurants.length);
+      homeDataCache.visibleCount = next;
+      return next;
+    });
   }, [filteredRestaurants.length, RESTAURANTS_BATCH_SIZE]);
 
   useEffect(() => {
+    // Only reset to batch size if it's a NEW load, not a back-navigation landing.
+    // If homeDataCache.visibleCount is already high, it means we came back from a restaurant details page.
+    if (homeDataCache.visibleCount > RESTAURANTS_BATCH_SIZE) return;
+    
     setVisibleRestaurantCount(
       Math.min(RESTAURANTS_BATCH_SIZE, filteredRestaurants.length),
     );
@@ -2081,6 +2128,7 @@ export default function Home() {
   useEffect(() => {
     if (visibleRestaurantCount <= filteredRestaurants.length) return;
     setVisibleRestaurantCount(filteredRestaurants.length);
+    homeDataCache.visibleCount = filteredRestaurants.length;
   }, [filteredRestaurants.length, visibleRestaurantCount]);
 
   useEffect(() => {
@@ -2868,7 +2916,14 @@ export default function Home() {
           <div className="px-4 mb-3 lg:mb-4">
             <div className="flex flex-col gap-1">
               <h2 className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 tracking-[0.2em] uppercase leading-tight">
-                {filteredRestaurants.length} {orderType === "takeaway" || isTakeawayPage ? "Restaurants for Pickup" : "Restaurants delivering to you"}
+                {showRestaurantSkeleton || loadingRestaurants ? (
+                  <span className="opacity-0">0</span>
+                ) : (
+                  filteredRestaurants.length
+                )}{" "}
+                {orderType === "takeaway" || isTakeawayPage
+                  ? "Restaurants for Pickup"
+                  : "Restaurants delivering to you"}
               </h2>
               <h1 className="text-sm sm:text-base font-medium text-gray-600 dark:text-gray-400 mt-0.5">
                 Featured Restaurants

@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { useEffect, useState, createContext, useContext, useCallback, useMemo } from "react"
 import { ProfileProvider } from "@food/context/ProfileContext"
 import LocationPrompt from "./LocationPrompt"
@@ -132,16 +132,21 @@ export default function UserLayout() {
     
     if (!isAtRoot) return;
 
-    // Push a dummy state to history to "trap" the next back button press
-    // This allows us to catch the popstate event when the user hits back
-    window.history.pushState({ trap: true }, "", window.location.href);
+    // Check if we already have a trap to avoid redundant pushStates
+    // Redundant pushStates can break browser's native scroll restoration.
+    if (!window.history.state?.trap) {
+      window.history.pushState({ trap: true }, "", window.location.href);
+    }
 
     const handlePopState = (event) => {
       // If we are on the Home page and user hit back, show logout confirm
       if (location.pathname === "/" || location.pathname === "/user") {
         setShowLogoutConfirm(true);
-        // Push state again to keep the "trap" alive if they cancel
-        window.history.pushState({ trap: true }, "", window.location.href);
+        
+        // Ensure trap remains if they cancel or stay on the page
+        if (!window.history.state?.trap) {
+          window.history.pushState({ trap: true }, "", window.location.href);
+        }
       }
     };
 
@@ -196,10 +201,15 @@ export default function UserLayout() {
     }
   }
 
+  const navigationType = useNavigationType()
+
   useEffect(() => {
     // Reset scroll to top whenever location changes (pathname, search, or hash)
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-  }, [location.pathname, location.search, location.hash])
+    // but skip on POP navigation (back/forward) to allow native scroll restoration
+    if (navigationType !== 'POP') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+  }, [location.pathname, location.search, location.hash, navigationType])
 
   useUserNotifications()
 
