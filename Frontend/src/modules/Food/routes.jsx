@@ -29,7 +29,7 @@ function ScrollToTop() {
   const navigationType = useNavigationType();
   
   useEffect(() => {
-    // Only scroll to top on PUSH/REPLACE, allow browser/manual restoration on POP
+    // Only scroll to top on PUSH/REPLACE, skip for back button (POP)
     if (navigationType !== 'POP') {
       window.scrollTo(0, 0);
     }

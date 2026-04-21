@@ -5,6 +5,7 @@ import React, {
   useState,
   useMemo,
   useCallback,
+  useLayoutEffect,
   startTransition,
 } from "react";
 import { createPortal } from "react-dom";
@@ -443,6 +444,14 @@ export default function Home() {
   const [loadingLandingConfig, setLoadingLandingConfig] = useState(true);
   const [restaurantsData, setRestaurantsData] = useState([]);
   const [loadingRestaurants, setLoadingRestaurants] = useState(true);
+  const [isRestoringSpot, setIsRestoringSpot] = useState(() => {
+     try {
+       const isReload = (window.performance?.navigation?.type === 1 || performance.getEntriesByType('navigation')[0]?.type === 'reload');
+       if (isReload) return false;
+       const lastScrollY = parseInt(sessionStorage.getItem("homeScrollY") || "0", 10);
+       return lastScrollY > 100;
+     } catch (e) { return false; }
+  });
   const [realCategories, setRealCategories] = useState([]);
   const [loadingRealCategories, setLoadingRealCategories] = useState(true);
   const [menuCategories, setMenuCategories] = useState([]);
@@ -451,6 +460,17 @@ export default function Home() {
   const [showAllCategoriesModal, setShowAllCategoriesModal] = useState(false);
   const [availabilityTick, setAvailabilityTick] = useState(Date.now());
   const RESTAURANTS_BATCH_SIZE = 9;
+  
+  // Refs for scroll restoration stability
+  const isNavigatingRef = useRef(false);
+  const isRestoredRef = useRef(false);
+  const restaurantsDataRef = useRef([]);
+  
+  // Sync ref with restaurantsData for scroll persistence
+  useEffect(() => {
+    restaurantsDataRef.current = restaurantsData;
+  }, [restaurantsData]);
+
   const [visibleRestaurantCount, setVisibleRestaurantCount] = useState(() => {
     try {
       const stored = sessionStorage.getItem("homeVisibleCount");
@@ -1788,32 +1808,59 @@ export default function Home() {
     fetchRestaurants(appliedFilters);
   }, [appliedFilters, fetchRestaurants, orderType, isTakeawayPage]);
 
-  // Scroll Restoration - Higher precision for long pages
-  useEffect(() => {
-    if (navigationType === 'POP') {
-      try {
-        const lastScrollY = parseInt(sessionStorage.getItem("homeScrollY") || "0", 10);
-        if (lastScrollY > 0) {
-          // Use requestAnimationFrame for smoother placement after paint
-          const handle = requestAnimationFrame(() => {
-            window.scrollTo({ top: lastScrollY, behavior: 'instant' });
-            // Fallback for slower devices
-            setTimeout(() => {
-               if (Math.abs(window.scrollY - lastScrollY) > 100) {
-                  window.scrollTo({ top: lastScrollY, behavior: 'instant' });
-               }
-            }, 100);
-          });
-          return () => cancelAnimationFrame(handle);
-        }
-      } catch (e) {
-        // Ignore JSON parse errors if any
-      }
-    }
-  }, [navigationType]);
+   // Scroll Restoration Logic - High performance implementation
+   useLayoutEffect(() => {
+     // Restore Position on Back (POP)
+     if (navigationType === 'POP') {
+       try {
+         const lastScrollY = parseInt(sessionStorage.getItem("homeScrollY") || "0", 10);
+         const savedCount = parseInt(sessionStorage.getItem("homeVisibleCount") || "0", 10);
+         
+         if (lastScrollY > 0) {
+           // Ensure grid count is restored immediately to create height
+           if (savedCount > visibleRestaurantCount) {
+              setVisibleRestaurantCount(savedCount);
+           }
 
-  // Capture scroll position and load state at the MOMENT of clicking a restaurant
-  // This prevents the router from resetting it to 0 before we save it.
+           const performRestore = () => {
+              window.scrollTo({ top: lastScrollY, behavior: 'instant' });
+              if (document.documentElement) document.documentElement.scrollTop = lastScrollY;
+             
+              isRestoredRef.current = true;
+             
+              let attempts = 0;
+              const maxAttempts = 20; 
+              const retryInterval = setInterval(() => {
+                 attempts++;
+                 const currentY = window.scrollY;
+                 if (Math.abs(currentY - lastScrollY) < 15 || attempts >= maxAttempts) {
+                    clearInterval(retryInterval);
+                    isRestoredRef.current = false;
+                    // Wait an extra 300ms for layout to settle before revealing
+                    setTimeout(() => {
+                       setIsRestoringSpot(false);
+                    }, 300);
+                    return;
+                 }
+                 window.scrollTo({ top: lastScrollY, behavior: 'instant' });
+              }, 40); 
+           };
+
+           setTimeout(() => {
+             requestAnimationFrame(performRestore);
+           }, 0);
+         }
+       } catch (e) {}
+     }
+   }, [navigationType, restaurantsData.length]);
+
+   useEffect(() => {
+     if ('scrollRestoration' in window.history) {
+       window.history.scrollRestoration = 'manual';
+     }
+   }, []);
+
+  // Capture position when a restaurant is clicked
   const handleRestaurantClick = useCallback(() => {
     try {
       sessionStorage.setItem("homeScrollY", window.scrollY.toString());
@@ -2362,6 +2409,7 @@ export default function Home() {
               const bannerData = heroBannersData[currentBannerIndex];
               const linkedRestaurants = bannerData?.linkedRestaurants || [];
               if (linkedRestaurants.length > 0) {
+                handleRestaurantClick(); // Save scroll position
                 const firstRestaurant = linkedRestaurants[0];
                 const restaurantSlug = firstRestaurant.slug || firstRestaurant.restaurantId || firstRestaurant._id;
                 navigate(`/restaurants/${restaurantSlug}`);
@@ -2461,10 +2509,14 @@ export default function Home() {
 
   return (
 
-    <div 
-      className="relative min-h-screen bg-white dark:bg-[#0a0a0a] pb-16 md:pb-6 overflow-x-clip"
-      onClickCapture={handleRestaurantClick}
-    >
+    <div className="relative min-h-screen">
+      {/* High-priority blocker with maximum z-index to stop ALL flickers */}
+      {isRestoringSpot && (
+        <div className="fixed inset-0 z-[20000] bg-white dark:bg-[#0a0a0a] transition-none" aria-hidden="true" />
+      )}
+      <div 
+        className={`relative min-h-screen bg-white dark:bg-[#0a0a0a] pb-16 md:pb-6 overflow-x-clip transition-opacity duration-300 ${isRestoringSpot ? 'opacity-0' : 'opacity-100'}`}
+      >
       {shouldShowOutOfZoneHome && (
         <div className="fixed inset-0 z-[90] pointer-events-none">
           <div className="absolute inset-0 bg-slate-300/35 backdrop-blur-[1px]" />
@@ -2663,15 +2715,22 @@ export default function Home() {
 
           {orderType !== "takeaway" && !isTakeawayPage && (
             <>
-              {/* Categories Grid */}
-              <div className="px-4 pt-5 pb-2 space-y-4 bg-white dark:bg-[#0a0a0a]">
-                <div className="grid grid-cols-4 gap-y-6 gap-x-4">
+              {/* Categories Rail - Mobile Scrollable */}
+              <div className="px-4 pt-5 pb-3 bg-white dark:bg-[#0a0a0a]">
+                <div 
+                  className="flex gap-4 overflow-x-auto scrollbar-hide py-1 px-1 -mx-1"
+                  style={{ 
+                    scrollbarWidth: 'none', 
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch'
+                  }}
+                >
                   {/* "All" Category Item */}
                   <Link
                     to="/user/category/all"
-                    className="flex flex-col items-center gap-2 group"
+                    className="flex flex-col items-center gap-2 group flex-shrink-0"
                   >
-                    <div className="relative w-full aspect-square rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
+                    <div className="relative w-20 h-20 rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
                       {/* Shining Glint Effect */}
                       <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
                         <motion.div
@@ -2694,18 +2753,18 @@ export default function Home() {
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
                     </div>
-                    <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center leading-tight">
+                    <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center leading-tight w-20 truncate px-1">
                       All
                     </span>
                   </Link>
 
-                  {displayCategories.slice(0, 7).map((category, index) => (
+                  {displayCategories.slice(0, 12).map((category, index) => (
                     <Link
                       key={category.id || index}
                       to={`/category/${category.slug}`}
-                      className="flex flex-col items-center gap-2 group"
+                      className="flex flex-col items-center gap-2 group flex-shrink-0"
                     >
-                      <div className="relative w-full aspect-square rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
+                      <div className="relative w-20 h-20 rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] group-active:scale-95 transition-all duration-300">
                         {/* Shining Glint Effect */}
                         <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
                           <motion.div
@@ -2728,7 +2787,7 @@ export default function Home() {
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         />
                       </div>
-                      <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center leading-tight">
+                      <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 text-center leading-tight w-20 truncate px-1">
                         {category.name}
                       </span>
                     </Link>
@@ -2832,6 +2891,7 @@ export default function Home() {
                     transition={{ duration: 0.35, delay: index * 0.05 }}>
                     <Link
                       to={`/user/restaurants/${restaurantSlug}`}
+                      onClick={handleRestaurantClick}
                       className="block rounded-[20px] overflow-hidden border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] shadow-sm hover:shadow-md transition-shadow">
                       <div className="relative h-24 sm:h-28 md:h-32 bg-gray-50">
                         <RestaurantImageCarousel
@@ -2967,7 +3027,7 @@ export default function Home() {
                   transition={{ duration: 0.25 }}>
                   <LoadingSkeletonRegion label="Loading restaurants" className="h-full p-1 sm:p-2">
                     <RestaurantGridSkeleton
-                      count={3}
+                      count={Math.max(3, visibleRestaurantCount)}
                       className="grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3"
                       compact
                     />
@@ -3052,6 +3112,7 @@ export default function Home() {
                     <div className="h-full group">
                       <Link
                         to={`/user/restaurants/${restaurantSlug}`}
+                        onClick={handleRestaurantClick}
                         className="h-full flex">
                         <Card
                           className={`overflow-hidden gap-0 cursor-pointer border-0 dark:border-gray-800 group bg-white dark:bg-[#1a1a1a] border-background transition-all duration-500 py-0 rounded-[28px] flex flex-col h-full w-full relative shadow-sm hover:shadow-xl ${isOutOfService || !availability.isOpen
@@ -4272,5 +4333,6 @@ export default function Home() {
       {/* Live order strip: only on homepage (not in UserLayout) */}
       <OrderTrackingCard hasBottomNav />
     </div>
+  </div>
   );
 }

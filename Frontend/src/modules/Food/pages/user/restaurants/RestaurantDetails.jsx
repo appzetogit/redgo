@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Component, useMemo } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, Component, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { useParams, useNavigate, useSearchParams, useNavigationType } from "react-router-dom"
@@ -184,6 +184,14 @@ function RestaurantDetailsContent() {
   useEffect(() => {
     setSelectedMenuCategory("all")
   }, [slug])
+
+  // Scroll to top on mount for new navigation (PUSH/REPLACE)
+  // This is needed because UserLayout skips scrolling when navigating from root paths.
+  useLayoutEffect(() => {
+    if (navigationType !== 'POP') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+  }, [navigationType, slug]);
 
   // Fetch restaurant data from API
   useEffect(() => {

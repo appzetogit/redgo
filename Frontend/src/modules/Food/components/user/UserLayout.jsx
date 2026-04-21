@@ -125,37 +125,11 @@ export default function UserLayout() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  // Block back button on Home to show logout confirmation
+  // Standard layout behavior - No history traps to ensure scroll restoration works correctly
   useEffect(() => {
-    // Only intercept when on the Home page (root)
-    const isAtRoot = location.pathname === "/" || location.pathname === "/user" || location.pathname === "/food"
-    
-    if (!isAtRoot) return;
-
-    // Check if we already have a trap to avoid redundant pushStates
-    // Redundant pushStates can break browser's native scroll restoration.
-    if (!window.history.state?.trap) {
-      window.history.pushState({ trap: true }, "", window.location.href);
-    }
-
-    const handlePopState = (event) => {
-      // If we are on the Home page and user hit back, show logout confirm
-      if (location.pathname === "/" || location.pathname === "/user") {
-        setShowLogoutConfirm(true);
-        
-        // Ensure trap remains if they cancel or stay on the page
-        if (!window.history.state?.trap) {
-          window.history.pushState({ trap: true }, "", window.location.href);
-        }
-      }
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [location.pathname]);
+    // We let the browser handle history naturally so that scroll restoration 
+    // isn't interrupted by pushState traps.
+  }, []);
 
   const handleConfirmLogout = async () => {
     setShowLogoutConfirm(false)
@@ -203,13 +177,34 @@ export default function UserLayout() {
 
   const navigationType = useNavigationType()
 
+  // Global Refresh Handler - Scroll to top ONLY on browser refresh
+  useEffect(() => {
+    // Detect browser reload using modern and legacy Performance APIs
+    const isReload = 
+      performance.getEntriesByType('navigation')[0]?.type === 'reload' || 
+      window.performance?.navigation?.type === 1;
+
+    if (isReload) {
+      // Force scroll to top on refresh
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      
+      // Clear Home-page specific scroll persistence to prevent it from out-scrolling us
+      sessionStorage.removeItem("homeScrollY");
+      sessionStorage.removeItem("homeVisibleCount");
+    }
+  }, []);
+
   useEffect(() => {
     // Reset scroll to top whenever location changes (pathname, search, or hash)
-    // but skip on POP navigation (back/forward) to allow native scroll restoration
-    if (navigationType !== 'POP') {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    // but skip on POP navigation (back/forward) to allow native scroll restoration.
+    // Also skip if we are on the Home page root paths, as they handle their own restoration.
+    const rootPaths = ["/", "/user", "/food", "/dining", "/user/dining", "/takeaway", "/user/takeaway"];
+    const isAtRoot = rootPaths.includes(location.pathname);
+    
+    if (navigationType !== 'POP' && !isAtRoot) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
-  }, [location.pathname, location.search, location.hash, navigationType])
+  }, [location.pathname, location.search, location.hash, navigationType]);
 
   useUserNotifications()
 
