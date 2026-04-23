@@ -913,8 +913,16 @@ export default function SearchResults() {
                             src={restaurant.image}
                             alt={restaurant.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            onLoad={(e) => {
+                              if (e.target.complete) e.target.parentElement.classList.remove('animate-pulse');
+                            }}
                             onError={(e) => {
-                              e.target.style.display = 'none'
+                              e.target.style.display = 'none';
+                              const placeholder = document.createElement('div');
+                              placeholder.className = 'w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-2xl';
+                              placeholder.textContent = '???';
+                              e.target.parentElement.appendChild(placeholder);
                             }}
                           />
                         ) : (
@@ -966,12 +974,14 @@ export default function SearchResults() {
 
           {/* Large Restaurant Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
-            {nonRepeatedAllRestaurants.map((restaurant) => {
+            {nonRepeatedAllRestaurants.map((restaurant, index) => {
               const restaurantSlug = restaurant.name.toLowerCase().replace(/\s+/g, "-")
               const isFavorite = favorites.has(restaurant.id)
+              const cardKey = `${restaurant.id || index}-${restaurant.updatedAt || ''}`
 
               return (
-                <Link key={restaurant.id} to={`/user/restaurants/${restaurant.slug || restaurantSlug}`} className="h-full flex">
+                <Link key={cardKey} to={`/user/restaurants/${restaurant.slug || restaurantSlug}`} className="h-full flex">
+
                   <Card className={`overflow-hidden cursor-pointer border-0 dark:border-gray-800 group bg-white dark:bg-[#1a1a1a] shadow-md hover:shadow-xl transition-all duration-300 py-0 rounded-md flex flex-col h-full w-full ${shouldShowGrayscale ? 'grayscale opacity-75' : ''
                     }`}>
                     {/* Image Section */}
@@ -981,8 +991,16 @@ export default function SearchResults() {
                           src={restaurant.image}
                           alt={restaurant.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          onLoad={(e) => {
+                            if (e.target.complete) e.target.parentElement.classList.remove('animate-pulse');
+                          }}
                           onError={(e) => {
-                            e.target.style.display = 'none'
+                            e.target.style.display = 'none';
+                            const placeholder = document.createElement('div');
+                            placeholder.className = 'w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-6xl';
+                            placeholder.textContent = '???';
+                            e.target.parentElement.appendChild(placeholder);
                           }}
                         />
                       ) : (

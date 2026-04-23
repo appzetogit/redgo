@@ -6,12 +6,13 @@ import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
 import { Card, CardContent } from "@food/components/ui/card"
 import AnimatedPage from "@food/components/user/AnimatedPage"
-import { useSearchOverlay, useLocationSelector } from "@food/components/user/UserLayout"
+import { useProfile } from "@food/context/ProfileContext"
 import useAppBackNavigation from "@food/hooks/useAppBackNavigation"
 import { useLocation as useLocationHook } from "@food/hooks/useLocation"
-import { useProfile } from "@food/context/ProfileContext"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 import { FaLocationDot } from "react-icons/fa6"
+
+
 import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
 // Using placeholder for dining restaurant banner
 const diningBanner = "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1200&h=400&fit=crop"
@@ -114,10 +115,9 @@ export default function DiningRestaurants() {
   const [selectedCuisine, setSelectedCuisine] = useState(null)
   const filterSectionRefs = useRef({})
   const rightContentRef = useRef(null)
-  const { openSearch, closeSearch, setSearchValue } = useSearchOverlay()
-  const { openLocationSelector } = useLocationSelector()
+  const { openSearch, closeSearch, setSearchValue, openLocationSelector, addFavorite, removeFavorite, isFavorite } = useProfile()
   const { location, loading } = useLocationHook()
-  const { addFavorite, removeFavorite, isFavorite } = useProfile()
+
   const cityName = location?.city || "Select"
   const stateName = location?.state || "Location"
 

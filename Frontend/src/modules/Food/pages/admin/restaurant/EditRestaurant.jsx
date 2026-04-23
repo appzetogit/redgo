@@ -86,7 +86,6 @@ const normalizeDetailsFormFromRestaurant = (restaurant) => {
     closingTime: restaurant?.closingTime || restaurant?.deliveryTimings?.closingTime || "",
     isActive: restaurant?.isActive !== false,
     takeawayEnabled: restaurant?.takeawaySettings?.isEnabled === true,
-    takeawayCodEnabled: restaurant?.takeawaySettings?.codEnabled === true,
   }
 }
 
@@ -321,7 +320,6 @@ export default function EditRestaurant() {
         isActive: detailsForm.isActive !== false,
         takeawaySettings: {
           isEnabled: detailsForm.takeawayEnabled === true,
-          codEnabled: detailsForm.takeawayCodEnabled === true,
         },
       }
 
@@ -531,29 +529,7 @@ export default function EditRestaurant() {
                     </button>
                   </div>
 
-                  <div className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
-                    detailsForm.takeawayEnabled 
-                      ? "border-slate-200 bg-slate-50/50 opacity-100" 
-                      : "border-slate-100 bg-slate-50/30 opacity-60 grayscale pointer-events-none"
-                  }`}>
-                    <div>
-                      <Label className="text-sm font-semibold text-slate-900">Takeaway COD</Label>
-                      <p className="text-[11px] text-slate-500">Enable Cash on Delivery for Pickup</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDetailsForm(p => ({ ...p, takeawayCodEnabled: !p.takeawayCodEnabled }))}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        detailsForm.takeawayCodEnabled ? "bg-green-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          detailsForm.takeawayCodEnabled ? "translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
+
                 </div>
               </div>
             </section>

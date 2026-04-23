@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom"
 import { Star, ArrowLeft } from "lucide-react"
 import { Button } from "@food/components/ui/button"
 import AnimatedPage from "@food/components/user/AnimatedPage"
-import { useLocationSelector } from "@food/components/user/UserLayout"
+import { useProfile } from "@food/context/ProfileContext"
+
 import useAppBackNavigation from "@food/hooks/useAppBackNavigation"
 import { useLocation as useLocationHook } from "@food/hooks/useLocation"
 import { FaLocationDot } from "react-icons/fa6"
@@ -104,7 +105,8 @@ const blueTokaiStores = [
 export default function Coffee() {
   const navigate = useNavigate()
   const goBack = useAppBackNavigation()
-  const { openLocationSelector } = useLocationSelector()
+  const { openLocationSelector } = useProfile()
+
   const { location } = useLocationHook()
   const cityName = location?.city || "Select"
 

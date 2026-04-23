@@ -444,7 +444,7 @@ export default function AddToCartAnimation({
               bottom: dynamicBottom ? undefined : `${bottomOffset || 20}px`,
               pointerEvents: 'auto',
             }}
-            className={`left-0 right-0 z-[9999] flex justify-center px-4 pb-4 md:pb-6 transition-all duration-300 ease-in-out bg-transparent`}
+            className={`left-0 right-0 z-[9999] flex justify-center px-4 pb-4 md:pb-6 bg-transparent antialiased`}
           >
             <button
               ref={linkRef}
@@ -454,7 +454,7 @@ export default function AddToCartAnimation({
                 debugLog('View cart clicked, navigating to:', linkTo);
                 navigate(linkTo);
               }}
-              className={`bg-gradient-to-r from-[#C21824] via-[#E23744] to-[#C21824] text-white rounded-full shadow-xl shadow-red-900/30 px-3 py-2 flex items-center gap-2 hover:from-[#C21824] hover:via-[#E23744] hover:to-[#C21824] transition-all duration-300 pointer-events-auto border border-red-800/30 backdrop-blur-sm cursor-pointer ${pillClassName}`}
+              className={`bg-gradient-to-r from-[#C21824] via-[#E23744] to-[#C21824] text-white rounded-full shadow-lg shadow-red-900/30 px-4 py-2 flex items-center gap-2 pointer-events-auto border border-white/10 cursor-pointer transform-gpu ${pillClassName}`}
             >
               {/* Left: Product thumbnails */}
               <div className="flex items-center -space-x-4">
@@ -487,26 +487,18 @@ export default function AddToCartAnimation({
               </div>
 
               {/* Middle: Text */}
-              <motion.div
-                className="flex flex-col"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1, duration: 0.3 }}
-              >
-                <span className="text-xs font-bold leading-tight drop-shadow-sm">View cart</span>
+              <div className="flex flex-col">
+
+                <span className="text-xs font-bold leading-tight">View cart</span>
                 <span className="text-[10px] opacity-95 leading-tight font-medium">
                   {itemCount} {itemCount === 1 ? 'item' : 'items'}
                 </span>
-              </motion.div>
+              </div>
+
 
               {/* Right: Arrow icon */}
-              <motion.div
-                className="ml-auto bg-white/25 rounded-full p-1 backdrop-blur-sm"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15, duration: 0.3 }}
-                whileHover={{ scale: 1.1, rotate: -5 }}
-              >
+              <div className="ml-auto bg-white/20 rounded-full p-1.5 flex items-center justify-center">
+
                 <svg
                   width="14"
                   height="14"
@@ -523,7 +515,8 @@ export default function AddToCartAnimation({
                     strokeLinejoin="round"
                   />
                 </svg>
-              </motion.div>
+              </div>
+
             </button>
           </motion.div>
         )}

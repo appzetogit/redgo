@@ -11,17 +11,14 @@ import {
 } from "@food/components/ui/dropdown-menu"
 import { useLocation } from "@food/hooks/useLocation"
 import { useCart } from "@food/context/CartContext"
-import { useLocationSelector } from "./UserLayout"
+import { useProfile } from "@food/context/ProfileContext"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
-const debugLog = (...args) => {}
-const debugWarn = (...args) => {}
-const debugError = (...args) => {}
-
 
 export default function Navbar() {
   const { location, loading } = useLocation()
   const { getCartCount } = useCart()
-  const { openLocationSelector } = useLocationSelector()
+  const { openLocationSelector } = useProfile()
+
   const cartCount = getCartCount()
   const [logoUrl, setLogoUrl] = useState(null)
   const [companyName, setCompanyName] = useState(null)

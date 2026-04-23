@@ -1,9 +1,6 @@
 import { Outlet, useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { useEffect, useState, createContext, useContext, useCallback, useMemo } from "react"
-import { ProfileProvider } from "@food/context/ProfileContext"
 import LocationPrompt from "./LocationPrompt"
-import { CartProvider } from "@food/context/CartContext"
-import { OrdersProvider } from "@food/context/OrdersContext"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -18,112 +15,29 @@ import { clearModuleAuth } from "@food/utils/auth"
 import { authAPI } from "@food/api"
 import { firebaseAuth, ensureFirebaseInitialized } from "@food/firebase"
 
-// Create SearchOverlay context with default value
-const SearchOverlayContext = createContext({
-  isSearchOpen: false,
-  searchValue: "",
-  setSearchValue: () => {
-    debugWarn("SearchOverlayProvider not available")
-  },
-  openSearch: () => {
-    debugWarn("SearchOverlayProvider not available")
-  },
-  closeSearch: () => { }
-})
+import { useProfile } from "@food/context/ProfileContext"
 
-export function useSearchOverlay() {
-  const context = useContext(SearchOverlayContext)
-  // Always return context, even if provider is not available (will use default values)
-  return context
-}
 
-function SearchOverlayProvider({ children }) {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isVoiceRequested, setIsVoiceRequested] = useState(false)
-  const [searchValue, setSearchValue] = useState("")
 
-  const openSearch = useCallback((shouldStartVoice = false) => {
-    setIsSearchOpen(true)
-    setIsVoiceRequested(shouldStartVoice === true)
-  }, [])
 
-  const closeSearch = useCallback(() => {
-    setIsSearchOpen(false)
-    setIsVoiceRequested(false)
-    setSearchValue("")
-  }, [])
-
-  const value = useMemo(() => ({ 
-    isSearchOpen, 
-    searchValue, 
-    setSearchValue, 
-    openSearch, 
-    closeSearch 
-  }), [isSearchOpen, searchValue, openSearch, closeSearch])
-
-  return (
-    <SearchOverlayContext.Provider value={value}>
-      {children}
-      {isSearchOpen && (
-        <SearchOverlay
-          isOpen={isSearchOpen}
-          onClose={closeSearch}
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          autoStartVoice={isVoiceRequested}
-        />
-      )}
-    </SearchOverlayContext.Provider>
-  )
-}
-
-// Create LocationSelector context with default value
-export const LocationSelectorContext = createContext({
-  isLocationSelectorOpen: false,
-  openLocationSelector: () => {
-    debugWarn("LocationSelectorProvider not available")
-  },
-  closeLocationSelector: () => { }
-})
-
-export function useLocationSelector() {
-  const context = useContext(LocationSelectorContext)
-  if (!context) {
-    throw new Error("useLocationSelector must be used within LocationSelectorProvider")
-  }
-  return context
-}
-
-function LocationSelectorProvider({ children }) {
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  const openLocationSelector = useCallback(() => {
-    // Navigate to the standalone address selector page
-    // We pass state.from to ensure the back button returns to the current page
-    navigate("/cart/address-selector", { state: { from: location.pathname || "/" } })
-  }, [navigate, location.pathname])
-
-  const closeLocationSelector = () => { }
-
-  const value = useMemo(() => ({
-    isLocationSelectorOpen: false,
-    openLocationSelector,
-    closeLocationSelector
-  }), [openLocationSelector])
-
-  return (
-    <LocationSelectorContext.Provider value={value}>
-      {children}
-    </LocationSelectorContext.Provider>
-  )
-}
 
 export default function UserLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const { isSearchOpen, searchValue, setSearchValue, closeSearch, isVoiceRequested } = useProfile()
+
+  // Handle cross-context location selector intent (DesktopNavbar -> Layout)
+  useEffect(() => {
+    const handleOpenLocation = () => {
+      // Actually navigate here
+      navigate("/cart/address-selector", { state: { from: location.pathname || "/" } })
+    }
+    window.addEventListener('openLocationSelector', handleOpenLocation)
+    return () => window.removeEventListener('openLocationSelector', handleOpenLocation)
+  }, [navigate, location.pathname])
+
 
   // Standard layout behavior - No history traps to ensure scroll restoration works correctly
   useEffect(() => {
@@ -237,27 +151,17 @@ export default function UserLayout() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] dark:bg-[#0a0a0a] transition-colors duration-200">
-      <CartProvider>
-        <ProfileProvider>
-          <OrdersProvider>
-            <SearchOverlayProvider>
-              <LocationSelectorProvider>
-                {/* <Navbar /> */}
-                {/* Desktop Navbar - Hidden on mobile, visible on medium+ screens */}
-                <div className="hidden md:block">
-                  {showBottomNav && <DesktopNavbar showLogo={!isUnder250} />}
-                </div>
-                <LocationPrompt />
-                <main className={showBottomNav ? "md:pt-40" : ""}>
-                  <Outlet />
-                </main>
-                {(normalizedPath === "/" || normalizedPath === "" || normalizedPath === "/user") && <BackToTop />}
-                {showBottomNav && <BottomNavigation />}
-              </LocationSelectorProvider>
-            </SearchOverlayProvider>
-          </OrdersProvider>
-        </ProfileProvider>
-      </CartProvider>
+      {/* <Navbar /> */}
+      {/* Desktop Navbar - Hidden on mobile, visible on medium+ screens */}
+      <div className="hidden md:block">
+        {showBottomNav && <DesktopNavbar showLogo={!isUnder250} />}
+      </div>
+      <LocationPrompt />
+      <main className={showBottomNav ? "md:pt-40" : ""}>
+        <Outlet />
+      </main>
+      {(normalizedPath === "/" || normalizedPath === "" || normalizedPath === "/user") && <BackToTop />}
+      {showBottomNav && <BottomNavigation />}
 
       {/* Global Logout Confirmation */}
       <LogoutConfirmationDialog 
@@ -274,6 +178,17 @@ export default function UserLayout() {
           <p className="text-gray-500 dark:text-gray-400 mt-2">Please wait while we clear your session securely.</p>
         </div>
       )}
+      {/* Rendering common overlays here to keep them centralized */}
+      {isSearchOpen && (
+        <SearchOverlay
+          isOpen={isSearchOpen}
+          onClose={closeSearch}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          autoStartVoice={isVoiceRequested}
+        />
+      )}
     </div>
+
   )
 }

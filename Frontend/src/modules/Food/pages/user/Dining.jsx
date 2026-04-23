@@ -6,7 +6,8 @@ import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
 import { Card, CardContent } from "@food/components/ui/card"
 import AnimatedPage from "@food/components/user/AnimatedPage"
-import { useSearchOverlay, useLocationSelector } from "@food/components/user/UserLayout"
+
+
 import { useLocation as useLocationHook } from "@food/hooks/useLocation"
 import { useProfile } from "@food/context/ProfileContext"
 import { diningAPI } from "@food/api"
@@ -138,10 +139,8 @@ export default function Dining() {
   const [selectedCuisine, setSelectedCuisine] = useState(null)
   const filterSectionRefs = useRef({})
   const rightContentRef = useRef(null)
-  const { openSearch, closeSearch, setSearchValue } = useSearchOverlay()
-  const { openLocationSelector } = useLocationSelector()
-  const { location } = useLocationHook()
-  const { addFavorite, removeFavorite, isFavorite } = useProfile()
+  const { openSearch, closeSearch, setSearchValue, openLocationSelector, addFavorite, removeFavorite, isFavorite } = useProfile()
+
 
   const [categories, setCategories] = useState([])
   const [restaurantList, setRestaurantList] = useState([])

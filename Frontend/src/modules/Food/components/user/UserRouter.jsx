@@ -3,7 +3,12 @@ import UserLayout from "./UserLayout"
 import { Suspense, lazy, useEffect } from "react"
 import Loader from "@food/components/Loader"
 import ProtectedRoute from "@food/components/ProtectedRoute"
-import { useProfile } from "@food/context/ProfileContext"
+import { useProfile, ProfileProvider } from "@food/context/ProfileContext"
+import { CartProvider } from "@food/context/CartContext"
+import { OrdersProvider } from "@food/context/OrdersContext"
+
+
+
 
 // Sync orderType with route
 function RouteSyncHandler() {
@@ -12,13 +17,32 @@ function RouteSyncHandler() {
 
   useEffect(() => {
     const path = location.pathname
+    const normalizedPath = path.replace(/\/+$/, "") || "/"
     
-    if (path === "/" || path === "" || path === "/food" || path === "/user") {
-      if (orderType !== "delivery") setOrderType("delivery")
-    } else if (path === "/dining" || path.startsWith("/dining") || path.startsWith("/user/dining")) {
-      if (orderType !== "dining") setOrderType("dining")
-    } else if (path === "/takeaway" || path.startsWith("/takeaway") || path.startsWith("/user/takeaway")) {
-      if (orderType !== "takeaway") setOrderType("takeaway")
+    // Paths that should PRESERVE the current orderType (sub-navigation)
+    const preservePaths = [
+      "/cart", "/user/cart",
+      "/restaurants", "/user/restaurants",
+      "/search", "/user/search",
+      "/product", "/user/product",
+      "/user/orders"
+    ]
+    const isPreservePath = preservePaths.some(p => normalizedPath === p || normalizedPath.startsWith(p + "/"))
+    
+    if (isPreservePath) return
+
+    // Explicit mode switches
+    let newMode = null
+    if (normalizedPath === "/takeaway" || normalizedPath.startsWith("/takeaway/") || normalizedPath.startsWith("/user/takeaway")) {
+      newMode = "takeaway"
+    } else if (normalizedPath === "/dining" || normalizedPath.startsWith("/dining/") || normalizedPath.startsWith("/user/dining")) {
+      newMode = "dining"
+    } else if (normalizedPath === "/" || normalizedPath === "/food" || normalizedPath === "/user" || normalizedPath === "/user/") {
+      newMode = "delivery"
+    }
+
+    if (newMode && orderType !== newMode) {
+      setOrderType(newMode)
     }
   }, [location.pathname, orderType, setOrderType])
 
@@ -114,255 +138,261 @@ const SubmitComplaint = lazy(() => import("@food/pages/user/complaints/SubmitCom
 export default function UserRouter() {
   return (
     <Suspense fallback={<Loader />}>
-      <RouteSyncHandler />
-      <Routes>
-        {/* Public Legal Policies (stay public) */}
-        <Route path="profile/terms" element={<Terms />} />
-        <Route path="profile/privacy" element={<Privacy />} />
-        <Route path="profile/refund" element={<Refund />} />
-        <Route path="profile/shipping" element={<Shipping />} />
-        <Route path="profile/cancellation" element={<Cancellation />} />
+      <CartProvider>
+        <ProfileProvider>
+          <OrdersProvider>
+                <RouteSyncHandler />
+                <Routes>
+                  {/* Public Legal Policies (stay public) */}
+                  <Route path="profile/terms" element={<Terms />} />
+                  <Route path="profile/privacy" element={<Privacy />} />
+                  <Route path="profile/refund" element={<Refund />} />
+                  <Route path="profile/shipping" element={<Shipping />} />
+                  <Route path="profile/cancellation" element={<Cancellation />} />
 
-        <Route element={
-          <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-            <UserLayout />
-          </ProtectedRoute>
-        }>
-          {/* Home & Discovery */}
-          <Route path="" element={<Home />} />
-          <Route path="dining" element={<Dining />} />
-          <Route path="takeaway" element={<Home />} />
-          <Route path="dining/restaurants" element={<DiningRestaurants />} />
-          <Route path="dining/:category" element={<DiningCategory />} />
-          <Route path="dining/explore/upto50" element={<DiningExplore50 />} />
-          <Route path="dining/explore/near-rated" element={<DiningExploreNear />} />
-          <Route path="dining/coffee" element={<Coffee />} />
-          <Route path="dining/:diningType/:slug" element={<DiningRestaurantDetails />} />
-          <Route path="dining/book/:slug" element={<TableBooking />} />
-          <Route path="dining/book-confirmation" element={<TableBookingConfirmation />} />
-          <Route path="dining/book-success" element={<TableBookingSuccess />} />
-          <Route
-            path="bookings"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <MyBookings />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="under-250" element={<Under250 />} />
-          <Route path="categories" element={<Navigate to="/user/category/all" replace />} />
-          <Route path="category/:category" element={<CategoryPage />} />
-          <Route path="restaurants" element={<Restaurants />} />
-          <Route path="restaurants/:slug" element={<RestaurantDetails />} />
-          <Route path="search" element={<SearchResults />} />
-          <Route path="product/:id" element={<ProductDetail />} />
+                  <Route element={
+                    <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                      <UserLayout />
+                    </ProtectedRoute>
+                  }>
+                    {/* Home & Discovery */}
+                    <Route path="" element={<Home />} />
+                    <Route path="dining" element={<Dining />} />
+                    <Route path="takeaway" element={<Home />} />
+                    <Route path="dining/restaurants" element={<DiningRestaurants />} />
+                    <Route path="dining/:category" element={<DiningCategory />} />
+                    <Route path="dining/explore/upto50" element={<DiningExplore50 />} />
+                    <Route path="dining/explore/near-rated" element={<DiningExploreNear />} />
+                    <Route path="dining/coffee" element={<Coffee />} />
+                    <Route path="dining/:diningType/:slug" element={<DiningRestaurantDetails />} />
+                    <Route path="dining/book/:slug" element={<TableBooking />} />
+                    <Route path="dining/book-confirmation" element={<TableBookingConfirmation />} />
+                    <Route path="dining/book-success" element={<TableBookingSuccess />} />
+                    <Route
+                      path="bookings"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <MyBookings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="under-250" element={<Under250 />} />
+                    <Route path="categories" element={<Navigate to="/user/category/all" replace />} />
+                    <Route path="category/:category" element={<CategoryPage />} />
+                    <Route path="restaurants" element={<Restaurants />} />
+                    <Route path="restaurants/:slug" element={<RestaurantDetails />} />
+                    <Route path="search" element={<SearchResults />} />
+                    <Route path="product/:id" element={<ProductDetail />} />
 
-          {/* Cart - Now Public */}
-          <Route path="cart" element={<Cart />} />
-          <Route path="cart/checkout" element={<Checkout />} />
-          <Route path="cart/select-address" element={<SelectAddress />} />
-          <Route path="cart/address-selector" element={<AddressSelectorPage />} />
+                    {/* Cart - Now Public */}
+                    <Route path="cart" element={<Cart />} />
+                    <Route path="cart/checkout" element={<Checkout />} />
+                    <Route path="cart/select-address" element={<SelectAddress />} />
+                    <Route path="cart/address-selector" element={<AddressSelectorPage />} />
 
-          {/* Orders - Protected (require user auth) */}
-          <Route
-            path="orders"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Orders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="orders/:orderId"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <OrderTracking />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="orders/:orderId/invoice"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <OrderInvoice />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="orders/:orderId/details"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <UserOrderDetails />
-              </ProtectedRoute>
-            }
-          />
+                    {/* Orders - Protected (require user auth) */}
+                    <Route
+                      path="orders"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Orders />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="orders/:orderId"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <OrderTracking />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="orders/:orderId/invoice"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <OrderInvoice />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="orders/:orderId/details"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <UserOrderDetails />
+                        </ProtectedRoute>
+                      }
+                    />
 
-          {/* Offers */}
-          <Route path="offers" element={<Offers />} />
+                    {/* Offers */}
+                    <Route path="offers" element={<Offers />} />
 
-          {/* Gourmet */}
-          <Route path="gourmet" element={<Gourmet />} />
-
-
-          {/* Collections */}
-          <Route path="collections" element={<Collections />} />
-          <Route path="collections/:id" element={<CollectionDetail />} />
+                    {/* Gourmet */}
+                    <Route path="gourmet" element={<Gourmet />} />
 
 
-
-          {/* Profile - Protected (require user auth) */}
-          <Route
-            path="profile"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/edit"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <EditProfile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/payments"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Payments />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/payments/new"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <AddPayment />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/payments/:id/edit"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <EditPayment />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/favorites"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Favorites />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/support"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Support />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/coupons"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Coupons />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/about"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <About />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="profile/report-safety-emergency"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <ReportSafetyEmergency />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/accessibility"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Accessibility />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/logout"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Logout />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="profile/refer-earn"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <ReferEarn />
-              </ProtectedRoute>
-            }
-          />
+                    {/* Collections */}
+                    <Route path="collections" element={<Collections />} />
+                    <Route path="collections/:id" element={<CollectionDetail />} />
 
 
 
-          {/* Auth - User login is centralized at /auth/login */}
-          <Route path="auth/login" element={<Navigate to="/auth/login" replace />} />
-          <Route path="auth/sign-in" element={<Navigate to="/auth/login" replace />} />
-          <Route path="auth/otp" element={<OTP />} />
-          <Route path="auth/callback" element={<AuthCallback />} />
+                    {/* Profile - Protected (require user auth) */}
+                    <Route
+                      path="profile"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/edit"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <EditProfile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/payments"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Payments />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/payments/new"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <AddPayment />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/payments/:id/edit"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <EditPayment />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/favorites"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Favorites />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/support"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Support />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/coupons"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Coupons />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/about"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <About />
+                        </ProtectedRoute>
+                      }
+                    />
 
-          {/* Help */}
-          <Route path="help" element={<Help />} />
-          <Route path="help/orders/:orderId" element={<OrderHelp />} />
+                    <Route
+                      path="profile/report-safety-emergency"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <ReportSafetyEmergency />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/accessibility"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Accessibility />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/logout"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Logout />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="profile/refer-earn"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <ReferEarn />
+                        </ProtectedRoute>
+                      }
+                    />
 
-          {/* Notifications - Protected (user auth) */}
-          <Route
-            path="notifications"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Notifications />
-              </ProtectedRoute>
-            }
-          />
 
-          {/* Wallet - Protected (user auth) */}
-          <Route
-            path="wallet"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <Wallet />
-              </ProtectedRoute>
-            }
-          />
 
-          {/* Complaints - Protected (user auth) */}
-          <Route
-            path="complaints/submit/:orderId"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/auth/login">
-                <SubmitComplaint />
-              </ProtectedRoute>
-            }
-          />
+                    {/* Auth - User login is centralized at /auth/login */}
+                    <Route path="auth/login" element={<Navigate to="/auth/login" replace />} />
+                    <Route path="auth/sign-in" element={<Navigate to="/auth/login" replace />} />
+                    <Route path="auth/otp" element={<OTP />} />
+                    <Route path="auth/callback" element={<AuthCallback />} />
 
-          {/* Fallback for unknown routes */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+                    {/* Help */}
+                    <Route path="help" element={<Help />} />
+                    <Route path="help/orders/:orderId" element={<OrderHelp />} />
+
+                    {/* Notifications - Protected (user auth) */}
+                    <Route
+                      path="notifications"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Notifications />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Wallet - Protected (user auth) */}
+                    <Route
+                      path="wallet"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <Wallet />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Complaints - Protected (user auth) */}
+                    <Route
+                      path="complaints/submit/:orderId"
+                      element={
+                        <ProtectedRoute requiredRole="user" loginPath="/auth/login">
+                          <SubmitComplaint />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Fallback for unknown routes */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+            </OrdersProvider>
+        </ProfileProvider>
+      </CartProvider>
     </Suspense>
   )
 }

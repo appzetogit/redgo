@@ -161,10 +161,10 @@ export async function createOrder(userId, dto) {
     dto.paymentMethod === "card" ? "razorpay" : dto.paymentMethod;
 
   if (orderType === "takeaway" && paymentMethod === "cash") {
-    // Existing takeaway COD logic from restaurant settings.
-    const existingTakeawayCOD =
-      restaurant.takeawaySettings?.isEnabled &&
-      restaurant.takeawaySettings?.codEnabled;
+    // Check if the restaurant has takeaway service enabled
+    if (!restaurant.takeawaySettings?.isEnabled) {
+      throw new ValidationError("Takeaway is not available for this restaurant");
+    }
 
     // New admin customization toggle (missing config defaults to enabled for backward compatibility).
     const takeawayCodConfig = await FoodSystemConfig.findOne({
@@ -172,13 +172,11 @@ export async function createOrder(userId, dto) {
     })
       .select("value")
       .lean();
-    const adminCustomizationTakeawayCOD =
-      takeawayCodConfig == null ? true : takeawayCodConfig.value === true;
+    
+    const showCOD = takeawayCodConfig == null ? true : takeawayCodConfig.value === true;
 
-    // Final additive gate: showCOD = existingTakeawayCOD && adminCustomizationTakeawayCOD
-    const showCOD = Boolean(existingTakeawayCOD && adminCustomizationTakeawayCOD);
     if (!showCOD) {
-      throw new ValidationError("Cash on Delivery is not available for Takeaway orders at this restaurant");
+      throw new ValidationError("Cash on Delivery is not available for Takeaway orders");
     }
   }
 

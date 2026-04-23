@@ -84,10 +84,15 @@ export function ProfileProvider({ children }) {
   })
 
   // orderType state - stored in localStorage for persistence
-  const [orderType, setOrderType] = useState(() => {
+  const [orderType, _setOrderType] = useState(() => {
     const saved = localStorage.getItem("userOrderType")
     return (saved && ["delivery", "dining", "takeaway"].includes(saved)) ? saved : "delivery"
   })
+
+  // UI States (merged here to keep it simple as requested)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchValue, setSearchValue] = useState("")
+  const [isVoiceRequested, setIsVoiceRequested] = useState(false)
 
   // Helper to check if authenticated
   const isAuthenticated = useMemo(() => {
@@ -131,352 +136,122 @@ export function ProfileProvider({ children }) {
     }
   }, [vegMode, isAuthenticated])
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      localStorage.setItem("userOrderType", orderType)
+  // Wrap setOrderType to SYNCHRONOUSLY save to localStorage before React re-render
+  const setOrderType = (newType) => {
+    if (["delivery", "dining", "takeaway"].includes(newType)) {
+      localStorage.setItem("userOrderType", newType)
+      _setOrderType(newType)
     }
-  }, [orderType, isAuthenticated])
+  }
 
-  // Fetch user profile and addresses from API on mount and when authentication changes
+  // UI Handlers
+  const openSearch = useCallback((voice = false) => {
+    setIsSearchOpen(true)
+    setIsVoiceRequested(voice === true)
+  }, [])
+
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false)
+    setIsVoiceRequested(false)
+    setSearchValue("")
+  }, [])
+
+  const openLocationSelector = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('openLocationSelector'))
+  }, [])
+
+  // Fetch user profile and addresses from API
   useEffect(() => {
     const fetchUserProfile = async () => {
-      // Check if user is authenticated
-      const isAuthenticated = localStorage.getItem("user_authenticated") === "true" || 
-                             localStorage.getItem("user_accessToken")
+      const auth = localStorage.getItem("user_authenticated") === "true" || 
+                   localStorage.getItem("user_accessToken")
       
-      if (!isAuthenticated) {
-        setUserProfile(null)
-        setAddresses([])
-        setPaymentMethods([])
-        setFavorites([])
-        setDishFavorites([])
-        setVegMode(false)
-        setOrderType("delivery")
-        USER_SESSION_PREFERENCE_KEYS.forEach((key) => {
-          localStorage.removeItem(key)
-        })
+      if (!auth) {
         setLoading(false)
         return
       }
 
       try {
         setLoading(true)
-        
-        // Fetch user profile
         const response = await authAPI.getCurrentUser()
         const userData = response?.data?.data?.user || response?.data?.user || response?.data
-        
-        if (userData) {
-          setUserProfile(userData)
-          // Update localStorage
-          localStorage.setItem("user_user", JSON.stringify(userData))
-          localStorage.setItem("userProfile", JSON.stringify(userData))
-        }
+        if (userData) setUserProfile(userData)
 
-        // Fetch addresses
-        try {
-          const addressesResponse = await userAPI.getAddresses()
-          const addressesData = addressesResponse?.data?.data?.addresses || addressesResponse?.data?.addresses || []
-          const normalizedAddresses = dedupeAddressesByLabel(addressesData)
-          setAddresses(normalizedAddresses)
-          localStorage.setItem("userAddresses", JSON.stringify(normalizedAddresses))
-        } catch (addressError) {
-          debugError("Error fetching addresses:", addressError)
-          // Try to load from localStorage as fallback
-          const saved = localStorage.getItem("userAddresses")
-          if (saved) {
-            try {
-              setAddresses(dedupeAddressesByLabel(JSON.parse(saved)))
-            } catch (e) {
-              debugError("Error parsing saved addresses:", e)
-            }
-          }
-        }
+        const addressesResponse = await userAPI.getAddresses()
+        const addressesData = addressesResponse?.data?.data?.addresses || addressesResponse?.data?.addresses || []
+        setAddresses(dedupeAddressesByLabel(addressesData))
       } catch (error) {
-        // Silently handle error - use existing profile from localStorage
         debugError("Error fetching user profile:", error)
-        // Try to load from localStorage as fallback
-        const saved = localStorage.getItem("userAddresses")
-        if (saved) {
-          try {
-            setAddresses(dedupeAddressesByLabel(JSON.parse(saved)))
-          } catch (e) {
-            debugError("Error parsing saved addresses:", e)
-          }
-        }
       } finally {
         setLoading(false)
       }
     }
 
     fetchUserProfile()
-    
-    // Listen for auth changes
-    const handleAuthChange = () => {
-      fetchUserProfile()
-    }
-    
-    window.addEventListener("userAuthChanged", handleAuthChange)
-    
-    return () => {
-      window.removeEventListener("userAuthChanged", handleAuthChange)
-    }
+    window.addEventListener("userAuthChanged", fetchUserProfile)
+    return () => window.removeEventListener("userAuthChanged", fetchUserProfile)
   }, [])
 
-  // Address functions - memoized with useCallback
+  // Address functions
   const addAddress = useCallback(async (address) => {
-    try {
-      const response = await userAPI.addAddress(address)
-      const newAddress = response?.data?.data?.address || response?.data?.address
-      
-      if (newAddress) {
-        const normalizedNewAddress = normalizeAddress(newAddress)
-        setAddresses((prev) => {
-          const filtered = prev.filter(
-            (addr) => normalizeAddressLabel(addr?.label) !== normalizeAddressLabel(normalizedNewAddress?.label)
-          )
-          const updated = dedupeAddressesByLabel([...filtered, normalizedNewAddress])
-          localStorage.setItem("userAddresses", JSON.stringify(updated))
-          return updated
-        })
-        return normalizedNewAddress
-      }
-    } catch (error) {
-      debugError("Error adding address:", error)
-      throw error
-    }
+    const response = await userAPI.addAddress(address)
+    const newAddr = response?.data?.data?.address || response?.data?.address
+    if (newAddr) setAddresses(prev => dedupeAddressesByLabel([...prev, newAddr]))
+    return newAddr
   }, [])
 
   const updateAddress = useCallback(async (id, updatedAddress) => {
-    try {
-      const response = await userAPI.updateAddress(id, updatedAddress)
-      const updatedAddr = response?.data?.data?.address || response?.data?.address
-      
-      if (updatedAddr) {
-        const normalizedUpdatedAddress = normalizeAddress(updatedAddr)
-        setAddresses((prev) => {
-          const updated = dedupeAddressesByLabel(
-            prev.map((addr) => (String(getAddressId(addr)) === String(id) ? normalizedUpdatedAddress : normalizeAddress(addr)))
-          )
-          localStorage.setItem("userAddresses", JSON.stringify(updated))
-          return updated
-        })
-        return normalizedUpdatedAddress
-      }
-    } catch (error) {
-      debugError("Error updating address:", error)
-      throw error
-    }
+    const response = await userAPI.updateAddress(id, updatedAddress)
+    const updated = response?.data?.data?.address || response?.data?.address
+    if (updated) setAddresses(prev => dedupeAddressesByLabel(prev.map(a => String(getAddressId(a)) === String(id) ? updated : a)))
   }, [])
 
   const deleteAddress = useCallback(async (id) => {
-    try {
-      await userAPI.deleteAddress(id)
-      setAddresses((prev) => {
-        const newAddresses = prev.filter((addr) => String(getAddressId(addr)) !== String(id))
-        localStorage.setItem("userAddresses", JSON.stringify(newAddresses))
-        return newAddresses
-      })
-    } catch (error) {
-      debugError("Error deleting address:", error)
-      throw error
-    }
+    await userAPI.deleteAddress(id)
+    setAddresses(prev => prev.filter(a => String(getAddressId(a)) !== String(id)))
   }, [])
 
   const setDefaultAddress = useCallback(async (id) => {
-    // Optimistic UI update first
-    setAddresses((prev) =>
-      prev.map((addr) => ({
-        ...addr,
-        isDefault: String(getAddressId(addr)) === String(id),
-      }))
-    )
-
-    try {
-      await userAPI.setDefaultAddress(id)
-    } catch (error) {
-      debugError("Error setting default address:", error)
-      // Keep UI stable even if backend call fails
-    }
+    setAddresses(prev => prev.map(a => ({ ...a, isDefault: String(getAddressId(a)) === String(id) })))
+    await userAPI.setDefaultAddress(id)
   }, [])
 
-  const getDefaultAddress = useCallback(() => {
-    return addresses.find((addr) => addr.isDefault) || addresses[0] || null
-  }, [addresses])
+  const getDefaultAddress = useCallback(() => addresses.find(a => a.isDefault) || addresses[0] || null, [addresses])
+  const getAddressById = useCallback((id) => addresses.find(a => String(getAddressId(a)) === String(id)), [addresses])
 
-  // Payment method functions - memoized with useCallback
-  const addPaymentMethod = useCallback((payment) => {
-    setPaymentMethods((prev) => {
-      const newPayment = {
-        ...payment,
-        id: Date.now().toString(),
-        isDefault: prev.length === 0 ? true : false,
-      }
-      return [...prev, newPayment]
-    })
-  }, [])
+  // Payment functions
+  const addPaymentMethod = useCallback((p) => setPaymentMethods(prev => [...prev, { ...p, id: Date.now().toString(), isDefault: prev.length === 0 }]), [])
+  const updatePaymentMethod = useCallback((id, up) => setPaymentMethods(prev => prev.map(p => p.id === id ? { ...p, ...up } : p)), [])
+  const deletePaymentMethod = useCallback((id) => setPaymentMethods(prev => prev.filter(p => p.id !== id)), [])
+  const setDefaultPaymentMethod = useCallback((id) => setPaymentMethods(prev => prev.map(p => ({ ...p, isDefault: p.id === id }))), [])
+  const getDefaultPaymentMethod = useCallback(() => paymentMethods.find(p => p.isDefault) || paymentMethods[0] || null, [paymentMethods])
+  const getPaymentMethodById = useCallback((id) => paymentMethods.find(p => p.id === id), [paymentMethods])
 
-  const updatePaymentMethod = useCallback((id, updatedPayment) => {
-    setPaymentMethods((prev) =>
-      prev.map((pm) => (pm.id === id ? { ...pm, ...updatedPayment } : pm))
-    )
-  }, [])
+  // Favorites
+  const addFavorite = useCallback((r) => setFavorites(p => p.find(f => f.slug === r.slug) ? p : [...p, r]), [])
+  const removeFavorite = useCallback((s) => setFavorites(p => p.filter(f => f.slug !== s)), [])
+  const isFavorite = useCallback((s) => favorites.some(f => f.slug === s), [favorites])
+  const addDishFavorite = useCallback((d) => setDishFavorites(p => p.find(f => f.id === d.id) ? p : [...p, d]), [])
+  const removeDishFavorite = useCallback((id) => setDishFavorites(p => p.filter(f => f.id !== id)), [])
+  const isDishFavorite = useCallback((id) => dishFavorites.some(f => f.id === id), [dishFavorites])
 
-  const deletePaymentMethod = useCallback((id) => {
-    setPaymentMethods((prev) => {
-      const paymentToDelete = prev.find((pm) => pm.id === id)
-      const newPayments = prev.filter((pm) => pm.id !== id)
-      
-      // If deleting default, set first remaining as default
-      if (paymentToDelete?.isDefault && newPayments.length > 0) {
-        newPayments[0].isDefault = true
-      }
-      
-      return newPayments
-    })
-  }, [])
+  const updateUserProfile = useCallback((u) => setUserProfile(p => ({ ...p, ...u })), [])
 
-  const setDefaultPaymentMethod = useCallback((id) => {
-    setPaymentMethods((prev) =>
-      prev.map((pm) => ({
-        ...pm,
-        isDefault: pm.id === id,
-      }))
-    )
-  }, [])
-
-  const getDefaultPaymentMethod = useCallback(() => {
-    return paymentMethods.find((pm) => pm.isDefault) || paymentMethods[0] || null
-  }, [paymentMethods])
-
-  const getAddressById = useCallback((id) => {
-    return addresses.find((addr) => String(getAddressId(addr)) === String(id))
-  }, [addresses])
-
-  const getPaymentMethodById = useCallback((id) => {
-    return paymentMethods.find((pm) => pm.id === id)
-  }, [paymentMethods])
-
-  // Favorites functions - memoized with useCallback
-  const addFavorite = useCallback((restaurant) => {
-    setFavorites((prev) => {
-      if (!prev.find(fav => fav.slug === restaurant.slug)) {
-        return [...prev, restaurant]
-      }
-      return prev
-    })
-  }, [])
-
-  const removeFavorite = useCallback((slug) => {
-    setFavorites((prev) => prev.filter(fav => fav.slug !== slug))
-  }, [])
-
-  const isFavorite = useCallback((slug) => {
-    return favorites.some(fav => fav.slug === slug)
-  }, [favorites])
-
-  const getFavorites = useCallback(() => {
-    return favorites
-  }, [favorites])
-
-  // Dish favorites functions - memoized with useCallback
-  const addDishFavorite = useCallback((dish) => {
-    setDishFavorites((prev) => {
-      if (!prev.find(fav => fav.id === dish.id && fav.restaurantId === dish.restaurantId)) {
-        return [...prev, dish]
-      }
-      return prev
-    })
-  }, [])
-
-  const removeDishFavorite = useCallback((dishId, restaurantId) => {
-    setDishFavorites((prev) => 
-      prev.filter(fav => !(fav.id === dishId && fav.restaurantId === restaurantId))
-    )
-  }, [])
-
-  const isDishFavorite = useCallback((dishId, restaurantId) => {
-    return dishFavorites.some(fav => fav.id === dishId && fav.restaurantId === restaurantId)
-  }, [dishFavorites])
-
-  const getDishFavorites = useCallback(() => {
-    return dishFavorites
-  }, [dishFavorites])
-
-  // User profile functions - memoized with useCallback
-  const updateUserProfile = useCallback((updatedProfile) => {
-    setUserProfile((prev) => ({ ...prev, ...updatedProfile }))
-  }, [])
-
-  // Memoize the context value to prevent unnecessary re-renders
-  const value = useMemo(
-    () => ({
-      userProfile,
-      loading,
-      updateUserProfile,
-      addresses,
-      paymentMethods,
-      favorites,
-      vegMode,
-      setVegMode,
-      orderType,
-      setOrderType,
-      addAddress,
-      updateAddress,
-      deleteAddress,
-      setDefaultAddress,
-      getDefaultAddress,
-      getAddressById,
-      addPaymentMethod,
-      updatePaymentMethod,
-      deletePaymentMethod,
-      setDefaultPaymentMethod,
-      getDefaultPaymentMethod,
-      getPaymentMethodById,
-      addFavorite,
-      removeFavorite,
-      isFavorite,
-      getFavorites,
-      dishFavorites,
-      addDishFavorite,
-      removeDishFavorite,
-      isDishFavorite,
-      getDishFavorites,
-    }),
-    [
-      userProfile,
-      loading,
-      updateUserProfile,
-      addresses,
-      paymentMethods,
-      favorites,
-      dishFavorites,
-      vegMode,
-      setVegMode,
-      orderType,
-      setOrderType,
-      addAddress,
-      updateAddress,
-      deleteAddress,
-      setDefaultAddress,
-      getDefaultAddress,
-      getAddressById,
-      addPaymentMethod,
-      updatePaymentMethod,
-      deletePaymentMethod,
-      setDefaultPaymentMethod,
-      getDefaultPaymentMethod,
-      getPaymentMethodById,
-      addFavorite,
-      removeFavorite,
-      isFavorite,
-      getFavorites,
-      addDishFavorite,
-      removeDishFavorite,
-      isDishFavorite,
-      getDishFavorites,
-    ]
-  )
+  const value = useMemo(() => ({
+    userProfile, loading, updateUserProfile, addresses, paymentMethods, favorites, vegMode, setVegMode,
+    orderType, setOrderType, addAddress, updateAddress, deleteAddress, setDefaultAddress, getDefaultAddress,
+    getAddressById, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, setDefaultPaymentMethod,
+    getDefaultPaymentMethod, getPaymentMethodById, addFavorite, removeFavorite, isFavorite, dishFavorites,
+    addDishFavorite, removeDishFavorite, isDishFavorite, isSearchOpen, searchValue, setSearchValue,
+    openSearch, closeSearch, isVoiceRequested, openLocationSelector
+  }), [
+    userProfile, loading, updateUserProfile, addresses, paymentMethods, favorites, vegMode, setVegMode,
+    orderType, setOrderType, addAddress, updateAddress, deleteAddress, setDefaultAddress, getDefaultAddress,
+    getAddressById, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, setDefaultPaymentMethod,
+    getDefaultPaymentMethod, getPaymentMethodById, addFavorite, removeFavorite, isFavorite, dishFavorites,
+    addDishFavorite, removeDishFavorite, isDishFavorite, isSearchOpen, searchValue, setSearchValue,
+    openSearch, closeSearch, isVoiceRequested, openLocationSelector
+  ])
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
 }
@@ -484,41 +259,12 @@ export function ProfileProvider({ children }) {
 export function useProfile() {
   const context = useContext(ProfileContext)
   if (!context) {
-    // Return fallback values instead of throwing error
-    // This prevents crashes when ProfileProvider is not available
-    debugWarn("useProfile called outside ProfileProvider - using fallback values")
+    debugWarn("useProfile called outside ProfileProvider")
     return {
-      userProfile: null,
-      loading: false,
-      updateUserProfile: () => debugWarn("ProfileProvider not available"),
-      addresses: [],
-      paymentMethods: [],
-      favorites: [],
-      addAddress: () => debugWarn("ProfileProvider not available"),
-      updateAddress: () => debugWarn("ProfileProvider not available"),
-      deleteAddress: () => debugWarn("ProfileProvider not available"),
-      setDefaultAddress: () => debugWarn("ProfileProvider not available"),
-      getDefaultAddress: () => null,
-      getAddressById: () => null,
-      addPaymentMethod: () => debugWarn("ProfileProvider not available"),
-      updatePaymentMethod: () => debugWarn("ProfileProvider not available"),
-      deletePaymentMethod: () => debugWarn("ProfileProvider not available"),
-      setDefaultPaymentMethod: () => debugWarn("ProfileProvider not available"),
-      getDefaultPaymentMethod: () => null,
-      getPaymentMethodById: () => null,
-      addFavorite: () => debugWarn("ProfileProvider not available"),
-      removeFavorite: () => debugWarn("ProfileProvider not available"),
-      isFavorite: () => false,
-      getFavorites: () => [],
-      dishFavorites: [],
-      addDishFavorite: () => debugWarn("ProfileProvider not available"),
-      removeDishFavorite: () => debugWarn("ProfileProvider not available"),
-      isDishFavorite: () => false,
-      getDishFavorites: () => [],
-      vegMode: false,
-      setVegMode: () => debugWarn("ProfileProvider not available"),
-      orderType: "delivery",
-      setOrderType: () => debugWarn("ProfileProvider not available")
+      userProfile: null, loading: false, updateUserProfile: () => {}, addresses: [], paymentMethods: [],
+      favorites: [], dishFavorites: [], vegMode: false, setVegMode: () => {}, orderType: "delivery",
+      setOrderType: () => {}, isSearchOpen: false, searchValue: "", setSearchValue: () => {},
+      openSearch: () => {}, closeSearch: () => {}, isVoiceRequested: false, openLocationSelector: () => {}
     }
   }
   return context

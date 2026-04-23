@@ -172,8 +172,21 @@ export function CartProvider({ children }) {
     }
   }, [cart])
 
+  // Clear food-cart-mode when cart becomes empty
+  useEffect(() => {
+    if (normalizeCartData(cart).length === 0) {
+      localStorage.removeItem("food-cart-mode")
+    }
+  }, [cart])
+
   const addToCart = (item, sourcePosition = null) => {
     const safeCart = normalizeCartData(cart)
+    if (safeCart.length === 0) {
+      // First item added - snapshot the current order mode for this cart session
+      const currentMode = localStorage.getItem("userOrderType") || "delivery"
+      localStorage.setItem("food-cart-mode", currentMode)
+    }
+
     if (safeCart.length > 0) {
       const firstItemRestaurantId = safeCart[0]?.restaurantId
       const firstItemRestaurantName = safeCart[0]?.restaurant
@@ -382,7 +395,10 @@ export function CartProvider({ children }) {
     return safeCart.find((i) => i.id === resolvedItemId) || null
   }
 
-  const clearCart = () => setCart([])
+  const clearCart = () => {
+    setCart([])
+    localStorage.removeItem("food-cart-mode")
+  }
 
   const replaceCart = (items) => {
     const normalizedItems = normalizeCartData(items).filter((item) => {

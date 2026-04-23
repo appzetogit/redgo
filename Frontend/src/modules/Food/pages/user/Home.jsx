@@ -65,10 +65,8 @@ import { Badge } from "@food/components/ui/badge";
 import { Input } from "@food/components/ui/input";
 import { Switch } from "@food/components/ui/switch";
 import { Checkbox } from "@food/components/ui/checkbox";
-import {
-  useSearchOverlay,
-  useLocationSelector,
-} from "@food/components/user/UserLayout";
+
+
 import PageNavbar from "@food/components/user/PageNavbar";
 
 const debugLog = (...args) => { };
@@ -257,11 +255,28 @@ const RestaurantImageCarousel = React.memo(
     }, [currentIndex, slideItems.length]);
 
     useEffect(() => {
+      // Force reset states when restaurant changes
       setCurrentIndex(0);
       setIsTransitioning(true);
       setIsImageUnavailable(slideItems.length === 0);
-      setShowShimmer(slideItems.length > 0);
+      
+      // If we have items, check if they are already in cache
+      if (slideItems.length > 0) {
+        const firstSrc = slideItems[0].src;
+        // Check if browser already has this image
+        const img = new Image();
+        img.src = firstSrc;
+        if (img.complete) {
+          setShowShimmer(false);
+          setLoadedBySrc({ [firstSrc]: true });
+        } else {
+          setShowShimmer(true);
+        }
+      } else {
+        setShowShimmer(false);
+      }
     }, [restaurant?.id, restaurant?.slug, restaurant?.updatedAt, slideItems.length]);
+
 
     // Handle touch events for swipe
     const handleTouchStart = (e) => {
@@ -417,11 +432,28 @@ export default function Home() {
   const query = searchParams.get("q") || "";
   const navigationType = useNavigationType();
   const [heroSearch, setHeroSearch] = useState("");
-  const { openSearch, closeSearch, searchValue, setSearchValue } =
-    useSearchOverlay();
-  const { openLocationSelector } = useLocationSelector();
-  const { userProfile, vegMode, setVegMode: setVegModeContext, orderType } = useProfile();
+  
+  const { 
+    openSearch, 
+    closeSearch, 
+    openLocationSelector, 
+    setSearchValue,
+    userProfile, 
+    vegMode, 
+    setVegMode: setVegModeContext, 
+    orderType, 
+    getDefaultAddress,
+    favorites,
+    addFavorite,
+    removeFavorite,
+    isFavorite
+  } = useProfile();
+
+
+
   const [prevVegMode, setPrevVegMode] = useState(vegMode);
+
+
   const [showVegModePopup, setShowVegModePopup] = useState(false);
   const [showSwitchOffPopup, setShowSwitchOffPopup] = useState(false);
   const [vegModeOption, setVegModeOption] = useState("all"); // "all" or "pure-veg"
@@ -1126,30 +1158,8 @@ export default function Home() {
   const showCategorySkeleton = loadingRealCategories || loadingMenuCategories;
   const showExploreSkeleton = loadingLandingConfig;
   const showRestaurantSkeleton = isLoadingFilterResults || loadingRestaurants;
-  // Safely get profile context - handle case when ProfileProvider is not available
-  let profileContext = null;
-  try {
-    profileContext = useProfile();
-  } catch (error) {
-    debugWarn("ProfileProvider not available, using fallback:", error.message);
-    // Fallback values when ProfileProvider is not available
-    profileContext = {
-      addFavorite: () => debugWarn("ProfileProvider not available"),
-      removeFavorite: () => debugWarn("ProfileProvider not available"),
-      isFavorite: () => false,
-      getFavorites: () => [],
-      getDefaultAddress: () => null,
-    };
-  }
-
-  const {
-    addFavorite,
-    removeFavorite,
-    isFavorite,
-    getFavorites,
-    getDefaultAddress,
-  } = profileContext;
   const { addToCart, cart } = useCart();
+
   const { location, loading, requestLocation } = useLocation();
   const {
     zoneId,
@@ -3095,12 +3105,7 @@ export default function Home() {
 
                 return (
                   <div
-                    key={
-                      restaurant?.id ||
-                      restaurant?._id ||
-                      restaurantSlug ||
-                      index
-                    }
+                    key={`${restaurant?.id || restaurant?._id || index}-${restaurant?.updatedAt || ''}`}
                     className="h-full transform transition-all duration-300 hover:-translate-y-3 hover:scale-[1.02]"
                     style={{
                       perspective: 1000,
@@ -3109,6 +3114,9 @@ export default function Home() {
                           ? `fade-in-up 0.5s ease-out ${index * 0.05}s backwards`
                           : "none",
                     }}>
+
+
+
                     <div className="h-full group">
                       <Link
                         to={`/user/restaurants/${restaurantSlug}`}
@@ -4290,8 +4298,9 @@ export default function Home() {
                           )}
                         </div>
                         <p className="text-sm text-gray-500 mt-1">
-                          {getFavorites().length} restaurant
-                          {getFavorites().length !== 1 ? "s" : ""}
+                          {favorites.length} restaurant
+                          {favorites.length !== 1 ? "s" : ""}
+
                         </p>
                       </div>
                     </div>

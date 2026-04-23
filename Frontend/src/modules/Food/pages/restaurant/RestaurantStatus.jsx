@@ -35,7 +35,6 @@ export default function RestaurantStatus() {
   const goBack = useRestaurantBackNavigation()
   const [deliveryStatus, setDeliveryStatus] = useState(false)
   const [takeawayStatus, setTakeawayStatus] = useState(false)
-  const [takeawayCodStatus, setTakeawayCodStatus] = useState(false)
   const [restaurantData, setRestaurantData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentDateTime, setCurrentDateTime] = useState(new Date())
@@ -65,7 +64,6 @@ export default function RestaurantStatus() {
           setRestaurantData(data)
           if (data.takeawaySettings) {
             setTakeawayStatus(data.takeawaySettings.isEnabled)
-            setTakeawayCodStatus(data.takeawaySettings.codEnabled)
           }
         }
       } catch (error) {
@@ -170,7 +168,6 @@ export default function RestaurantStatus() {
           setDeliveryStatus(restaurant.isAcceptingOrders)
           if (restaurant.takeawaySettings) {
             setTakeawayStatus(restaurant.takeawaySettings.isEnabled)
-            setTakeawayCodStatus(restaurant.takeawaySettings.codEnabled)
           }
           try {
             localStorage.setItem('restaurant_online_status', JSON.stringify(Boolean(restaurant.isAcceptingOrders)))
@@ -256,17 +253,7 @@ export default function RestaurantStatus() {
     }
   }
 
-  // Handle takeaway COD change
-  const handleTakeawayCodChange = async (checked) => {
-    setTakeawayCodStatus(checked)
-    try {
-      await restaurantAPI.updateTakeawaySettings({ codEnabled: checked })
-      debugLog('? Takeaway COD updated in backend:', checked)
-    } catch (error) {
-      debugError("Error saving takeaway COD status:", error)
-      setTakeawayCodStatus((prev) => !prev)
-    }
-  }
+
 
   const handleGoToOutletTimings = () => {
     setShowOutletClosedDialog(false)
@@ -420,21 +407,7 @@ export default function RestaurantStatus() {
                   />
                 </div>
 
-                {takeawayStatus && (
-                  <div className="flex items-center justify-between pl-4 border-l-2 border-orange-100 animate-in fade-in slide-in-from-top-1 duration-300">
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-gray-900 mb-0.5">Cash on Delivery</p>
-                      <p className="text-[10px] text-gray-500">
-                        Enable cash payments for pickup
-                      </p>
-                    </div>
-                    <Switch
-                      checked={takeawayCodStatus}
-                      onCheckedChange={handleTakeawayCodChange}
-                      className="ml-4 data-[state=unchecked]:bg-gray-300 data-[state=checked]:bg-green-600 scale-90"
-                    />
-                  </div>
-                )}
+
               </div>
             </div>
 

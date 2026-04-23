@@ -31,7 +31,7 @@ import AnimatedPage from "@food/components/user/AnimatedPage";
 import { Card, CardContent } from "@food/components/ui/card";
 import { Button } from "@food/components/ui/button";
 import { useProfile } from "@food/context/ProfileContext";
-import { useLocationSelector } from "@food/components/user/UserLayout";
+
 import {
   Avatar,
   AvatarFallback,
@@ -58,9 +58,9 @@ const USER_SESSION_PREFERENCE_KEYS = ["userVegMode", "food-under-250-filters"];
 import { registerWebPushForCurrentModule } from "@food/utils/firebaseMessaging";
 
 export default function Profile() {
-  const { userProfile, vegMode, setVegMode, getDefaultAddress, addresses } =
+  const { userProfile, vegMode, setVegMode, getDefaultAddress, addresses, openLocationSelector } =
     useProfile();
-  const { openLocationSelector } = useLocationSelector();
+
   const navigate = useNavigate();
   const companyName = useCompanyName();
   const defaultAddress = getDefaultAddress?.();

@@ -6,8 +6,8 @@ import { Input } from "@food/components/ui/input"
 import { Switch } from "@food/components/ui/switch"
 import { useLocation as useLocationHook } from "@food/hooks/useLocation"
 import { useCart } from "@food/context/CartContext"
-import { useLocationSelector, useSearchOverlay } from "./UserLayout"
 import { useProfile } from "@food/context/ProfileContext"
+
 import { FaLocationDot } from "react-icons/fa6"
 import { AnimatePresence, motion } from "framer-motion"
 import quickSpicyLogo from "@food/assets/redgo-logo-transparent.png"
@@ -22,9 +22,9 @@ export default function DesktopNavbar({ showLogo = true }) {
     const navigate = useNavigate()
     const { location: userLocation, loading: locationLoading } = useLocationHook()
     const { getCartCount } = useCart()
-    const { openLocationSelector } = useLocationSelector()
-    const { setSearchValue } = useSearchOverlay()
-    const { vegMode, setVegMode } = useProfile()
+    const { vegMode, setVegMode, openLocationSelector, setSearchValue } = useProfile()
+
+
     const [heroSearch, setHeroSearch] = useState("")
     const [logoUrl, setLogoUrl] = useState(null)
     const [companyName, setCompanyName] = useState(null)

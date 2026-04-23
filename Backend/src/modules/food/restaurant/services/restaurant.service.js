@@ -181,8 +181,7 @@ const toRestaurantProfile = (doc) => {
             diningType: String(doc.diningSettings?.diningType || 'family-dining').trim() || 'family-dining'
         },
         takeawaySettings: {
-            isEnabled: doc.takeawaySettings?.isEnabled === true,
-            codEnabled: doc.takeawaySettings?.codEnabled === true
+            isEnabled: doc.takeawaySettings?.isEnabled === true
         },
         isAcceptingOrders: doc.isAcceptingOrders !== false,
         status: doc.status || null,
@@ -381,8 +380,7 @@ export const registerRestaurant = async (payload, files) => {
             accountType,
             menuImages,
             takeawaySettings: {
-                isEnabled: (payload.isTakeawayEnabled === true || payload.isTakeawayEnabled === 'true'),
-                codEnabled: (payload.isTakeawayCodEnabled === true || payload.isTakeawayCodEnabled === 'true')
+                isEnabled: (payload.isTakeawayEnabled === true || payload.isTakeawayEnabled === 'true')
             },
             ...images
         });
@@ -633,8 +631,7 @@ export const updateCurrentRestaurantTakeawaySettings = async (restaurantId, body
         {
             $set: {
                 takeawaySettings: {
-                    isEnabled: parseBoolean(body.isEnabled, currentTakeawaySettings.isEnabled),
-                    codEnabled: parseBoolean(body.codEnabled, currentTakeawaySettings.codEnabled)
+                    isEnabled: parseBoolean(body.isEnabled, currentTakeawaySettings.isEnabled)
                 }
             }
         },
