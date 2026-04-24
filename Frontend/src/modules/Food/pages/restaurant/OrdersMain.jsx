@@ -1106,7 +1106,26 @@ export default function OrdersMain() {
         markOrderAsShown(newOrder);
         setPopupOrder(newOrder);
         setShowNewOrderPopup(true);
-        setCountdown(240); // Reset countdown to 4 minutes
+        
+        // Timer persistence: Calculate or recover deadline
+        const orderId = newOrder.orderMongoId || newOrder.orderId || newOrder._id;
+        const storageKey = `order_accept_deadline_${orderId}`;
+        const storedDeadline = localStorage.getItem(storageKey);
+        const now = Date.now();
+        
+        if (storedDeadline) {
+          const remaining = Math.max(0, Math.floor((parseInt(storedDeadline) - now) / 1000));
+          setCountdown(remaining);
+        } else {
+          // Calculate deadline relative to order creation + 4 minutes
+          const createdAt = new Date(newOrder.createdAt || Date.now()).getTime();
+          const deadline = createdAt + 4 * 60 * 1000;
+          const remaining = Math.max(0, Math.floor((deadline - now) / 1000));
+          
+          localStorage.setItem(storageKey, deadline.toString());
+          setCountdown(remaining);
+        }
+        
         requestOrdersRefresh();
       }
     }
@@ -1232,7 +1251,24 @@ export default function OrdersMain() {
             markOrderAsShown({ orderId, _id: orderToPopup._id });
             setPopupOrder(orderForPopup);
             setShowNewOrderPopup(true);
-            setCountdown(240);
+            
+            // Timer persistence: Calculate or recover deadline
+            const storageKey = `order_accept_deadline_${orderId}`;
+            const storedDeadline = localStorage.getItem(storageKey);
+            const now = Date.now();
+            
+            if (storedDeadline) {
+              const remaining = Math.max(0, Math.floor((parseInt(storedDeadline) - now) / 1000));
+              setCountdown(remaining);
+            } else {
+              // Calculate deadline relative to order creation + 4 minutes
+              const createdAt = new Date(orderToPopup.createdAt || Date.now()).getTime();
+              const deadline = createdAt + 4 * 60 * 1000;
+              const remaining = Math.max(0, Math.floor((deadline - now) / 1000));
+
+              localStorage.setItem(storageKey, deadline.toString());
+              setCountdown(remaining);
+            }
           }
         }
       } catch (error) {
@@ -1421,6 +1457,12 @@ export default function OrdersMain() {
       }
     }
 
+    // Clear the persistent deadline from storage
+    const orderIdToClear = (popupOrder || newOrder)?.orderMongoId || (popupOrder || newOrder)?.orderId;
+    if (orderIdToClear) {
+      localStorage.removeItem(`order_accept_deadline_${orderIdToClear}`);
+    }
+
     setShowNewOrderPopup(false);
     setPopupOrder(null);
     clearNewOrder();
@@ -1462,6 +1504,12 @@ export default function OrdersMain() {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
+    // Clear the persistent deadline from storage
+    const orderIdToClear = (popupOrder || newOrder)?.orderMongoId || (popupOrder || newOrder)?.orderId;
+    if (orderIdToClear) {
+      localStorage.removeItem(`order_accept_deadline_${orderIdToClear}`);
+    }
+
     setShowRejectPopup(false);
     setShowNewOrderPopup(false);
     setPopupOrder(null);
@@ -1472,6 +1520,12 @@ export default function OrdersMain() {
   };
 
   const handleRejectCancel = () => {
+    // Clear the persistent deadline from storage
+    const orderIdToClear = (popupOrder || newOrder)?.orderMongoId || (popupOrder || newOrder)?.orderId;
+    if (orderIdToClear) {
+      localStorage.removeItem(`order_accept_deadline_${orderIdToClear}`);
+    }
+
     setShowRejectPopup(false);
     setShowNewOrderPopup(false);
     setPopupOrder(null);

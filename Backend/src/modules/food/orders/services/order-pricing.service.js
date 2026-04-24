@@ -32,7 +32,7 @@ export async function calculateOrderPricing(userId, dto) {
   };
 
   const packagingFee = 0;
-  const platformFee = Number(feeSettings.platformFee || 0);
+  const platformFee = Number(feeSettings.platformFee) || 5;
 
   const freeThreshold = Number(feeSettings.freeDeliveryThreshold || 0);
   let deliveryFee = 0;
@@ -81,11 +81,8 @@ export async function calculateOrderPricing(userId, dto) {
     }
   }
 
-  const gstRate = Number(feeSettings.gstRate || 0);
-  const tax =
-    Number.isFinite(gstRate) && gstRate > 0
-      ? Math.round(subtotal * (gstRate / 100))
-      : 0;
+  const gstRate = Number(feeSettings.gstRate) || 5;
+  const tax = Math.round(subtotal * (gstRate / 100));
 
   let discount = 0;
   let appliedCoupon = null;

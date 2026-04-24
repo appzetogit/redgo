@@ -27,6 +27,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@food/components/ui/dialog"
 import { Textarea } from "@food/components/ui/textarea"
 import { useOrders } from "@food/context/OrdersContext"
@@ -1147,9 +1148,9 @@ export default function OrderTracking() {
   // Loading state (moved after hooks)
   if (loading) {
     return (
-      <AnimatedPage className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-lg mx-auto text-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-600 mx-auto mb-4" />
+      <AnimatedPage className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-600 mb-4" />
           <p className="text-gray-600">Loading order details...</p>
         </div>
       </AnimatedPage>
@@ -1369,7 +1370,7 @@ export default function OrderTracking() {
       {/* Scrollable Content */}
       <div className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-4 md:py-6 space-y-4 md:space-y-6 pb-24 md:pb-32">
         {/* 1-minute cancellation window after admin acceptance */}
-        {isAdminAccepted && isEditWindowOpen && (
+        {isAdminAccepted && isEditWindowOpen && !isDeliveredOrder && orderStatus !== 'cancelled' && (
           <motion.div
             className="bg-white rounded-xl p-4 shadow-sm border border-orange-100"
             initial={{ opacity: 0, y: 20 }}
@@ -1456,7 +1457,7 @@ export default function OrderTracking() {
         </motion.div>
 
         {/* Delivery Partner Info */}
-        {order?.deliveryPartnerId && (
+        {order?.deliveryPartnerId && !isDeliveredOrder && orderStatus !== 'cancelled' && (
           <motion.div
             className="bg-white rounded-xl shadow-sm overflow-hidden"
             initial={{ opacity: 0, y: 20 }}
@@ -1499,117 +1500,123 @@ export default function OrderTracking() {
         )}
 
         {/* Delivery Partner Safety */}
-        <motion.button
-          className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center gap-3"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <Shield className="w-6 h-6 text-gray-600" />
-          <span className="flex-1 text-left font-medium text-gray-900">
-            Learn about delivery partner safety
-          </span>
-          <ChevronRight className="w-5 h-5 text-gray-400" />
-        </motion.button>
+        {!isDeliveredOrder && orderStatus !== 'cancelled' && (
+          <motion.button
+            className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center gap-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <Shield className="w-6 h-6 text-gray-600" />
+            <span className="flex-1 text-left font-medium text-gray-900">
+              Learn about delivery partner safety
+            </span>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </motion.button>
+        )}
 
         {/* Delivery Details Banner */}
-        <motion.div
-          className="bg-yellow-50 rounded-xl p-4 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65 }}
-        >
-          <p className="text-yellow-800 font-medium">
-            All your delivery details in one place ??
-          </p>
-        </motion.div>
+        {!isDeliveredOrder && orderStatus !== 'cancelled' && (
+          <motion.div
+            className="bg-yellow-50 rounded-xl p-4 text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+          >
+            <p className="text-yellow-800 font-medium">
+              All your delivery details in one place ??
+            </p>
+          </motion.div>
+        )}
 
         {/* Contact & Address Section */}
-        <motion.div
-          className="bg-white rounded-xl shadow-sm overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-        >
-          <SectionItem
-            icon={User}
-            title={
-              order?.userName ||
-              order?.userId?.fullName ||
-              order?.userId?.name ||
-              profile?.fullName ||
-              profile?.name ||
-              'Customer'
-            }
-            subtitle={
-              order?.userPhone ||
-              order?.userId?.phone ||
-              profile?.phone ||
-              defaultAddress?.phone ||
-              'Phone number not available'
-            }
-            showArrow={false}
-          />
-          <SectionItem
-            iconNode={
-              <div
-                dangerouslySetInnerHTML={{ __html: SAFE_CUSTOMER_PIN }}
-                className="w-6 h-6 [&_svg]:w-full [&_svg]:h-full [&_svg]:block"
-              />
-            }
-            title="Delivery at Location"
-            subtitle={(() => {
-              // Priority 1: Use order address formattedAddress (live location address)
-              if (order?.address?.formattedAddress && order.address.formattedAddress !== "Select location") {
-                return order.address.formattedAddress
+        {!isDeliveredOrder && orderStatus !== 'cancelled' && (
+          <motion.div
+            className="bg-white rounded-xl shadow-sm overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <SectionItem
+              icon={User}
+              title={
+                order?.userName ||
+                order?.userId?.fullName ||
+                order?.userId?.name ||
+                profile?.fullName ||
+                profile?.name ||
+                'Customer'
               }
-
-              // Priority 2: Build full address from order address parts
-              if (order?.address) {
-                const orderAddressParts = []
-                if (order.address.street) orderAddressParts.push(order.address.street)
-                if (order.address.additionalDetails) orderAddressParts.push(order.address.additionalDetails)
-                if (order.address.city) orderAddressParts.push(order.address.city)
-                if (order.address.state) orderAddressParts.push(order.address.state)
-                if (order.address.zipCode) orderAddressParts.push(order.address.zipCode)
-                if (orderAddressParts.length > 0) {
-                  return orderAddressParts.join(', ')
+              subtitle={
+                order?.userPhone ||
+                order?.userId?.phone ||
+                profile?.phone ||
+                defaultAddress?.phone ||
+                'Phone number not available'
+              }
+              showArrow={false}
+            />
+            <SectionItem
+              iconNode={
+                <div
+                  dangerouslySetInnerHTML={{ __html: SAFE_CUSTOMER_PIN }}
+                  className="w-6 h-6 [&_svg]:w-full [&_svg]:h-full [&_svg]:block"
+                />
+              }
+              title="Delivery at Location"
+              subtitle={(() => {
+                // Priority 1: Use order address formattedAddress (live location address)
+                if (order?.address?.formattedAddress && order.address.formattedAddress !== "Select location") {
+                  return order.address.formattedAddress
                 }
-              }
 
-              // Priority 3: Use defaultAddress formattedAddress (live location address)
-              if (defaultAddress?.formattedAddress && defaultAddress.formattedAddress !== "Select location") {
-                return defaultAddress.formattedAddress
-              }
-
-              // Priority 4: Build full address from defaultAddress parts
-              if (defaultAddress) {
-                const defaultAddressParts = []
-                if (defaultAddress.street) defaultAddressParts.push(defaultAddress.street)
-                if (defaultAddress.additionalDetails) defaultAddressParts.push(defaultAddress.additionalDetails)
-                if (defaultAddress.city) defaultAddressParts.push(defaultAddress.city)
-                if (defaultAddress.state) defaultAddressParts.push(defaultAddress.state)
-                if (defaultAddress.zipCode) defaultAddressParts.push(defaultAddress.zipCode)
-                if (defaultAddressParts.length > 0) {
-                  return defaultAddressParts.join(', ')
+                // Priority 2: Build full address from order address parts
+                if (order?.address) {
+                  const orderAddressParts = []
+                  if (order.address.street) orderAddressParts.push(order.address.street)
+                  if (order.address.additionalDetails) orderAddressParts.push(order.address.additionalDetails)
+                  if (order.address.city) orderAddressParts.push(order.address.city)
+                  if (order.address.state) orderAddressParts.push(order.address.state)
+                  if (order.address.zipCode) orderAddressParts.push(order.address.zipCode)
+                  if (orderAddressParts.length > 0) {
+                    return orderAddressParts.join(', ')
+                  }
                 }
-              }
 
-              return 'Add delivery address'
-            })()}
-            showArrow={false}
-          />
-          <SectionItem
-            icon={MessageSquare}
-            title={order?.note ? "Edit delivery instructions" : "Add delivery instructions"}
-            subtitle={order?.note ? order.note.substring(0, 35) + (order.note.length > 35 ? "..." : "") : ""}
-            onClick={() => {
-              setDeliveryInstructions(order?.note || "");
-              setIsInstructionsModalOpen(true);
-            }}
-          />
-        </motion.div>
+                // Priority 3: Use defaultAddress formattedAddress (live location address)
+                if (defaultAddress?.formattedAddress && defaultAddress.formattedAddress !== "Select location") {
+                  return defaultAddress.formattedAddress
+                }
+
+                // Priority 4: Build full address from defaultAddress parts
+                if (defaultAddress) {
+                  const defaultAddressParts = []
+                  if (defaultAddress.street) defaultAddressParts.push(defaultAddress.street)
+                  if (defaultAddress.additionalDetails) defaultAddressParts.push(defaultAddress.additionalDetails)
+                  if (defaultAddress.city) defaultAddressParts.push(defaultAddress.city)
+                  if (defaultAddress.state) defaultAddressParts.push(defaultAddress.state)
+                  if (defaultAddress.zipCode) defaultAddressParts.push(defaultAddress.zipCode)
+                  if (defaultAddressParts.length > 0) {
+                    return defaultAddressParts.join(', ')
+                  }
+                }
+
+                return 'Add delivery address'
+              })()}
+              showArrow={false}
+            />
+            <SectionItem
+              icon={MessageSquare}
+              title={order?.note ? "Edit delivery instructions" : "Add delivery instructions"}
+              subtitle={order?.note ? order.note.substring(0, 35) + (order.note.length > 35 ? "..." : "") : ""}
+              onClick={() => {
+                setDeliveryInstructions(order?.note || "");
+                setIsInstructionsModalOpen(true);
+              }}
+            />
+          </motion.div>
+        )}
 
         {/* Restaurant Section */}
         <motion.div
@@ -1629,40 +1636,153 @@ export default function OrderTracking() {
               <p className="font-semibold text-gray-900">{order.restaurant}</p>
               <p className="text-sm text-gray-500">{order.restaurantAddress || 'Restaurant location'}</p>
             </div>
-            <motion.button
-              className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center"
-              onClick={handleCallRestaurant}
-              whileTap={{ scale: 0.9 }}
-            >
-              <Phone className="w-5 h-5 text-[#EB590E]" />
-            </motion.button>
+            {!isDeliveredOrder && orderStatus !== 'cancelled' && (
+              <motion.button
+                className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center"
+                onClick={handleCallRestaurant}
+                whileTap={{ scale: 0.9 }}
+              >
+                <Phone className="w-5 h-5 text-[#EB590E]" />
+              </motion.button>
+            )}
           </div>
 
-          {/* Order Items */}
-          <div
-            className="p-4 border-b border-dashed border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => setShowOrderDetails(true)}
-          >
-            <div className="flex items-start gap-3">
-              <Receipt className="w-5 h-5 text-gray-500 mt-0.5" />
-              <div className="flex-1">
-                <div className="mt-2 space-y-1">
-                  {order?.items?.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
-                      <div className={`w-3.5 h-3.5 border-2 ${item.isVeg ? "border-green-600" : "border-red-600"} bg-white flex items-center justify-center p-[1.5px] rounded-sm shrink-0`}>
-                        <div className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
-                      </div>
-                      <span className="font-medium text-gray-700">{item.quantity} x {item.name}{item.variantName ? ` (${item.variantName})` : ""}</span>
-                    </div>
-                  ))}
+          {/* Order Metadata and Items for Delivered Orders */}
+          {isDeliveredOrder && (
+            <div className="p-4 bg-white border-b border-dashed border-gray-200">
+              <div className="flex items-center gap-6 mb-6">
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Date & Time</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {order?.createdAt ? new Date(order.createdAt).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    }) : 'N/A'}
+                  </p>
+                </div>
+                <div className="h-8 w-px bg-gray-200" />
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Status</p>
+                  <span className="text-sm font-bold text-green-600 uppercase">
+                    {order?.status?.replace('_', ' ')}
+                  </span>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-4">Order Items</p>
+              <div className="space-y-4">
+                {order?.items?.map((item, index) => (
+                  <div key={index} className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className={`w-4 h-4 rounded border-2 ${item.isVeg ? "border-green-600" : "border-red-600"} bg-white flex items-center justify-center mt-0.5 shrink-0 p-[2px]`}>
+                        <div className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900 leading-tight">{item.name}</p>
+                        {item.variantName ? (
+                          <p className="text-xs text-gray-500 mt-0.5">{item.variantName}</p>
+                        ) : null}
+                        <p className="text-xs text-gray-500 mt-0.5">Quantity: {item.quantity}</p>
+                      </div>
+                    </div>
+                    <p className="font-semibold text-gray-900">₹{((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Legacy/Active Order Items View */}
+          {!isDeliveredOrder && (
+            <div
+              className={`p-4 border-b border-dashed border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors`}
+              onClick={() => setShowOrderDetails(true)}
+            >
+              <div className="flex items-start gap-3">
+                <Receipt className="w-5 h-5 text-gray-500 mt-0.5" />
+                <div className="flex-1">
+                  <div className="mt-2 space-y-1">
+                    {order?.items?.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                        <div className={`w-3.5 h-3.5 border-2 ${item.isVeg ? "border-green-600" : "border-red-600"} bg-white flex items-center justify-center p-[1.5px] rounded-sm shrink-0`}>
+                          <div className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
+                        </div>
+                        <span className="font-medium text-gray-700">{item.quantity} x {item.name}{item.variantName ? ` (${item.variantName})` : ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </div>
+            </div>
+          )}
+
+          {/* Inline Bill Summary for Delivered Orders */}
+          {isDeliveredOrder && (
+            <div className="p-4 bg-gray-50/50 space-y-3">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Bill Summary</p>
+              
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Item Total</span>
+                <span className="text-gray-900 font-medium">₹{Number(order?.subtotal || 0).toFixed(2)}</span>
+              </div>
+
+              {Number(order?.packagingFee) > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Packaging Charges</span>
+                  <span className="text-gray-900 font-medium">₹{Number(order.packagingFee).toFixed(2)}</span>
+                </div>
+              )}
+
+              {Number(order?.platformFee) > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Platform Fee</span>
+                  <span className="text-gray-900 font-medium">₹{Number(order.platformFee).toFixed(2)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Delivery Fee</span>
+                <span className="text-gray-900 font-medium">₹{Number(order?.deliveryFee || 0).toFixed(2)}</span>
+              </div>
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Taxes & Charges (GST)</span>
+                <span className="text-gray-900 font-medium">₹{Number(order?.gst || 0).toFixed(2)}</span>
+              </div>
+
+              {Number(order?.discount) > 0 && (
+                <div className="flex justify-between items-center text-sm text-green-600 font-medium">
+                  <span>Discount Applied</span>
+                  <span>-₹{Number(order.discount).toFixed(2)}</span>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center">
+                <span className="text-sm font-bold text-gray-900">Total Amount</span>
+                <span className="text-base font-bold text-gray-900">₹{Number(order?.totalAmount || 0).toFixed(2)}</span>
+              </div>
+
+              {order?.paymentMethod && (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-1.5 text-gray-500">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium">Payment Method</span>
+                  </div>
+                  <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                    {order.paymentMethod}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
 
-        {!isAdminAccepted && orderStatus !== 'cancelled' && (
+        {!isAdminAccepted && !isDeliveredOrder && orderStatus !== 'cancelled' && (
           <motion.div
             className="bg-white rounded-xl shadow-sm overflow-hidden"
             initial={{ opacity: 0, y: 20 }}
@@ -1687,6 +1807,9 @@ export default function OrderTracking() {
             <DialogTitle className="text-xl font-bold text-gray-900">
               Cancel Order
             </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Please let us know why you would like to cancel this order.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-5 py-6 px-2">
             <div className="space-y-2 w-full">
@@ -1736,6 +1859,9 @@ export default function OrderTracking() {
             <div className="flex items-center justify-between">
               <DialogTitle className="text-xl font-bold text-gray-900">Order Details</DialogTitle>
             </div>
+            <DialogDescription className="text-sm text-gray-500">
+              Complete summary and billing information for your order.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="p-6 pt-4 space-y-6 max-h-[70vh] overflow-y-auto">
@@ -1880,6 +2006,9 @@ export default function OrderTracking() {
             <DialogTitle className="text-xl font-bold bg-gradient-to-r from-orange-600 to-orange-400 bg-clip-text text-transparent">
               Delivery Instructions
             </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Provide specific notes to help our delivery partner find your location.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-gray-500">

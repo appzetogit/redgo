@@ -160,6 +160,7 @@ const PaymentModal = ({ order, otpString, onComplete, onClose }) => {
   const isInitialPaid = ['paid', 'captured', 'authorized'].includes(String(order.payment?.status || "").toLowerCase());
   const [paymentStatus, setPaymentStatus] = useState(isInitialPaid ? 'paid' : 'idle');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isCashPayment, setIsCashPayment] = useState(false); // Toggle for cash vs QR
   const pollingRef = useRef(null);
 
   const orderId = order.orderId || order._id || 'ORD';
@@ -194,6 +195,7 @@ const PaymentModal = ({ order, otpString, onComplete, onClose }) => {
 
   const generateQr = async () => {
     setIsGeneratingQr(true);
+    setIsCashPayment(false); // Switch away from cash mode if QR is requested
     try {
       const res = await deliveryAPI.createCollectQr(orderId, {
         name: order.userName || 'Customer',
@@ -256,10 +258,29 @@ const PaymentModal = ({ order, otpString, onComplete, onClose }) => {
                  <button 
                    onClick={generateQr}
                    disabled={isGeneratingQr}
-                   className="w-full py-4 bg-white border-2 border-amber-200 text-amber-800 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                   className={`w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all border-2 ${
+                     paymentStatus === 'pending' && !isCashPayment
+                       ? "bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-600/20"
+                       : "bg-white border-amber-200 text-amber-800"
+                   }`}
                  >
                    {isGeneratingQr ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-5 h-5" />}
-                   Show Payment QR
+                   {paymentStatus === 'pending' ? "QR Generated ✓" : "Show Payment QR"}
+                 </button>
+
+                 <button 
+                   onClick={() => {
+                     setIsCashPayment(true);
+                     setPaymentStatus('idle'); // Stop pending state if they choose cash
+                   }}
+                   className={`w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all border-2 ${
+                     isCashPayment 
+                       ? "bg-green-600 text-white border-green-600 shadow-lg shadow-green-600/20"
+                       : "bg-white border-green-200 text-green-700"
+                   }`}
+                 >
+                   <DollarSign className="w-5 h-5" />
+                   Cash Payment
                  </button>
                </div>
              )}
@@ -270,12 +291,12 @@ const PaymentModal = ({ order, otpString, onComplete, onClose }) => {
             key="action-payment"
             label="Slide to Complete Order" 
             successLabel="Delivered! ✓"
-            disabled={!isPaid && paymentStatus === 'pending'} // Disable only if we are specifically waiting for QR to sync
+            disabled={!isPaid && !isCashPayment && paymentStatus !== 'paid'} 
             onConfirm={async () => {
                 try {
-                    await onComplete(otpString);
+                    const finalPaymentMode = isPaid ? 'qr' : (isCashPayment ? 'cash' : 'cod');
+                    await onComplete(otpString, finalPaymentMode);
                 } catch (e) {
-                    // Slider handles reset
                     throw e;
                 }
             }}
@@ -358,7 +379,7 @@ export const DeliveryVerificationModal = ({ order, onComplete, onClose }) => {
   // If OTP was already verified on mount and it's a non-COD order, auto-complete
   useEffect(() => {
     if (step === 'complete' && !isCod) {
-      onComplete(verifiedOtp);
+      onComplete(verifiedOtp, 'online');
     }
   }, []); // only on mount
 
@@ -406,7 +427,7 @@ export const DeliveryVerificationModal = ({ order, onComplete, onClose }) => {
               label="Slide to Complete Delivery" 
               successLabel="Delivered! ✓"
               onConfirm={async () => {
-                await onComplete(verifiedOtp);
+                await onComplete(verifiedOtp, 'online');
               }}
               color="bg-green-600"
             />

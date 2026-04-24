@@ -13,6 +13,7 @@ import {
   MapPin,
   RotateCcw,
   FileText,
+  Loader2,
 } from "lucide-react"
 import { orderAPI, restaurantAPI } from "@food/api"
 import { useCart } from "@food/context/CartContext"
@@ -96,7 +97,8 @@ export default function UserOrderDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-[#EB590E] mb-4" />
         <p className="text-gray-600 text-sm">Loading order details...</p>
       </div>
     )

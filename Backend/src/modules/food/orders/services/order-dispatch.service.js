@@ -119,6 +119,8 @@ export async function tryAutoAssign(orderId, options = {}) {
   const order = await FoodOrder.findOneAndUpdate(
     {
       _id: new mongoose.Types.ObjectId(orderId),
+      // CRITICAL: Rider dispatch ONLY starts after restaurant accepts (confirmed/preparing)
+      orderStatus: { $in: ['confirmed', 'preparing', 'ready_for_pickup', 'ready'] },
       $or: [
         { 'dispatch.status': 'unassigned' },
         {

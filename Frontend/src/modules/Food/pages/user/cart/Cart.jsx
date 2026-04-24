@@ -740,14 +740,14 @@ export default function Cart() {
   const deliveryFeeBreakdownText = !isTakeaway && pricing?.deliveryFeeBreakdown?.source === "distance"
     ? `Distance ${Number(pricing.deliveryFeeBreakdown.distanceKm).toFixed(1)} km: ${RUPEE_SYMBOL}${Number(pricing.deliveryFeeBreakdown.basePayout || 0).toFixed(0)} base + ${Number(pricing.deliveryFeeBreakdown.extraDistanceKm || 0).toFixed(1)} km x ${RUPEE_SYMBOL}${Number(pricing.deliveryFeeBreakdown.commissionPerKm || 0).toFixed(0)}`
     : null
+  
+  const packagingFee = pricing?.packagingFee ?? 0
   const platformFee = pricing?.platformFee || feeSettings.platformFee
   const gstCharges = pricing?.tax || Math.round(subtotal * (feeSettings.gstRate / 100))
-  const discount = pricing?.discount || (appliedCoupon ? Math.min(appliedCoupon.discount, subtotal * 0.5) : 0)
-  const totalBeforeDiscount = subtotal + deliveryFee + platformFee + gstCharges
-  // For takeaway: recalculate total without delivery fee even if pricing API returned one
-  const total = isTakeaway
-    ? (subtotal + platformFee + gstCharges - discount)
-    : (pricing?.total || (totalBeforeDiscount - discount))
+  const discount = pricing?.discount ?? (appliedCoupon ? Math.min(appliedCoupon.discount, subtotal * 0.5) : 0)
+  
+  const totalBeforeDiscount = subtotal + deliveryFee + packagingFee + platformFee + gstCharges
+  const total = totalBeforeDiscount - discount
   const savings = pricing?.savings ?? Math.max(0, totalBeforeDiscount - total)
   const selectedPaymentLabel = selectedPaymentMethod === "wallet" ? "Quick Wallet" : selectedPaymentMethod === "razorpay" ? "Online Payment" : "Cash on Delivery"
   // showTakeawayCOD: false while API loading (null), false if disabled, true if enabled
@@ -882,7 +882,16 @@ export default function Cart() {
           name: recipientName
         },
         restaurantId: finalRestaurantId,
-        pricing: pricing || { subtotal, deliveryFee, tax: gstCharges, platformFee, discount, total, couponCode: appliedCoupon?.code },
+        pricing: { 
+          subtotal, 
+          deliveryFee, 
+          packagingFee, 
+          tax: gstCharges, 
+          platformFee, 
+          discount, 
+          total, 
+          couponCode: appliedCoupon?.code 
+        },
         paymentMethod: selectedPaymentMethod,
         orderType: isTakeaway ? "takeaway" : (orderType || "delivery"),
         scheduledAt: isScheduled ? new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString() : undefined,
@@ -1210,8 +1219,14 @@ export default function Cart() {
                     <span className={deliveryFee === 0 ? "text-green-600 font-bold" : ""}>{deliveryFee === 0 ? "FREE" : `${RUPEE_SYMBOL}${deliveryFee}`}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm"><span className="text-gray-500">Platform Fee</span><span>{RUPEE_SYMBOL}{platformFee}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-gray-500">GST and Restaurant Charges</span><span>{RUPEE_SYMBOL}{gstCharges}</span></div>
+                {packagingFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Packaging Fee</span>
+                    <span>{RUPEE_SYMBOL}{Number(packagingFee).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Platform Fee</span><span>{RUPEE_SYMBOL}{Number(platformFee).toFixed(2)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">GST and Restaurant Charges</span><span>{RUPEE_SYMBOL}{Number(gstCharges).toFixed(2)}</span></div>
                 {discount > 0 && <div className="flex justify-between text-sm text-[#EB590E] font-bold"><span>Coupon Discount</span><span>-{RUPEE_SYMBOL}{discount.toFixed(2)}</span></div>}
                 <div className="pt-3 border-t border-gray-100 flex justify-between items-center"><span className="text-base font-semibold">To Pay</span><span className="text-base font-bold">{RUPEE_SYMBOL}{total.toFixed(2)}</span></div>
               </div>

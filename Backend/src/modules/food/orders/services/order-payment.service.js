@@ -16,17 +16,25 @@ import * as foodTransactionService from './foodTransaction.service.js';
 import {
   buildOrderIdentityFilter,
   enqueueOrderEvent,
+  notifyRestaurantNewOrder,
 } from './order.helpers.js';
 
-async function syncRazorpayQrPayment(orderDoc) {
-  // Phase 2: avoid relying on FoodOrder.payment as the source of truth.
+export async function syncRazorpayQrPayment(orderDoc) {
+  // Phase 2: FoodTransaction is the source of truth for QR collections.
   const tx = await FoodTransaction.findOne({ orderId: orderDoc?._id }).lean();
-  const payment = tx?.payment || orderDoc?.payment || null;
-  if (!payment) return null;
-  if (payment.method !== 'razorpay_qr') return payment;
-  if (payment.status === 'paid') return payment;
+  
+  // If transaction has QR method but Order doesn't, we should still proceed.
+  const txPayment = tx?.payment || {};
+  const docPayment = orderDoc?.payment || {};
+  
+  // If it was already paid in the document, we're good.
+  if (docPayment.status === 'paid') return docPayment;
 
-  const paymentLinkId = payment?.qr?.paymentLinkId;
+  // Use transaction as the primary source for QR info
+  const method = txPayment.method || docPayment.method;
+  if (method !== 'razorpay_qr') return docPayment;
+
+  const paymentLinkId = txPayment.qr?.paymentLinkId || docPayment.qr?.paymentLinkId;
   if (!paymentLinkId || !isRazorpayConfigured()) return orderDoc.payment;
 
   let link;
@@ -44,23 +52,44 @@ async function syncRazorpayQrPayment(orderDoc) {
   const linkStatus = String(link?.status || '').toLowerCase();
   if (!linkStatus) return orderDoc.payment;
 
-  // Write back to FoodTransaction (ledger) only.
+  // Write back to FoodTransaction (ledger).
+  const isPaidLink = ['paid', 'captured', 'authorized'].includes(linkStatus);
+  const finalStatus = isPaidLink
+    ? 'paid'
+    : ['expired', 'cancelled', 'canceled', 'failed'].includes(linkStatus)
+      ? 'failed'
+      : (docPayment.status || 'pending_qr');
+
   await FoodTransaction.updateOne(
     { orderId: orderDoc?._id },
     {
       $set: {
         'payment.qr.status': linkStatus,
-        'payment.status': ['paid', 'captured', 'authorized'].includes(linkStatus)
-          ? 'paid'
-          : ['expired', 'cancelled', 'canceled', 'failed'].includes(linkStatus)
-            ? 'failed'
-            : (payment.status || 'pending_qr'),
+        'payment.status': finalStatus,
       },
     },
   );
 
+  // CRITICAL: Also update the FoodOrder document so Admin/Restaurant panels see the updated status.
+  if (isPaidLink) {
+    const updatedOrder = await FoodOrder.findOneAndUpdate(
+      { _id: orderDoc?._id },
+      { 
+        $set: { 
+          'payment.status': 'paid',
+          'payment.method': 'razorpay_qr' 
+        } 
+      },
+      { new: true }
+    );
+    
+    if (updatedOrder) {
+      void notifyRestaurantNewOrder(updatedOrder).catch(() => {});
+    }
+  }
+
   const updatedTx = await FoodTransaction.findOne({ orderId: orderDoc?._id }).lean();
-  return updatedTx?.payment || payment;
+  return updatedTx?.payment || txPayment || docPayment;
 }
 
 export async function createCollectQr(
@@ -122,6 +151,17 @@ export async function createCollectQr(
         },
       },
     },
+  );
+
+  // CRITICAL: Also update the FoodOrder document so Admin/Restaurant panels see the updated method immediately.
+  await FoodOrder.updateOne(
+    { _id: order._id },
+    { 
+      $set: { 
+        'payment.method': 'razorpay_qr',
+        'payment.status': 'pending_qr' 
+      } 
+    }
   );
 
   const updatedTx = await FoodTransaction.findOne({ orderId: order._id }).lean();

@@ -78,12 +78,20 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
 
   const targetLocation = useMemo(() => {
     if (!activeOrder) return null;
+    
     let rawLoc = null;
+    
+    // Phase 1: Navigation to Restaurant (Pickup Phase)
+    // We strictly show only the restaurant until formalities are done.
     if (tripStatus === 'PICKING_UP' || tripStatus === 'REACHED_PICKUP') {
       rawLoc = activeOrder.restaurantLocation;
-    } else if (tripStatus === 'PICKED_UP' || tripStatus === 'REACHED_DROP') {
+    } 
+    // Phase 2: Navigation to Customer (Delivery Phase)
+    // Only after bin upload and pickup confirmation do we show the customer.
+    else if (tripStatus === 'PICKED_UP' || tripStatus === 'REACHED_DROP') {
       rawLoc = activeOrder.customerLocation;
     }
+    
     if (!rawLoc) return null;
     const lat = parseFloat(rawLoc.lat || rawLoc.latitude);
     const lng = parseFloat(rawLoc.lng || rawLoc.longitude);
@@ -235,7 +243,7 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
                 stiffness: 120, 
                 damping: 12,
                 duration: 1.2,
-                delay: 0.2 // Wait a bit for map to settle
+                delay: 1.2 // Synchronized with delayedOnline in parent for perfect cinematic entry
               }}
               style={{ 
                 transform: `translate(-50%, -50%) rotate(${parsedRiderLocation.heading || 0}deg)`,

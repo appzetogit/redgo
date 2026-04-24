@@ -63,12 +63,12 @@ export const initRazorpayPayment = async (options) => {
 
     const razorpayOptions = {
       key: options.key,
-      amount: options.amount,
+      amount: parseInt(options.amount),
       currency: options.currency || 'INR',
       order_id: options.order_id,
       name: options.name || 'RedGo',
       description: options.description || 'Order Payment',
-      image: options.image || '/logo.png',
+      image: (options.image && typeof options.image === 'string' && !options.image.startsWith('/')) ? options.image : 'https://redgoindia.cloud/logo.png',
       prefill: {
         name: options.prefill?.name || '',
         email: options.prefill?.email || '',

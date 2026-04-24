@@ -32,6 +32,11 @@ export const useDeliveryStore = create(
       activeOrder: null, // ActiveOrder | null
       tripStatus: 'IDLE', // 'IDLE' | 'PICKING_UP' | 'REACHED_PICKUP' | 'PICKED_UP' | 'DELIVERING' | 'REACHED_DROP' | 'COMPLETED'
       
+      // --- Financial Cache ---
+      pocketData: null,
+      lastPocketSync: 0, // Timestamp
+      sessionRefreshed: false, // NOT persisted
+
       // --- Admin / Business Settings ---
       settings: {
         pickupRangeLimit: 500, // meters, fallback default
@@ -61,6 +66,13 @@ export const useDeliveryStore = create(
         tripStatus: 'IDLE' 
       }),
 
+      setPocketData: (data) => set({ 
+        pocketData: data, 
+        lastPocketSync: Date.now() 
+      }),
+
+      setSessionRefreshed: (val) => set({ sessionRefreshed: val }),
+
       // --- Selectors / Computed Helper ---
       canAdvanceToPickup: () => {
         const { activeOrder, tripStatus } = get();
@@ -82,7 +94,9 @@ export const useDeliveryStore = create(
         activeOrder: state.activeOrder,
         tripStatus: state.tripStatus,
         settings: state.settings,
-        riderLocation: state.riderLocation // Remember last position for instant map wake-up
+        riderLocation: state.riderLocation,
+        pocketData: state.pocketData,
+        lastPocketSync: state.lastPocketSync
       }),
     }
   )

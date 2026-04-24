@@ -392,7 +392,7 @@ export async function createOrder(userId, dto) {
       order.payment.status === "cod_pending")
   ) {
     try {
-      await tryAutoAssign(order._id);
+      // await tryAutoAssign(order._id);
     } catch {
       // leave unassigned
     }
@@ -460,7 +460,7 @@ export async function verifyPayment(userId, dto) {
   const settings = await getDispatchSettings();
   if (settings.dispatchMode === "auto") {
     try {
-      await tryAutoAssign(order._id);
+      // await tryAutoAssign(order._id);
     } catch {}
   }
 
@@ -1392,7 +1392,28 @@ export async function listOrdersAdmin(query) {
       .lean(),
     FoodOrder.countDocuments(filter),
   ]);
-  const paginated = buildPaginatedResult({ docs: docs.map(d => normalizeOrderForClient(d)), total, page, limit });
+
+  // PROACTIVE SYNC: Check for pending QR payments in the current view and sync them
+  const orders = await Promise.all((docs || []).map(async (doc) => {
+    try {
+        // If it's a QR payment OR a Cash order not yet paid, try to sync it.
+        // COD orders can often have QR generated but the Order record still says 'cash'.
+        const isNotPaid = doc.payment?.status !== 'paid';
+        const isSyncCandidate = doc.payment?.method === 'razorpay_qr' || doc.payment?.method === 'cash';
+        
+        if (isNotPaid && isSyncCandidate) {
+            const syncedPayment = await paymentService.syncRazorpayQrPayment(doc);
+            if (syncedPayment && syncedPayment.status === 'paid') {
+                doc.payment.status = 'paid';
+            }
+        }
+    } catch (e) {
+        logger.warn(`Admin list sync failed for order ${doc._id}: ${e.message}`);
+    }
+    return normalizeOrderForClient(doc);
+  }));
+
+  const paginated = buildPaginatedResult({ docs: orders, total, page, limit });
   return { ...paginated, orders: paginated.data };
 }
 

@@ -201,9 +201,8 @@ const RestaurantImageCarousel = React.memo(
     }, [restaurant.recommendedDishes, restaurant.images, restaurant.image, withCacheBuster]);
 
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [loadedBySrc, setLoadedBySrc] = useState({});
+    const [, setLoadedBySrc] = useState({});
     const [isImageUnavailable, setIsImageUnavailable] = useState(false);
-    const [showShimmer, setShowShimmer] = useState(true);
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
     const isSwiping = useRef(false);
@@ -259,22 +258,6 @@ const RestaurantImageCarousel = React.memo(
       setCurrentIndex(0);
       setIsTransitioning(true);
       setIsImageUnavailable(slideItems.length === 0);
-      
-      // If we have items, check if they are already in cache
-      if (slideItems.length > 0) {
-        const firstSrc = slideItems[0].src;
-        // Check if browser already has this image
-        const img = new Image();
-        img.src = firstSrc;
-        if (img.complete) {
-          setShowShimmer(false);
-          setLoadedBySrc({ [firstSrc]: true });
-        } else {
-          setShowShimmer(true);
-        }
-      } else {
-        setShowShimmer(false);
-      }
     }, [restaurant?.id, restaurant?.slug, restaurant?.updatedAt, slideItems.length]);
 
 
@@ -322,11 +305,7 @@ const RestaurantImageCarousel = React.memo(
         onTouchEnd={handleTouchEnd}
         onClick={(e) => currentSlide?.dish ? handleDishClick(e, currentSlide.dish) : null}
       >
-        {showShimmer && !isImageUnavailable && (
-          <div className="absolute inset-0 z-[1] overflow-hidden bg-gray-200">
-            <div className="h-full w-full animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200" />
-          </div>
-        )}
+        {/* Note: Shimmer and Placeholder are handled by OptimizedImage */}
 
         <div
           className={`absolute inset-0 flex h-full group-hover:scale-105 ${isTransitioning ? 'transition-transform duration-500 ease-in-out' : 'transition-none'}`}
@@ -334,7 +313,6 @@ const RestaurantImageCarousel = React.memo(
         >
           {infiniteSlides.map((item, idx) => {
             // Performance Optimization: Only render the current, next, and previous slides 
-            // to save DOM nodes and massive network bandwidth.
             const isVisible = 
               Math.abs(idx - currentIndex) <= 1 || 
               (currentIndex === 0 && idx === infiniteSlides.length - 1) ||
@@ -343,15 +321,14 @@ const RestaurantImageCarousel = React.memo(
             if (!isVisible) return <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0" />;
 
             return (
-              <div key={`${item.id}-${idx}`} className="w-full h-full flex-shrink-0 relative">
-                <img
+              <div key={`${item.id}-${idx}-${item.src}`} className="w-full h-full flex-shrink-0 relative">
+                <OptimizedImage
                   src={item.src}
                   alt={`${restaurant.name} - Image ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                  loading={priority && idx === currentIndex ? "eager" : "lazy"}
-                  decoding="async"
+                  className="w-full h-full"
+                  objectFit="cover"
+                  priority={priority && idx === currentIndex}
                   onLoad={() => {
-                    if (idx === currentIndex) setShowShimmer(false);
                     setLoadedBySrc((prev) => ({ ...prev, [item.src]: true }));
                   }}
                   onError={() => {

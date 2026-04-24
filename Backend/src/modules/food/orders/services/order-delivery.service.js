@@ -19,6 +19,7 @@ import {
 import { fetchPolyline } from '../utils/googleMaps.js';
 import * as foodTransactionService from './foodTransaction.service.js';
 import * as dispatchService from './order-dispatch.service.js';
+import { syncRazorpayQrPayment } from './order-payment.service.js';
 import {
   buildOrderIdentityFilter,
   emitDeliveryDropOtpToUser,
@@ -129,50 +130,6 @@ function emitOrderUpdate(order, deliveryPartnerId) {
   } catch (error) {
     logger.error(`Error emitting delivery order update: ${error?.message || error}`);
   }
-}
-
-async function syncRazorpayQrPayment(orderDoc) {
-  // Phase 2: FoodTransaction is source of truth; avoid relying on FoodOrder.payment.
-  const tx = await FoodTransaction.findOne({ orderId: orderDoc?._id }).lean();
-  const payment = tx?.payment || orderDoc?.payment || null;
-  if (!payment) return null;
-  if (payment.method !== 'razorpay_qr') return payment;
-  if (payment.status === 'paid') return payment;
-
-  const paymentLinkId = payment?.qr?.paymentLinkId;
-  if (!paymentLinkId || !isRazorpayConfigured()) return payment;
-
-  let link;
-  try {
-    link = await fetchRazorpayPaymentLink(paymentLinkId);
-  } catch (error) {
-    logger.warn(
-      `Razorpay payment-link fetch failed for ${paymentLinkId}: ${
-        error?.message || error
-      }`,
-    );
-    return orderDoc.payment;
-  }
-
-  const linkStatus = String(link?.status || '').toLowerCase();
-  if (!linkStatus) return orderDoc.payment;
-
-  await FoodTransaction.updateOne(
-    { orderId: orderDoc?._id },
-    {
-      $set: {
-        'payment.qr.status': linkStatus,
-        'payment.status': ['paid', 'captured', 'authorized'].includes(linkStatus)
-          ? 'paid'
-          : ['expired', 'cancelled', 'canceled', 'failed'].includes(linkStatus)
-            ? 'failed'
-            : (payment.status || 'pending_qr'),
-      },
-    },
-  );
-
-  const updatedTx = await FoodTransaction.findOne({ orderId: orderDoc?._id }).lean();
-  return updatedTx?.payment || payment;
 }
 
 export async function getCurrentTripDelivery(deliveryPartnerId) {
@@ -773,7 +730,7 @@ export async function completeDelivery(orderId, deliveryPartnerId, body = {}) {
     throw new ForbiddenError('Not your order');
   }
 
-  const { otp, ratings } = body;
+  const { otp, ratings, paymentMode } = body;
 
   if (
     otp &&
@@ -810,7 +767,8 @@ export async function completeDelivery(orderId, deliveryPartnerId, body = {}) {
   const prevPayStatus = String(tx?.payment?.status || order?.payment?.status || '');
   const payMethod = String(tx?.payment?.method || order?.payment?.method || order?.paymentMethod || '');
 
-  if (payMethod === 'razorpay_qr') {
+  // Only verify QR if it was the selected mode and NOT overridden by manual cash
+  if (payMethod === 'razorpay_qr' && paymentMode !== 'cash') {
     const syncedPayment = await syncRazorpayQrPayment(order);
     if (String(syncedPayment?.status || '').toLowerCase() !== 'paid') {
       throw new ValidationError('QR payment not verified yet');
@@ -837,13 +795,24 @@ export async function completeDelivery(orderId, deliveryPartnerId, body = {}) {
     byId: deliveryPartnerId,
     from,
     to: 'delivered',
-    note: 'Delivery completed successfully',
+    note: `Delivery completed. (Mode: ${paymentMode || 'N/A'})`,
   });
+
+  // Force update payment status if it was Cash On Delivery and marked as Cash
+  if (paymentMode === 'cash') {
+    order.payment = {
+      ...(order.payment?.toObject?.() || order.payment || {}),
+      method: 'cash',
+      status: 'paid'
+    };
+    order.markModified('payment');
+  }
 
   await order.save();
 
+  // Determine ledger kind based on explicitly provided paymentMode
   const ledgerKind =
-    payMethod === 'cash' && prevPayStatus === 'cod_pending'
+    paymentMode === 'cash'
       ? 'cod_marked_paid_on_delivery'
       : 'payment_snapshot_sync';
 
@@ -851,7 +820,7 @@ export async function completeDelivery(orderId, deliveryPartnerId, body = {}) {
     status: 'captured',
     recordedByRole: 'DELIVERY_PARTNER',
     recordedById: deliveryPartnerId,
-    note: `Delivery completed. Prev status: ${prevPayStatus}`,
+    note: `Delivery completed via ${paymentMode || 'system'}. Prev status: ${prevPayStatus}`,
   });
 
   emitOrderUpdate(order, deliveryPartnerId);

@@ -1,9 +1,11 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { FoodOrder } from '../../../modules/food/orders/models/order.model.js';
+import { FoodTransaction } from '../../../modules/food/orders/models/foodTransaction.model.js';
 import * as foodTransactionService from '../../../modules/food/orders/services/foodTransaction.service.js';
 import { config } from '../../../config/env.js';
 import { logger } from '../../../utils/logger.js';
+import { notifyRestaurantNewOrder } from '../../../modules/food/orders/services/order.helpers.js';
 
 /**
  * ✅ NEW: Centralized Razorpay Webhook Handler (Core Layer)
@@ -34,41 +36,61 @@ export const handleRazorpayWebhook = async (req, res) => {
 
     try {
         // --- 🟢 Handle Payment Captured (Success) ---
-        if (event === 'payment.captured') {
-            const paymentObj = payload.payment.entity;
-            const rzOrderId = paymentObj.order_id;
-            const rzPaymentId = paymentObj.id;
+        if (event === 'payment.captured' || event === 'payment_link.paid' || event === 'payment_link.captured') {
+            const isPaymentLink = event.startsWith('payment_link');
+            const entity = isPaymentLink ? payload.payment_link.entity : payload.payment.entity;
+            
+            let order = null;
+            let rzPaymentId = isPaymentLink ? (payload.payment?.entity?.id || null) : entity.id;
 
-            // Atomic update to mark as paid if not already
-            const order = await FoodOrder.findOneAndUpdate(
-                { 
-                    "payment.razorpay.orderId": rzOrderId, 
-                    "payment.status": { $ne: 'paid' } 
-                },
-                { 
-                    $set: { 
-                        "payment.status": 'paid', 
-                        "payment.razorpay.paymentId": rzPaymentId 
-                    } 
-                },
-                { new: true }
-            );
+            if (isPaymentLink) {
+                const paymentLinkId = entity.id;
+                // Find order via FoodTransaction ledger
+                const tx = await FoodTransaction.findOne({ "payment.qr.paymentLinkId": paymentLinkId }).lean();
+                if (tx && tx.orderId) {
+                    order = await FoodOrder.findOneAndUpdate(
+                        { _id: tx.orderId, "payment.status": { $ne: 'paid' } },
+                        { $set: { "payment.status": 'paid', "payment.method": 'razorpay_qr', "payment.razorpay.paymentId": rzPaymentId } },
+                        { new: true }
+                    );
+                }
+            } else {
+                const rzOrderId = entity.order_id;
+                // Atomic update to mark as paid if not already
+                order = await FoodOrder.findOneAndUpdate(
+                    { 
+                        "payment.razorpay.orderId": rzOrderId, 
+                        "payment.status": { $ne: 'paid' } 
+                    },
+                    { 
+                        $set: { 
+                            "payment.status": 'paid', 
+                            "payment.razorpay.paymentId": rzPaymentId 
+                        } 
+                    },
+                    { new: true }
+                );
+            }
 
             if (order) {
-                // ✅ UPDATED: Wrapped in try-catch to prevent secondary failures from breaking the webhook response
                 try {
                     await foodTransactionService.updateTransactionStatus(order._id, 'captured', {
                         status: 'captured',
                         razorpayPaymentId: rzPaymentId,
-                        note: 'Payment status synced via Webhook (payment.captured)'
+                        note: `Payment status synced via Webhook (${event})`
                     });
                 } catch (ledgerErr) {
                     logger.error(`Webhook Ledger Error (Order ${order.orderId}): ${ledgerErr.message}`);
                 }
-                logger.info(`Webhook [payment.captured]: Synced Order ${order.orderId} (Status=paid)`);
+                
+                // NOTIFY RESTAURANT: So their panel buzzes in real-time
+                void notifyRestaurantNewOrder(order).catch(err => {
+                    logger.error(`Webhook Notification Error (Order ${order.orderId}): ${err.message}`);
+                });
+
+                logger.info(`Webhook [${event}]: Synced Order ${order.orderId} (Status=paid)`);
             } else {
-                // ✅ ADDED: Log warn if order not found but payment was captured
-                logger.warn(`Webhook [payment.captured]: Order not found or already paid for RZ-Order: ${rzOrderId}`);
+                logger.warn(`Webhook [${event}]: Order not found or already paid for entity: ${entity.id}`);
             }
         }
 

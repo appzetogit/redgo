@@ -21,6 +21,7 @@ export default function FeeSettings() {
   const [savingFeeSettings, setSavingFeeSettings] = useState(false)
   const [editingRangeIndex, setEditingRangeIndex] = useState(null)
   const [newRange, setNewRange] = useState({ min: '', max: '', fee: '' })
+  const [originalFeeSettings, setOriginalFeeSettings] = useState(null)
 
   // Fetch fee settings
   const fetchFeeSettings = async () => {
@@ -28,22 +29,26 @@ export default function FeeSettings() {
       setLoadingFeeSettings(true)
       const response = await adminAPI.getFeeSettings()
       if (response.data.success && response.data.data.feeSettings) {
-        setFeeSettings({
+        const settings = {
           deliveryFee: response.data.data.feeSettings.deliveryFee ?? "",
           deliveryFeeRanges: response.data.data.feeSettings.deliveryFeeRanges || [],
           freeDeliveryThreshold: response.data.data.feeSettings.freeDeliveryThreshold ?? "",
           platformFee: response.data.data.feeSettings.platformFee ?? "",
           gstRate: response.data.data.feeSettings.gstRate ?? "",
-        })
+        }
+        setFeeSettings(settings)
+        setOriginalFeeSettings(JSON.parse(JSON.stringify(settings)))
       } else if (response.data.success && response.data.data.feeSettings === null) {
         // Not configured yet - keep empty fields (no defaults).
-        setFeeSettings({
+        const emptySettings = {
           deliveryFee: "",
           deliveryFeeRanges: [],
           freeDeliveryThreshold: "",
           platformFee: "",
           gstRate: "",
-        })
+        }
+        setFeeSettings(emptySettings)
+        setOriginalFeeSettings(JSON.parse(JSON.stringify(emptySettings)))
       }
     } catch (error) {
       debugError('Error fetching fee settings:', error)
@@ -76,13 +81,15 @@ export default function FeeSettings() {
         // Avoid an extra API call; update local state from response
         const saved = response?.data?.data?.feeSettings
         if (saved) {
-          setFeeSettings({
+          const updatedSettings = {
             deliveryFee: saved.deliveryFee ?? "",
             deliveryFeeRanges: saved.deliveryFeeRanges ?? [],
             freeDeliveryThreshold: saved.freeDeliveryThreshold ?? "",
             platformFee: saved.platformFee ?? "",
             gstRate: saved.gstRate ?? "",
-          })
+          }
+          setFeeSettings(updatedSettings)
+          setOriginalFeeSettings(JSON.parse(JSON.stringify(updatedSettings)))
         }
       } else {
         toast.error(response.data.message || 'Failed to save fee settings')
@@ -202,6 +209,33 @@ export default function FeeSettings() {
     setEditingRangeIndex(null)
   }
 
+  // Check if settings have changed
+  const hasChanges = () => {
+    if (!originalFeeSettings) return false;
+
+    const current = feeSettings;
+    const original = originalFeeSettings;
+
+    // Compare simple fields (loose comparison for string/number)
+    if (String(current.deliveryFee) !== String(original.deliveryFee)) return true;
+    if (String(current.freeDeliveryThreshold) !== String(original.freeDeliveryThreshold)) return true;
+    if (String(current.platformFee) !== String(original.platformFee)) return true;
+    if (String(current.gstRate) !== String(original.gstRate)) return true;
+
+    // Compare ranges
+    if (current.deliveryFeeRanges.length !== original.deliveryFeeRanges.length) return true;
+
+    for (let i = 0; i < current.deliveryFeeRanges.length; i++) {
+      const r1 = current.deliveryFeeRanges[i];
+      const r2 = original.deliveryFeeRanges[i];
+      if (String(r1.min) !== String(r2.min) ||
+        String(r1.max) !== String(r2.max) ||
+        String(r1.fee) !== String(r2.fee)) return true;
+    }
+
+    return false;
+  };
+
   return (
     <div className="p-4 lg:p-6 bg-slate-50 min-h-screen">
       {/* Header Section */}
@@ -227,23 +261,30 @@ export default function FeeSettings() {
                 Set the fees and charges that will be applied to all orders
               </p>
             </div>
-            <Button
-              onClick={handleSaveFeeSettings}
-              disabled={savingFeeSettings || loadingFeeSettings}
-              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-            >
-              {savingFeeSettings ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Settings
-                </>
-              )}
-            </Button>
+            <div className={(!hasChanges() || savingFeeSettings || loadingFeeSettings) ? "cursor-not-allowed" : ""}>
+              <Button
+                onClick={(e) => {
+                  if (!hasChanges() || savingFeeSettings || loadingFeeSettings) {
+                    e.preventDefault();
+                    return;
+                  }
+                  handleSaveFeeSettings();
+                }}
+                className={`${(!hasChanges() || savingFeeSettings || loadingFeeSettings) ? 'bg-green-600/50 pointer-events-none' : 'bg-green-600 hover:bg-green-700 cursor-pointer'} text-white flex items-center gap-2 transition-all duration-200 px-4 py-2 rounded-lg font-medium`}
+              >
+                {savingFeeSettings ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Settings
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {loadingFeeSettings ? (
@@ -420,13 +461,21 @@ export default function FeeSettings() {
                         />
                       </div>
                       <div className="flex items-end">
-                        <Button
-                          onClick={handleAddRange}
-                          className="bg-green-600 hover:bg-green-700 text-white text-sm w-full flex items-center justify-center gap-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Add Range
-                        </Button>
+                        <div className={(!newRange.min || !newRange.max || !newRange.fee) ? "cursor-not-allowed w-full" : "w-full"}>
+                          <Button
+                            onClick={(e) => {
+                              if (!newRange.min || !newRange.max || !newRange.fee) {
+                                e.preventDefault();
+                                return;
+                              }
+                              handleAddRange();
+                            }}
+                            className={`${(!newRange.min || !newRange.max || !newRange.fee) ? 'bg-green-600/50 pointer-events-none' : 'bg-green-600 hover:bg-green-700 cursor-pointer'} text-white text-sm w-full flex items-center justify-center gap-2 transition-all duration-200 px-4 py-2 rounded-lg font-medium h-[40px]`}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Range
+                          </Button>
+                        </div>
                       </div>
                     </div>
                     <p className="text-xs text-slate-500 mt-2 italic">

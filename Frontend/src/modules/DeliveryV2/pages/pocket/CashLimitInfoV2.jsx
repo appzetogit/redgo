@@ -9,10 +9,7 @@ import { formatCurrency } from '@food/utils/currency';
 import useDeliveryBackNavigation from '../../hooks/useDeliveryBackNavigation';
 
 /**
- * CashLimitInfoV2 - 1:1 Match with Old AvailableCashLimit Component.
- * Features: Breakthrough of Total Limit, Cash in hand, Deductions, etc.
- * Background: #f6e9dc
- * Font: Poppins
+ * CashLimitInfoV2 - Updated to fetch from Wallet API for accurate data.
  */
 export const CashLimitInfoV2 = () => {
   const goBack = useDeliveryBackNavigation();
@@ -29,21 +26,15 @@ export const CashLimitInfoV2 = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const profileRes = await deliveryAPI.getProfile();
-        const profile = profileRes?.data?.data?.profile || {};
+        const walletRes = await deliveryAPI.getWallet();
+        const wallet = walletRes?.data?.data?.wallet || {};
         
-        const totalLimit = profile.totalCashLimit || 0;
-        const cashInHand = profile.cashInHand || 0;
-        const deductions = profile.deductions || 0;
-        const withdrawals = profile.totalWithdrawn || 0;
-        const available = profile.availableCashLimit || 0;
-
         setWalletState({
-           totalCashLimit: totalLimit,
-           cashInHand: cashInHand,
-           deductions: deductions,
-           pocketWithdrawals: withdrawals,
-           availableCashLimit: available
+           totalCashLimit: Number(wallet.totalCashLimit) || 0,
+           cashInHand: Number(wallet.cashInHand) || 0,
+           deductions: Number(wallet.deductions || wallet.totalDeductions) || 0,
+           pocketWithdrawals: Number(wallet.totalWithdrawn) || 0,
+           availableCashLimit: Number(wallet.availableCashLimit) || 0
         });
       } catch (err) {
         toast.error('Failed to load cash limit details');
@@ -130,3 +121,5 @@ export const CashLimitInfoV2 = () => {
     </div>
   );
 };
+
+export default CashLimitInfoV2;
