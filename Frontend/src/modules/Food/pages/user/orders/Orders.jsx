@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { Link, useNavigate, useNavigationType } from "react-router-dom"
-import { ArrowLeft, Search, MoreVertical, ChevronRight, Star, RotateCcw, AlertCircle, Loader2, Clock, X, Share2, MessageCircle, Send, Copy, Mail, MessagesSquare, Link2 } from "lucide-react"
+import { ArrowLeft, Search, MoreVertical, ChevronRight, Star, RotateCcw, AlertCircle, Loader2, Clock, X, Check, Share2, MessageCircle, Send, Copy, Mail, MessagesSquare, Link2 } from "lucide-react"
 import { orderAPI } from "@food/api"
 import { useCart } from "@food/context/CartContext"
 import { toast } from "sonner"
@@ -345,7 +345,6 @@ export default function Orders() {
               deliveredAt: o.deliveredAt
             }))
           })
-
           setOrders(transformedOrders)
         } else {
           debugLog('?? No orders data in response')
@@ -735,14 +734,16 @@ Order again from this restaurant in the ${companyName} app.`
 
             // Payment failed only for online payments (razorpay) that actually failed
             // Don't show payment failed for COD/wallet or cancelled orders
-            const isCancelled = order.status === 'cancelled' || order.status === 'restaurant_cancelled'
+            const orderStatus = String(order.status || order.orderStatus || "").toLowerCase()
+            const isCancelled = orderStatus === 'cancelled' || orderStatus.includes('cancelled')
+            const isRestaurantCancelled = order.isRestaurantCancelled || orderStatus === 'restaurant_cancelled' || (isCancelled && orderStatus.includes('restaurant'))
+            const isUserCancelled = order.isUserCancelled || (isCancelled && !isRestaurantCancelled && (order.cancelledBy === 'user' || orderStatus.includes('user')))
             const paymentFailed = !isCodOrWallet &&
               !isCancelled &&
               (order.payment?.status === 'failed')
 
-            const isDelivered = order.status === 'delivered'
-            const isRestaurantCancelled = order.isRestaurantCancelled || order.status === 'restaurant_cancelled'
-            const isUserCancelled = order.isUserCancelled || (isCancelled && order.cancelledBy === 'user')
+            const isDelivered = orderStatus === 'delivered'
+
             // Prefer food image from first item; fallback to restaurant image, then generic food photo
             const firstItemImage = order.items?.[0]?.image
             const restaurantImage = firstItemImage
@@ -926,7 +927,7 @@ Order again from this restaurant in the ${companyName} app.`
                     {order.deliveredAt && (
                       <p className="text-xs text-gray-400 mt-0.5">Delivered on {formatDate(order.deliveredAt)}</p>
                     )}
-                    {order.payment && (
+                    {order.payment && !(isCancelled && (order.payment.status === 'pending' || order.payment.status === 'cod_pending' || !order.payment.status)) && (
                       <p className="text-xs text-gray-500 mt-1">
                         Payment: <span className="font-medium capitalize">
                           {order.payment.method === 'cash' || order.payment.method === 'cod' ? 'Cash on Delivery' :
@@ -935,27 +936,37 @@ Order again from this restaurant in the ${companyName} app.`
                                 order.payment.method || 'N/A'}
                         </span>
                         {order.payment.status && (
-                          <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium ${order.payment.status === 'completed' ? 'bg-green-100 text-green-700' :
-                              order.payment.status === 'failed' ? 'bg-red-100 text-red-700' :
-                                order.payment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-gray-100 text-gray-700'
-                            }`}>
-                            {order.payment.status}
+                          <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            order.payment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                            order.payment.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            (order.payment.status === 'pending' || order.payment.status === 'cod_pending') ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {order.payment.status.replace('_', ' ')}
                           </span>
                         )}
                       </p>
                     )}
                     {isDelivered && !paymentFailed && (
-                      <p className="text-xs font-medium text-green-600 mt-1">Delivered</p>
+                      <p className="text-xs font-semibold text-green-600 mt-1.5 flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        Delivered
+                      </p>
                     )}
                     {isRestaurantCancelled && (
-                      <p className="text-xs font-medium text-red-500 mt-1">Restaurant Cancelled</p>
+                      <p className="text-[13px] font-semibold text-red-600 mt-1.5 flex items-center gap-1 uppercase">
+                        ORDER CANCELLED
+                      </p>
                     )}
                     {isUserCancelled && (
-                      <p className="text-xs font-medium text-gray-500 mt-1">Cancelled by you</p>
+                      <p className="text-[13px] font-semibold text-red-600 mt-1.5 flex items-center gap-1 uppercase">
+                        ORDER CANCELLED
+                      </p>
                     )}
                     {isCancelled && !isRestaurantCancelled && !isUserCancelled && (
-                      <p className="text-xs font-medium text-gray-500 mt-1">Cancelled</p>
+                      <p className="text-[13px] font-semibold text-red-600 mt-1.5 flex items-center gap-1 uppercase">
+                        ORDER CANCELLED
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center ml-4">
@@ -1046,10 +1057,7 @@ Order again from this restaurant in the ${companyName} app.`
         )}
       </div>
 
-      {/* Footer Branding */}
-      <div className="flex justify-center mt-8 mb-4">
-        <h1 className="text-4xl font-black text-gray-200 tracking-tighter italic">redgo</h1>
-      </div>
+
 
       {/* Rating & Feedback Modal */}
       {ratingModal.open && ratingModal.order && (

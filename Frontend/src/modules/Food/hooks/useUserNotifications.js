@@ -125,12 +125,7 @@ export const useUserNotifications = () => {
           }
         })
       );
-      const title = orderId ? `Order ${orderId}` : 'Delivery OTP';
-      const parts = [message, otp ? `OTP: ${otp}` : ''].filter(Boolean);
-      toast.message(title, {
-        description: parts.join(' — ') || 'Handover OTP from your delivery partner.',
-        duration: 90_000
-      });
+      // No toast here as the OTP is already displayed on the order tracking screen
     });
 
     socketRef.current.on('admin_notification', (payload) => {

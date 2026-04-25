@@ -21,20 +21,24 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-function getModuleFromUrl(url = "") {
-  const u = typeof url === "string" ? url : (url?.url || "");
-  if (!u) return "user";
-  
-  const normalized = u.toLowerCase();
-  
-  // Admin detection
+export const getModuleFromUrl = (url) => {
+  if (!url) return "user";
+  const normalized = url.toLowerCase();
+
+  // If path contains "/public" or ".public", it's always a public route 
+  // and should use the default "user" context (even if it's under an admin path)
+  if (normalized.includes("/public") || normalized.includes(".public") || normalized.includes("/food/pages/")) {
+    return "user";
+  }
+
   if (
-    normalized.includes("/admin/") || 
-    normalized.includes("/food/admin/") || 
-    normalized.includes("/food/auth/admin") || 
-    normalized.includes("/auth/admin") || 
+    normalized.includes("/admin/") ||
+    normalized.includes("/food/admin/") ||
+    normalized.includes("/food/auth/admin") ||
+    normalized.includes("/auth/admin") ||
     normalized.includes("admin/login")
-  ) return "admin";
+  )
+    return "admin";
   
   // Delivery detection - Catch all delivery-specific functional and auth routes
   if (

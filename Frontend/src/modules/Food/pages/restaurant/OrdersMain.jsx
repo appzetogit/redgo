@@ -897,7 +897,9 @@ export default function OrdersMain() {
   const hasOrderBeenShown = (orderLike) => {
     const keys = [
       orderLike?.orderMongoId,
+      orderLike?.order_mongo_id,
       orderLike?.orderId,
+      orderLike?.order_id,
       orderLike?._id,
       orderLike?.id,
     ]
@@ -930,7 +932,7 @@ export default function OrdersMain() {
   };
 
   // Restaurant notifications hook for real-time orders
-  const { newOrder, clearNewOrder, isConnected } = useRestaurantNotifications();
+  const { newOrder, clearNewOrder, isConnected } = useRestaurantNotifications({ disableAudio: true });
 
   const rejectReasons = [
     "Restaurant is too busy",
@@ -1105,27 +1107,27 @@ export default function OrdersMain() {
       if (!hasOrderBeenShown(newOrder)) {
         markOrderAsShown(newOrder);
         setPopupOrder(newOrder);
-        setShowNewOrderPopup(true);
         
         // Timer persistence: Calculate or recover deadline
-        const orderId = newOrder.orderMongoId || newOrder.orderId || newOrder._id;
+        const orderId = newOrder.orderMongoId || newOrder._id || newOrder.orderId;
         const storageKey = `order_accept_deadline_${orderId}`;
         const storedDeadline = localStorage.getItem(storageKey);
         const now = Date.now();
         
+        let remaining = 240;
         if (storedDeadline) {
-          const remaining = Math.max(0, Math.floor((parseInt(storedDeadline) - now) / 1000));
-          setCountdown(remaining);
+          remaining = Math.max(0, Math.floor((parseInt(storedDeadline) - now) / 1000));
         } else {
           // Calculate deadline relative to order creation + 4 minutes
+          // Use provided createdAt or now as fallback
           const createdAt = new Date(newOrder.createdAt || Date.now()).getTime();
           const deadline = createdAt + 4 * 60 * 1000;
-          const remaining = Math.max(0, Math.floor((deadline - now) / 1000));
-          
+          remaining = Math.max(0, Math.floor((deadline - now) / 1000));
           localStorage.setItem(storageKey, deadline.toString());
-          setCountdown(remaining);
         }
         
+        setCountdown(remaining);
+        setShowNewOrderPopup(true);
         requestOrdersRefresh();
       }
     }
@@ -1144,10 +1146,12 @@ export default function OrdersMain() {
     newOrderRef.current = newOrder;
   }, [newOrder]);
 
-  // Best-effort unlock for popup buzzer so it can keep playing when tab is backgrounded.
+  // Best-effort unlock for popup buzzer — fires once on first user interaction.
+  // Does NOT resume playback here; the useEffect on [showNewOrderPopup, isMuted] is the
+  // single source of truth for ongoing audio control.
   useEffect(() => {
     const unlockAudio = async () => {
-      if (audioUnlockedRef.current || !audioRef.current) return;
+      if (!audioRef.current || audioUnlockedRef.current) return;
       try {
         audioRef.current.muted = true;
         await audioRef.current.play();
@@ -1156,23 +1160,13 @@ export default function OrdersMain() {
         audioRef.current.muted = false;
         audioRef.current.volume = 1;
         audioUnlockedRef.current = true;
-
-        // If an order popup is already open, start buzzing immediately after unlock.
-        if (showNewOrderPopupRef.current && !isMutedRef.current) {
-          audioRef.current.loop = true;
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
-        }
       } catch (_) {
-        audioRef.current.muted = false;
+        // Autoplay still blocked — the audio useEffect will retry on next user action.
       }
     };
 
-    window.addEventListener("pointerdown", unlockAudio, {
-      once: true,
-      passive: true,
-    });
-    window.addEventListener("keydown", unlockAudio, { once: true });
+    window.addEventListener("pointerdown", unlockAudio, { passive: true });
+    window.addEventListener("keydown", unlockAudio, { passive: true });
 
     return () => {
       window.removeEventListener("pointerdown", unlockAudio);
@@ -1183,107 +1177,6 @@ export default function OrdersMain() {
   const [ordersRefreshToken, setOrdersRefreshToken] = useState(0);
   const requestOrdersRefresh = () => setOrdersRefreshToken((t) => t + 1);
 
-  // Check for confirmed orders that haven't been shown in popup yet, or scheduled orders whose time has come
-  useEffect(() => {
-    const checkOrdersToPopup = async () => {
-      // Skip if popup is already showing or Socket.IO order exists
-      if (showNewOrderPopupRef.current || newOrderRef.current) return;
-
-      try {
-        const response = await restaurantAPI.getOrders();
-        if (response.data?.success && response.data.data?.orders) {
-          const now = Date.now();
-
-          // Find orders that should trigger the popup
-          const targetOrders = response.data.data.orders.filter((order) => {
-            if (hasOrderBeenShown(order)) return false;
-
-            const isConfirmed = order.status === "confirmed";
-            const isCreatedScheduled =
-              order.status === "created" && order.scheduledAt;
-
-            if (isConfirmed && !order.scheduledAt) return true; // ordinary confirmed fallback
-
-            if (
-              order.scheduledAt &&
-              (order.status === "created" || order.status === "confirmed")
-            ) {
-              const scheduledTime = new Date(order.scheduledAt).getTime();
-              // Show popup if scheduled time is <= 30 mins from now
-              if (scheduledTime <= now + 30 * 60000) return true;
-            }
-
-            return false;
-          });
-
-          // Show the most recent matching order in popup
-          if (
-            targetOrders.length > 0 &&
-            !showNewOrderPopupRef.current &&
-            !newOrderRef.current
-          ) {
-            const orderToPopup = targetOrders[0];
-            const orderId = orderToPopup.orderId || orderToPopup._id;
-
-            // Transform order to match newOrder format (include payment so COD shows correctly)
-            const orderForPopup = {
-              orderId: orderToPopup.orderId,
-              orderMongoId: orderToPopup._id,
-              restaurantId: orderToPopup.restaurantId,
-              restaurantName: orderToPopup.restaurantName,
-              items: orderToPopup.items || [],
-              total: orderToPopup.pricing?.total || 0,
-              customerAddress: orderToPopup.address,
-              status: orderToPopup.status,
-              createdAt: orderToPopup.createdAt,
-              scheduledAt: orderToPopup.scheduledAt,
-              estimatedDeliveryTime: orderToPopup.estimatedDeliveryTime || 30,
-              note: orderToPopup.note || "",
-              sendCutlery: orderToPopup.sendCutlery,
-              paymentMethod:
-                orderToPopup.paymentMethod ||
-                orderToPopup.payment?.method ||
-                null,
-              payment: orderToPopup.payment,
-            };
-
-            debugLog("?? Found order ready for popup:", orderForPopup);
-            markOrderAsShown({ orderId, _id: orderToPopup._id });
-            setPopupOrder(orderForPopup);
-            setShowNewOrderPopup(true);
-            
-            // Timer persistence: Calculate or recover deadline
-            const storageKey = `order_accept_deadline_${orderId}`;
-            const storedDeadline = localStorage.getItem(storageKey);
-            const now = Date.now();
-            
-            if (storedDeadline) {
-              const remaining = Math.max(0, Math.floor((parseInt(storedDeadline) - now) / 1000));
-              setCountdown(remaining);
-            } else {
-              // Calculate deadline relative to order creation + 4 minutes
-              const createdAt = new Date(orderToPopup.createdAt || Date.now()).getTime();
-              const deadline = createdAt + 4 * 60 * 1000;
-              const remaining = Math.max(0, Math.floor((deadline - now) / 1000));
-
-              localStorage.setItem(storageKey, deadline.toString());
-              setCountdown(remaining);
-            }
-          }
-        }
-      } catch (error) {
-        if (error.response?.status !== 401) {
-          debugError("Error checking orders to popup:", error);
-        }
-      }
-    };
-
-    // Check once on mount, and then every minute
-    checkOrdersToPopup();
-    const intervalId = setInterval(checkOrdersToPopup, 60000);
-
-    return () => clearInterval(intervalId);
-  }, []);
 
   // Play audio when popup opens
   useEffect(() => {
@@ -1427,9 +1320,9 @@ export default function OrdersMain() {
     markOrderAsShown(orderToAccept);
 
     // Accept order via API if we have a real order
-    if (orderToAccept?.orderMongoId || orderToAccept?.orderId) {
+    if (orderToAccept?.orderMongoId || orderToAccept?.order_mongo_id || orderToAccept?.orderId || orderToAccept?.order_id || orderToAccept?._id || orderToAccept?.id) {
       try {
-        const orderId = orderToAccept.orderMongoId || orderToAccept.orderId;
+        const orderId = orderToAccept.orderMongoId || orderToAccept.order_mongo_id || orderToAccept.orderId || orderToAccept.order_id || orderToAccept._id || orderToAccept.id;
         const response = await restaurantAPI.acceptOrder(orderId, prepTime);
         debugLog("? Order accepted:", orderId);
         toast.success("Order accepted successfully");
@@ -1564,20 +1457,9 @@ export default function OrdersMain() {
   };
 
   // Toggle mute
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (audioRef.current) {
-      if (!isMuted) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.muted = false;
-        audioRef.current.volume = 1;
-        audioRef.current.currentTime = 0;
-        audioRef.current
-          .play()
-          .catch((err) => debugLog("Audio play failed:", err));
-      }
-    }
+  const toggleMute = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setIsMuted((prev) => !prev);
   };
 
   // Handle PDF download
@@ -2428,9 +2310,12 @@ export default function OrdersMain() {
                       className="relative h-14 rounded-2xl bg-gray-900 overflow-hidden select-none touch-pan-y">
                       <motion.div
                         className="absolute inset-y-0 left-0 bg-blue-600"
-                        initial={{ width: "100%" }}
+                        initial={{ width: `${(countdown / 240) * 100}%` }}
                         animate={{ width: `${(countdown / 240) * 100}%` }}
-                        transition={{ duration: 1, ease: "linear" }}
+                        transition={{ 
+                          duration: countdown >= 239 ? 0 : 1, 
+                          ease: "linear" 
+                        }}
                       />
                       <div className="absolute inset-0 flex items-center justify-center px-16">
                         <span className="relative z-10 text-sm font-semibold text-white text-center">

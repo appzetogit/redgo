@@ -601,7 +601,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       )}
 
       {/* ─── 2. MAIN CONTENT ─── */}
-      <div className={`flex-1 relative overflow-y-auto ${currentTab === 'history' ? 'pt-0' : (currentTab === 'feed' ? 'pt-[120px]' : 'pt-[64px]')} no-scrollbar bg-transparent transition-all duration-300`}>
+      <div className={`flex-1 relative overflow-y-auto ${currentTab === 'history' ? 'pt-0' : (currentTab === 'feed' ? 'pt-[120px]' : 'pt-[64px]')} no-scrollbar bg-transparent`}>
         {currentTab === 'feed' ? (
           <div className="absolute inset-0 top-[-120px]">
             <div className={`absolute inset-0 transition-all duration-1000 ease-out ${(delayedOnline || activeOrder) ? 'opacity-100 scale-100 translate-y-0 blur-0' : 'opacity-0 scale-95 -translate-y-8 blur-sm pointer-events-none'}`}>

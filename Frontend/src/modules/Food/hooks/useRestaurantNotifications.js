@@ -80,7 +80,8 @@ const triggerWebViewNativeNotification = async (orderData = {}) => {
  * Hook for restaurant to receive real-time order notifications with sound
  * @returns {object} - { newOrder, playSound, isConnected }
  */
-export const useRestaurantNotifications = () => {
+export const useRestaurantNotifications = (options = {}) => {
+  const { disableAudio = false } = options;
   const socketRef = useRef(null);
   const [newOrder, setNewOrder] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -97,8 +98,8 @@ export const useRestaurantNotifications = () => {
   const CONNECT_ERROR_LOG_THROTTLE_MS = 10000;
   const ALERT_LOOP_INTERVAL_MS = 4500;
   const ALERT_LOOP_MAX_MS = 120000;
-  const ALERT_DEDUPE_MS = 15000;
-  const BROWSER_NOTIFICATION_DEDUPE_MS = 20000;
+  const ALERT_DEDUPE_MS = 3600000; // Deduplicate for 1 hour to prevent notification spam
+  const BROWSER_NOTIFICATION_DEDUPE_MS = 3600000; // Also 1 hour for browser notifications
   const NOTIFICATION_PERMISSION_ASKED_KEY = 'restaurant_notification_permission_asked';
 
   const getOrderAlertKey = (orderData = {}) => (
@@ -115,7 +116,7 @@ export const useRestaurantNotifications = () => {
 
   const shouldProcessOrderAlert = (orderData = {}) => {
     const key = getOrderAlertKey(orderData);
-    if (!key) return true;
+    if (!key) return false; // FIXED: Do not alert if we can't identify the order
     const now = Date.now();
     const last = lastAlertAtByOrderRef.current.get(key) || 0;
     if (now - last < ALERT_DEDUPE_MS) return false;
@@ -125,7 +126,7 @@ export const useRestaurantNotifications = () => {
 
   const shouldShowBrowserNotification = (orderData = {}) => {
     const key = getOrderAlertKey(orderData);
-    if (!key) return true;
+    if (!key) return false;
     const now = Date.now();
     const last = lastBrowserNotificationAtByOrderRef.current.get(key) || 0;
     if (now - last < BROWSER_NOTIFICATION_DEDUPE_MS) return false;
@@ -195,7 +196,7 @@ export const useRestaurantNotifications = () => {
       }
 
       // Keep re-alerting while order is pending and tab is not visible.
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      if (!disableAudio && typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         playNotificationSound(activeOrderRef.current);
       }
     }, ALERT_LOOP_INTERVAL_MS);
@@ -207,8 +208,12 @@ export const useRestaurantNotifications = () => {
     }
 
     activeOrderRef.current = orderData || { id: Date.now() };
-    playNotificationSound(orderData);
-    startAlertLoop();
+    setNewOrder(orderData);
+    
+    if (!disableAudio) {
+      playNotificationSound(orderData);
+      startAlertLoop();
+    }
 
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
       showBackgroundOrderNotification(orderData);
@@ -318,7 +323,9 @@ export const useRestaurantNotifications = () => {
       if (document.visibilityState !== 'hidden') return;
       if (!activeOrderRef.current) return;
 
-      playNotificationSound(activeOrderRef.current);
+      if (!disableAudio) {
+        playNotificationSound(activeOrderRef.current);
+      }
       showBackgroundOrderNotification(activeOrderRef.current);
     };
 
@@ -601,16 +608,21 @@ export const useRestaurantNotifications = () => {
 
     // Listen for sound notification event
     socketRef.current.on('play_notification_sound', (data) => {
-      debugLog('?? Sound notification:', data);
+      debugLog('🔔 Sound notification:', data);
       const normalizedData = {
         orderId: data?.orderId || data?.order_id,
         orderMongoId: data?.orderMongoId || data?.order_mongo_id,
         ...data
       };
-      // Force immediate buzz for notification events, even if dedupe would skip.
-      activeOrderRef.current = normalizedData || { id: Date.now() };
-      playNotificationSound(normalizedData);
-      startAlertLoop();
+      
+      // Respect disableAudio flag even for forced notification events
+      if (!disableAudio) {
+        // Force immediate buzz for notification events
+        activeOrderRef.current = normalizedData || { id: Date.now() };
+        playNotificationSound(normalizedData);
+        startAlertLoop();
+      }
+
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         showBackgroundOrderNotification(normalizedData);
       }

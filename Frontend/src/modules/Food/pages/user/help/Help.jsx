@@ -409,7 +409,7 @@ export default function Help() {
                       href="mailto:support@redgo.com"
                       className="text-sm text-primary hover:underline font-medium"
                     >
-                      support@redgo.com
+                      support@app.com
                     </a>
                   </div>
                 </div>

@@ -35,6 +35,8 @@ const CUSTOMER_PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" hei
 </svg>`;
 
 const debugLog = (...args) => console.log('[DeliveryTrackingMap]', ...args);
+const debugWarn = (...args) => console.warn('[DeliveryTrackingMap]', ...args);
+const debugError = (...args) => console.error('[DeliveryTrackingMap]', ...args);
 
 const DeliveryTrackingMap = ({
   orderId,
@@ -113,16 +115,30 @@ const DeliveryTrackingMap = ({
 
     // B. SOCKET.IO REALTIME
     const token = localStorage.getItem('user_accessToken') || localStorage.getItem('accessToken') || '';
+    
+    // CONFIG: Use both websocket and polling to prevent connection failures
+    // Polling will work even if WebSocket is blocked or server doesn't support it.
     socketRef.current = io(backendUrl, {
-      transports: ['websocket'],
-      auth: { token }
+      transports: ['websocket', 'polling'], 
+      auth: { token },
+      reconnectionAttempts: 5,
+      timeout: 10000,
+      autoConnect: true
+    });
+    
+    const socket = socketRef.current;
+
+    socket.on('connect', () => {
+      debugLog('? Socket connected successfully:', socket.id);
+      trackingIds.forEach(id => socket.emit('join-tracking', id));
     });
 
-    socketRef.current.on('connect', () => {
-      trackingIds.forEach(id => socketRef.current.emit('join-tracking', id));
+    socket.on('connect_error', (err) => {
+      debugWarn('?? Socket connection error (falling back to long-polling or Firebase):', err.message);
+      // If websocket fails, it will automatically try polling because of transports array
     });
 
-    socketRef.current.on('location-update', (data) => {
+    socket.on('location-update', (data) => {
       // Ensure data belongs to one of our tracked orders
       const matchedId = trackingIds.find(id => String(id) === String(data.orderId));
       if (data && matchedId && typeof data.lat === 'number') {
@@ -145,9 +161,20 @@ const DeliveryTrackingMap = ({
 
     return () => {
       unsubs.forEach(u => u?.());
-      socketRef.current?.disconnect();
+      if (socketRef.current) {
+        debugLog('? Disconnecting tracking socket');
+        const s = socketRef.current;
+        s.off('connect');
+        s.off('connect_error');
+        s.off('location-update');
+        // Only disconnect if it's actually initialized to avoid "closed before established" warning in StrictMode
+        if (s.connected || s.active) {
+          s.disconnect();
+        }
+        socketRef.current = null;
+      }
     };
-  }, [trackingIds, backendUrl, smoothLocation, riderLocation]);
+  }, [trackingIds, backendUrl]);
 
   // 3. Smooth Animation Loop (60 FPS Glide)
   useEffect(() => {

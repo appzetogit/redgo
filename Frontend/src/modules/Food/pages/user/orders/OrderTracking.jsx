@@ -330,6 +330,7 @@ const transformOrderForTracking = (apiOrder, previousOrder = null, explicitResta
     tracking: apiOrder?.tracking || previousOrder?.tracking || {},
     deliveryState: apiOrder?.deliveryState || previousOrder?.deliveryState || null,
     createdAt: apiOrder?.createdAt || previousOrder?.createdAt || null,
+    cancellationReason: apiOrder?.cancellationReason || apiOrder?.rejectionReason || previousOrder?.cancellationReason || null,
     totalAmount: apiOrder?.pricing?.total || apiOrder?.totalAmount || previousOrder?.totalAmount || 0,
     deliveryFee: apiOrder?.pricing?.deliveryFee || apiOrder?.deliveryFee || previousOrder?.deliveryFee || 0,
     gst: apiOrder?.pricing?.tax || apiOrder?.pricing?.gst || apiOrder?.gst || apiOrder?.tax || previousOrder?.gst || 0,
@@ -554,43 +555,71 @@ export default function OrderTracking() {
     resolveOrderFromList: async (rawLookupId) => {
       const needle = normalizeLookupId(rawLookupId)
       if (!needle) return null
-      const maxPages = 3
-      const limit = 50
+      
+      // OPTIMIZATION: Only search 2 pages of 40 orders to reduce load time
+      const maxPages = 2
+      const limit = 40
 
       for (let page = 1; page <= maxPages; page += 1) {
-        const listResponse = await orderAPI.getOrders({ page, limit })
-        let orders = []
-        if (listResponse?.data?.success && listResponse?.data?.data?.orders) {
-          orders = listResponse.data.data.orders || []
-        } else if (listResponse?.data?.orders) {
-          orders = listResponse.data.orders || []
-        } else if (Array.isArray(listResponse?.data?.data?.data)) {
-          orders = listResponse.data.data.data || []
-        } else if (Array.isArray(listResponse?.data?.data)) {
-          orders = listResponse.data.data || []
-        }
+        try {
+          const listResponse = await orderAPI.getOrders({ page, limit })
+          let orders = []
+          if (listResponse?.data?.success && listResponse?.data?.data?.orders) {
+            orders = listResponse.data.data.orders || []
+          } else if (listResponse?.data?.orders) {
+            orders = listResponse.data.orders || []
+          } else if (Array.isArray(listResponse?.data?.data?.data)) {
+            orders = listResponse.data.data.data || []
+          } else if (Array.isArray(listResponse?.data?.data)) {
+            orders = listResponse.data.data || []
+          }
 
-        const matched = (orders || []).find((o) => {
-          const candidates = [o?._id, o?.id, o?.orderId, o?.mongoId].map(normalizeLookupId)
-          return candidates.includes(needle)
-        })
-        if (matched) return matched
-        const totalPages = Number(listResponse?.data?.data?.pagination?.pages) || Number(listResponse?.data?.data?.totalPages) || 1
-        if (page >= totalPages) break
+          const matched = (orders || []).find((o) => {
+            const candidates = [o?._id, o?.id, o?.orderId, o?.mongoId].map(normalizeLookupId)
+            return candidates.includes(needle)
+          })
+          if (matched) return matched
+          
+          const pagination = listResponse?.data?.data?.pagination || listResponse?.data?.pagination
+          const totalPages = Number(pagination?.pages) || Number(listResponse?.data?.data?.totalPages) || 1
+          if (page >= totalPages) break
+        } catch (err) {
+          debugError('? resolveOrderFromList page fetch error:', err)
+          break; // Stop on first failure to save time
+        }
       }
       return null
     },
     fetchOrderDetailsWithFallback: async (options = {}) => {
-      const lookupIds = lookupIdsRef.current
-      if (lookupIds.length === 0) throw new Error("Order id required")
+      // OPTIMIZATION: Calculate fresh IDs directly to avoid Ref race conditions
+      const currentIds = [
+        resolvedLookupId,
+        orderId,
+        order?.orderId,
+        order?.mongoId,
+        order?._id,
+        order?.id,
+      ]
+        .map(normalizeLookupId)
+        .filter(Boolean)
+      
+      const lookupIds = Array.from(new Set(currentIds))
+      if (lookupIds.length === 0) {
+        debugWarn('? No lookup IDs available yet, skipping fetch');
+        return null;
+      }
+      
       let lastError = null
-      for (const id of lookupIds) {
+      for (let i = 0; i < lookupIds.length; i++) {
+        const id = lookupIds[i]
         try {
-          // Double guard against hammer
-          return await orderAPI.getOrderDetails(id, options)
+          const resp = await orderAPI.getOrderDetails(id, options)
+          if (resp?.data?.success && resp?.data?.data?.order) return resp;
+          if (i === lookupIds.length - 1) return resp;
         } catch (err) {
           lastError = err
           if (err?.response?.status === 400 || err?.response?.status === 404) continue
+          if (i < lookupIds.length - 1) continue
           throw err
         }
       }
@@ -824,7 +853,7 @@ export default function OrderTracking() {
       requestInProgress = true;
       try {
         const response = await fetchOrderDetailsWithFallback({ force: isInitial });
-        if (!isSubscribed) return;
+        if (!isSubscribed || !response) return;
 
         let finalOrderData = null;
 
@@ -1228,8 +1257,8 @@ export default function OrderTracking() {
       iconType: 'delivered'
     },
     cancelled: {
-      title: "Order cancelled",
-      subtitle: "This order has been cancelled",
+      title: "ORDER CANCELLED",
+      subtitle: order?.cancellationReason || "The restaurant did not respond in time, so your order has been automatically cancelled.",
       color: "bg-red-600",
       iconType: 'cancelled'
     }
@@ -1319,7 +1348,7 @@ export default function OrderTracking() {
         {!['at_pickup', 'ready', 'on_way', 'at_drop', 'delivered'].includes(orderStatus) && (
           <div className="px-4 pb-4 text-center">
             <motion.h1
-              className="text-2xl font-bold mb-3"
+              className={`${orderStatus === 'cancelled' ? 'text-3xl' : 'text-2xl'} font-semibold mb-3`}
               key={currentStatus.title}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1327,31 +1356,33 @@ export default function OrderTracking() {
               {currentStatus.title}
             </motion.h1>
 
-            {/* Status pill */}
-            <motion.div
-              className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <span className="text-sm">{currentStatus.subtitle}</span>
-              {orderStatus === 'preparing' && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-white" />
-                  <span className="text-sm text-orange-200">On time</span>
-                </>
-              )}
-              <motion.button
-                onClick={handleRefresh}
-                className="ml-1"
-                animate={{ rotate: isRefreshing ? 360 : 0 }}
-                transition={{ duration: 0.5 }}
+            {/* Status pill - hidden for cancelled as reason is in the card below */}
+            {orderStatus !== 'cancelled' && (
+              <motion.div
+                className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.2 }}
               >
-              <RefreshCw className="w-4 h-4" />
-            </motion.button>
-          </motion.div>
-        </div>
-      )}
+                <span className="text-sm">{currentStatus.subtitle}</span>
+                {orderStatus === 'preparing' && (
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-white" />
+                    <span className="text-sm text-orange-200">On time</span>
+                  </>
+                )}
+                <motion.button
+                  onClick={handleRefresh}
+                  className="ml-1"
+                  animate={{ rotate: isRefreshing ? 360 : 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                <RefreshCw className="w-4 h-4" />
+              </motion.button>
+            </motion.div>
+            )}
+          </div>
+        )}
       </motion.div>
 
       {/* Map Section */}
