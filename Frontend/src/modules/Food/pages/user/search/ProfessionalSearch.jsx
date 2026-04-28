@@ -56,6 +56,7 @@ export default function ProfessionalSearch() {
   const [isListening, setIsListening] = useState(false)
   const [categories, setCategories] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(searchParams.get("cat") || null)
+  const [activeFilters, setActiveFilters] = useState(new Set())
   const [history, setHistory] = useState([])
 
   // Trigger voice search on mount if navigated from home mic
@@ -92,7 +93,7 @@ export default function ProfessionalSearch() {
     localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory))
   }
 
-  const performSearch = useCallback(async (searchTerm, catId, isVeg) => {
+  const performSearch = useCallback(async (searchTerm, catId, isVeg, filters) => {
     if (!searchTerm && !catId) {
       setResults({ restaurants: [], dishes: [] })
       return
@@ -114,15 +115,23 @@ export default function ProfessionalSearch() {
         const all = res.data.data.restaurants || []
         
         // Local filtering as backup/perfection
-        const restaurants = all.filter(r => 
-          (r.matchType === 'restaurant' || !r.matchType) && 
-          (!isVeg || r.pureVegRestaurant || r.isVeg)
-        )
+        const restaurants = all.filter(r => {
+          if (r.matchType === 'food') return false
+          if (isVeg && !r.pureVegRestaurant && !r.isVeg) return false
+          
+          if (filters?.has('rating-4-plus') && (Number(r.rating) || 0) < 4.0) return false
+          if (filters?.has('delivery-under-30')) {
+             const timeMatch = String(r.estimatedDeliveryTime || "30").match(/(\d+)/)
+             if (timeMatch && parseInt(timeMatch[1]) >= 30) return false
+          }
+          return true
+        })
         
-        const dishes = all.filter(r => 
-          r.matchType === 'food' && 
-          (!isVeg || r.isVeg || r.pureVegRestaurant)
-        )
+        const dishes = all.filter(r => {
+          if (r.matchType !== 'food') return false
+          if (isVeg && !r.isVeg && !r.pureVegRestaurant) return false
+          return true
+        })
 
         setResults({ restaurants, dishes })
       }
@@ -134,15 +143,15 @@ export default function ProfessionalSearch() {
   }, [userCoords, zoneId])
 
   useEffect(() => {
-    performSearch(debouncedQuery, selectedCategoryId, vegMode)
+    performSearch(debouncedQuery, selectedCategoryId, vegMode, activeFilters)
     if (debouncedQuery) {
         setSearchParams({ 
           q: debouncedQuery, 
           ...(selectedCategoryId ? { cat: selectedCategoryId } : {}),
           ...(vegMode ? { veg: '1' } : {})
-        })
+        }, { replace: true })
     }
-  }, [debouncedQuery, selectedCategoryId, vegMode, performSearch, setSearchParams])
+  }, [debouncedQuery, selectedCategoryId, vegMode, activeFilters, performSearch, setSearchParams])
 
   // Speech Recognition Implementation
   const handleVoiceSearch = async () => {
@@ -185,7 +194,7 @@ export default function ProfessionalSearch() {
   const handleClear = () => {
     setQuery("")
     setSelectedCategoryId(null)
-    setSearchParams({})
+    setSearchParams({}, { replace: true })
     setResults({ restaurants: [], dishes: [] })
   }
 
@@ -193,11 +202,11 @@ export default function ProfessionalSearch() {
     const newCat = selectedCategoryId === id ? null : id
     setSelectedCategoryId(newCat)
     if (newCat) {
-        setSearchParams({ ...Object.fromEntries(searchParams), cat: newCat })
+        setSearchParams({ ...Object.fromEntries(searchParams), cat: newCat }, { replace: true })
     } else {
         const p = Object.fromEntries(searchParams)
         delete p.cat
-        setSearchParams(p)
+        setSearchParams(p, { replace: true })
     }
   }
 
@@ -256,20 +265,25 @@ export default function ProfessionalSearch() {
                 {[
                     { id: 'rating-4-plus', label: '4.0+ Star' },
                     { id: 'delivery-under-30', label: '< 30 mins' }
-                ].map(chip => (
-                    <button
-                        key={chip.id}
-                        onClick={() => {
-                            const next = new Set(activeFilters || []);
-                            if (next.has(chip.id)) next.delete(chip.id);
-                            else next.add(chip.id);
-                            // Assuming applyFiltersAndRefetch logic is available or managed via useEffect
-                        }}
-                        className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-zinc-800 text-[11px] font-bold whitespace-nowrap bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 active:scale-95 transition-all shadow-sm"
-                    >
-                        {chip.label}
-                    </button>
-                ))}
+                ].map(chip => {
+                    const isActive = activeFilters.has(chip.id);
+                    return (
+                        <button
+                            key={chip.id}
+                            onClick={() => {
+                                setActiveFilters(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(chip.id)) next.delete(chip.id);
+                                    else next.add(chip.id);
+                                    return next;
+                                });
+                            }}
+                            className={`px-3 py-1.5 rounded-full border text-[11px] font-bold whitespace-nowrap active:scale-95 transition-all shadow-sm ${isActive ? 'bg-rose-500 border-rose-500 text-white hover:bg-rose-600' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-50'}`}
+                        >
+                            {chip.label}
+                        </button>
+                    )
+                })}
             </div>
           </div>
         </div>

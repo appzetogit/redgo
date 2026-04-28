@@ -98,8 +98,8 @@ export const useRestaurantNotifications = (options = {}) => {
   const CONNECT_ERROR_LOG_THROTTLE_MS = 10000;
   const ALERT_LOOP_INTERVAL_MS = 4500;
   const ALERT_LOOP_MAX_MS = 120000;
-  const ALERT_DEDUPE_MS = 3600000; // Deduplicate for 1 hour to prevent notification spam
-  const BROWSER_NOTIFICATION_DEDUPE_MS = 3600000; // Also 1 hour for browser notifications
+  const ALERT_DEDUPE_MS = 15000;
+  const BROWSER_NOTIFICATION_DEDUPE_MS = 20000;
   const NOTIFICATION_PERMISSION_ASKED_KEY = 'restaurant_notification_permission_asked';
 
   const getOrderAlertKey = (orderData = {}) => (
@@ -116,7 +116,7 @@ export const useRestaurantNotifications = (options = {}) => {
 
   const shouldProcessOrderAlert = (orderData = {}) => {
     const key = getOrderAlertKey(orderData);
-    if (!key) return false; // FIXED: Do not alert if we can't identify the order
+    if (!key) return true;
     const now = Date.now();
     const last = lastAlertAtByOrderRef.current.get(key) || 0;
     if (now - last < ALERT_DEDUPE_MS) return false;
@@ -126,7 +126,7 @@ export const useRestaurantNotifications = (options = {}) => {
 
   const shouldShowBrowserNotification = (orderData = {}) => {
     const key = getOrderAlertKey(orderData);
-    if (!key) return false;
+    if (!key) return true;
     const now = Date.now();
     const last = lastBrowserNotificationAtByOrderRef.current.get(key) || 0;
     if (now - last < BROWSER_NOTIFICATION_DEDUPE_MS) return false;
@@ -632,7 +632,13 @@ export const useRestaurantNotifications = (options = {}) => {
     // Listen for order status updates
     socketRef.current.on('order_status_update', (data) => {
       debugLog('?? Order status update:', data);
-      // You can handle status updates here if needed
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('restaurantOrderStatusUpdate', {
+            detail: data || {},
+          }),
+        );
+      }
     });
 
     socketRef.current.on('admin_notification', (payload) => {

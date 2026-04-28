@@ -3,7 +3,8 @@ import {
     createHeroBannersFromFiles,
     deleteHeroBanner,
     updateHeroBannerOrder,
-    toggleHeroBannerStatus
+    toggleHeroBannerStatus,
+    linkRestaurantsToHeroBanner
 } from '../services/heroBanner.service.js';
 import { sendResponse } from '../../../../utils/response.js';
 import { ValidationError } from '../../../../core/auth/errors.js';
@@ -78,3 +79,16 @@ export const toggleHeroBannerStatusController = async (req, res, next) => {
     }
 };
 
+export const linkRestaurantsToHeroBannerController = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { restaurantIds } = req.body;
+        if (!id || !Array.isArray(restaurantIds)) {
+            throw new ValidationError('id and restaurantIds array are required');
+        }
+        const updated = await linkRestaurantsToHeroBanner(id, restaurantIds);
+        return sendResponse(res, 200, 'Restaurants linked to hero banner successfully', updated);
+    } catch (error) {
+        next(error);
+    }
+};

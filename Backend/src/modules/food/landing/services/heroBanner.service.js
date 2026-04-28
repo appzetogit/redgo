@@ -81,3 +81,11 @@ export const toggleHeroBannerStatus = async (id, isActive) => {
     return updated;
 };
 
+export const linkRestaurantsToHeroBanner = async (id, restaurantIds) => {
+    const updated = await FoodHeroBanner.findByIdAndUpdate(
+        id,
+        { linkedRestaurantIds: restaurantIds },
+        { new: true }
+    ).lean();
+    return updated;
+};

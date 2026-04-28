@@ -5,7 +5,8 @@ import {
     uploadHeroBannersController,
     deleteHeroBannerController,
     updateHeroBannerOrderController,
-    toggleHeroBannerStatusController
+    toggleHeroBannerStatusController,
+    linkRestaurantsToHeroBannerController
 } from '../controllers/heroBanner.controller.js';
 import {
     listUnder250BannersController,
@@ -70,6 +71,7 @@ router.post(
 router.delete('/hero-banners/:id', deleteHeroBannerController);
 router.patch('/hero-banners/:id/order', updateHeroBannerOrderController);
 router.patch('/hero-banners/:id/status', toggleHeroBannerStatusController);
+router.patch('/hero-banners/:id/link-restaurants', linkRestaurantsToHeroBannerController);
 
 // Admin under 250 banners
 router.get('/hero-banners/under-250', listUnder250BannersController);

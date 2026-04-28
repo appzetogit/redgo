@@ -182,6 +182,7 @@ export const useDeliveryNotifications = () => {
   
   // Step 2: All state hooks (unconditional)
   const [newOrder, setNewOrder] = useState(null);
+  const [claimedOrderId, setClaimedOrderId] = useState(null);
   const [orderReady, setOrderReady] = useState(null);
   const [orderStatusUpdate, setOrderStatusUpdate] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -233,6 +234,16 @@ export const useDeliveryNotifications = () => {
       alertLoopTimerRef.current = null;
     }
     alertLoopStartedAtRef.current = 0;
+    
+    // Also stop the currently playing audio
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      } catch (err) {
+        // Ignore pause errors
+      }
+    }
   }, []);
 
   const startAlertLoop = useCallback((playSoundFn) => {
@@ -294,13 +305,16 @@ export const useDeliveryNotifications = () => {
       if (audioRef.current) {
         audioRef.current.muted = false;
         audioRef.current.volume = 0.9;
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(error => {
-          // On strict autoplay environments, we still keep vibration/native bridge path active.
-          if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
-            debugWarn('Error playing notification sound:', error);
-          }
-        });
+        audioRef.current.loop = true; // Ensure it loops smoothly
+        
+        if (audioRef.current.paused) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(error => {
+            if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
+              debugWarn('Error playing notification sound:', error);
+            }
+          });
+        }
       }
     } catch (error) {
       // Don't log autoplay policy errors
@@ -922,12 +936,20 @@ export const useDeliveryNotifications = () => {
 
     socketRef.current.on('order_reassigned_elsewhere', (data) => {
       debugLog('?? Order reassigned to another partner:', data);
-      if (data.orderId === activeOrderRef.current?._id || data.orderId === activeOrderRef.current?.orderId) {
-        debugLog('?? Removing reassigned order from local state');
-        stopAlertLoop();
-        activeOrderRef.current = null;
-        setNewOrder(null);
-      }
+      stopAlertLoop();
+      activeOrderRef.current = null;
+      setNewOrder(null);
+      if (data?.orderId) setClaimedOrderId(data.orderId);
+    });
+
+    // Backend emits 'order_claimed' when another delivery boy accepts an offered order
+    socketRef.current.on('order_claimed', (data) => {
+      debugLog('?? order_claimed received - order taken by another partner:', data);
+      stopAlertLoop();
+      activeOrderRef.current = null;
+      setNewOrder(null);
+      const claimedId = data?.orderId || data?.orderMongoId || data?.order_id;
+      if (claimedId) setClaimedOrderId(claimedId);
     });
 
     socketRef.current.on('admin_notification', (payload) => {
@@ -1038,9 +1060,13 @@ export const useDeliveryNotifications = () => {
     return false;
   }, []);
 
+  const clearClaimedOrderId = () => setClaimedOrderId(null);
+
   return {
     newOrder,
     clearNewOrder,
+    claimedOrderId,
+    clearClaimedOrderId,
     orderReady,
     clearOrderReady,
     orderStatusUpdate,

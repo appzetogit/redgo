@@ -78,7 +78,7 @@ export const PickupActionModal = ({
   const restaurantLogo = order.restaurantImage || order.restaurant?.logo || order.restaurant?.profileImage || 'https://cdn-icons-png.flaticon.com/512/3170/3170733.png';
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-[110] p-0 sm:p-4 h-full flex items-end">
+    <div className="absolute inset-x-0 bottom-0 z-[110] p-0 h-full flex items-end">
       {/* Background Dim */}
       <motion.div
         initial={{ opacity: 0 }}

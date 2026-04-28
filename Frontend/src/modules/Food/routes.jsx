@@ -56,9 +56,15 @@ function RestaurantGlobalNotificationListener() {
     location.pathname.includes("/otp") ||
     location.pathname.includes("/welcome")
 
+  const isOrderManagedRoute =
+    location.pathname === "/restaurant" ||
+    location.pathname === "/restaurant/orders" ||
+    location.pathname.startsWith("/restaurant/orders/")
+
   const shouldListen =
     isRestaurantRoute &&
     !isRestaurantAuthRoute &&
+    !isOrderManagedRoute &&
     isModuleAuthenticated("restaurant")
 
   if (!shouldListen) {

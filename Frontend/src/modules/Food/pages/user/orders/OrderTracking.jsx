@@ -46,7 +46,7 @@ const SAFE_CUSTOMER_PIN = typeof CUSTOMER_PIN_SVG !== 'undefined' ? CUSTOMER_PIN
 const DEFAULT_RESTAURANT_PIN = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#FF6B35"><path d="M12 2C8.13 2 5 5.13 5 9c0 4.17 4.42 9.92 6.24 12.11.4.48 1.08.48 1.52 0C14.58 18.92 19 13.17 19 9c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5 14.5 7.62 14.5 9 13.38 11.5 12 11.5z"/><circle cx="12" cy="9" r="3" fill="#FFFFFF"/></svg>`;
 const SAFE_RESTAURANT_PIN = typeof RESTAURANT_PIN_SVG !== 'undefined' ? RESTAURANT_PIN_SVG : DEFAULT_RESTAURANT_PIN;
 
-const debugLog = (...args) => console.log('[OrderTracking]', ...args)
+const debugLog = () => {};
 const debugWarn = (...args) => console.warn('[OrderTracking]', ...args)
 const debugError = (...args) => console.error('[OrderTracking]', ...args)
 
@@ -838,7 +838,6 @@ export default function OrderTracking() {
       if (terminalPollStopRef.current && !isInitial) return;
 
       const now = Date.now();
-      if (isInitial && now - lastPollExecutionRef.current < 1000) return;
       if (isInitial) lastPollExecutionRef.current = now;
 
       // Check context immediately to avoid loaders if data exists locally
@@ -857,9 +856,12 @@ export default function OrderTracking() {
 
         let finalOrderData = null;
 
-        if (response.data?.success && response.data.data?.order) {
-          finalOrderData = response.data.data.order;
-        } else if (isInitial) {
+        if (response.data?.success) {
+          const potentialOrder = response.data.data?.order || response.data?.order;
+          finalOrderData = potentialOrder || (response.data.data?._id ? response.data.data : null);
+        }
+        
+        if (!finalOrderData && isInitial) {
           const matchedOrder = await resolveOrderFromList(orderId);
           if (matchedOrder) finalOrderData = matchedOrder;
         }
@@ -881,7 +883,7 @@ export default function OrderTracking() {
           terminalPollStopRef.current = true;
         }
       } catch (err) {
-        if (isInitial && !order) {
+        if (!order) {
           try {
             const matchedOrder = await resolveOrderFromList(orderId);
             if (matchedOrder) {
@@ -893,22 +895,21 @@ export default function OrderTracking() {
             }
           } catch {}
           if (!isSubscribed) return;
-          setError(err.response?.data?.message || 'Failed to fetch order details');
+          setError(err.response?.data?.message || 'Order not found');
           terminalPollStopRef.current = true;
+          setLoading(false);
         }
       } finally {
         requestInProgress = false;
-        if (isInitial && isSubscribed) setLoading(false);
+        if (isSubscribed) setLoading(false);
       }
     };
 
     pollRef.current = poll;
     terminalPollStopRef.current = false;
 
-    if (isInitialPollRequestedRef.current !== orderId) {
-      isInitialPollRequestedRef.current = orderId;
-      poll(true);
-    }
+    // Always trigger initial poll, relying on API deduping instead of strict mode hacks
+    poll(true);
 
     return () => {
       isSubscribed = false;
@@ -984,9 +985,9 @@ export default function OrderTracking() {
       }
 
       // Show notification toast
-      if (message) {
+      if (message && !message.startsWith("Unfortunately")) {
         toast.success(message, {
-          duration: 5000,
+          duration: 4000,
           icon: '???',
           position: 'top-center',
           description: estimatedDeliveryTime
@@ -1056,9 +1057,9 @@ export default function OrderTracking() {
         setCancellationReason("");
         // Refresh order data
         const orderResponse = await fetchOrderDetailsWithFallback({ force: true });
-        if (orderResponse.data?.success && orderResponse.data.data?.order) {
-          const apiOrder = orderResponse.data.data.order;
-          setOrder(transformOrderForTracking(apiOrder, order));
+        if (orderResponse.data?.success) {
+          const apiOrder = orderResponse.data.data?.order || orderResponse.data?.order || orderResponse.data.data;
+          if (apiOrder) setOrder(transformOrderForTracking(apiOrder, order));
         }
       } else {
         toast.error(response.data?.message || 'Failed to cancel order');
@@ -1118,8 +1119,9 @@ export default function OrderTracking() {
     setIsRefreshing(true)
     try {
       const response = await fetchOrderDetailsWithFallback({ force: true })
-      if (response.data?.success && response.data.data?.order) {
-        const apiOrder = response.data.data.order
+      if (response.data?.success) {
+        const apiOrder = response.data.data?.order || response.data?.order || response.data.data;
+        if (!apiOrder) return;
 
         // Extract restaurant location coordinates with multiple fallbacks
         let restaurantCoords = null;

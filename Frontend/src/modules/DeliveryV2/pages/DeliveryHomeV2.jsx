@@ -69,7 +69,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const { isOnline, toggleOnline, activeOrder, tripStatus, setRiderLocation, setActiveOrder, updateTripStatus, clearActiveOrder, riderLocation } = useDeliveryStore();
   const { isWithinRange, distanceToTarget } = useProximityCheck();
   const { acceptOrder, reachPickup, pickUpOrder, reachDrop, completeDelivery, resetTrip } = useOrderManager();
-  const { newOrder, clearNewOrder, orderStatusUpdate, clearOrderStatusUpdate, isConnected: isSocketConnected, emitLocation } = useDeliveryNotifications();
+  const { newOrder, clearNewOrder, orderStatusUpdate, clearOrderStatusUpdate, isConnected: isSocketConnected, emitLocation, claimedOrderId, clearClaimedOrderId } = useDeliveryNotifications();
   const companyName = useCompanyName();
   const { unreadCount: notificationUnreadCount } = useNotificationInbox("delivery", { limit: 20 });
 
@@ -429,13 +429,39 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     return () => clearInterval(pingInterval);
   }, [isOnline]);
 
-  useEffect(() => { if (newOrder) setIncomingOrder(newOrder); }, [newOrder]);
+  const [incomingOrderDeadline, setIncomingOrderDeadline] = useState(null);
+
+  useEffect(() => { 
+    if (newOrder) {
+      const orderId = newOrder.orderId || newOrder._id || newOrder.orderMongoId;
+      const prevId = incomingOrder?.orderId || incomingOrder?._id || incomingOrder?.orderMongoId;
+      
+      if (orderId !== prevId) {
+        setIncomingOrder(newOrder);
+        setIncomingOrderDeadline(Date.now() + 30000); // 30 seconds from now
+      }
+    } 
+  }, [newOrder, incomingOrder]);
 
   useEffect(() => {
     if (activeOrder && incomingOrder) {
       setIncomingOrder(null);
+      clearNewOrder();
     }
-  }, [activeOrder, incomingOrder]);
+  }, [activeOrder, incomingOrder, clearNewOrder]);
+
+  // When another delivery partner claims the incoming order (via socket 'order_claimed'),
+  // dismiss the NewOrderModal and inform this delivery boy.
+  useEffect(() => {
+    if (!claimedOrderId) return;
+    const incomingId = incomingOrder?.orderId || incomingOrder?._id || incomingOrder?.orderMongoId;
+    if (incomingId && String(incomingId) === String(claimedOrderId)) {
+      toast.info('Order was taken by another delivery partner.', { duration: 4000 });
+      setIncomingOrder(null);
+      clearNewOrder();
+    }
+    clearClaimedOrderId();
+  }, [claimedOrderId]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -469,11 +495,13 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         });
 
         if (!cancelled && nextIncomingOrder) {
-          setIncomingOrder((prev) => {
-            const prevId = prev?.orderId || prev?._id || prev?.orderMongoId;
-            const nextId = nextIncomingOrder?.orderId || nextIncomingOrder?._id || nextIncomingOrder?.orderMongoId;
-            return prevId === nextId && prev ? prev : nextIncomingOrder;
-          });
+          const nextId = nextIncomingOrder?.orderId || nextIncomingOrder?._id || nextIncomingOrder?.orderMongoId;
+          const currentId = incomingOrder?.orderId || incomingOrder?._id || incomingOrder?.orderMongoId;
+          
+          if (nextId !== currentId) {
+            setIncomingOrder(nextIncomingOrder);
+            setIncomingOrderDeadline(Date.now() + 30000);
+          }
         }
       } catch (error) { }
     };
@@ -720,18 +748,24 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       {(currentTab === 'feed' || activeOrder) && (
         <AnimatePresence>
           {!isModalMinimized && (
-            <motion.div key="modal-container" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed inset-x-0 top-0 bottom-[92px] z-[300] pointer-events-none flex items-end">
+            <motion.div key="modal-container" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className={`fixed inset-x-0 top-0 ${(incomingOrder || activeOrder || showVerification) && !isModalMinimized ? 'bottom-0' : 'bottom-[92px]'} z-[300] pointer-events-none flex items-end`}>
               <div className="w-full pointer-events-auto relative">
                 {incomingOrder && (
-                  <NewOrderModal order={incomingOrder} onAccept={(o) => { acceptOrder(o); setIncomingOrder(null); clearNewOrder(); }} onReject={() => { setIncomingOrder(null); clearNewOrder(); }} onMinimize={() => setIsModalMinimized(true)} />
+                  <NewOrderModal 
+                    order={incomingOrder} 
+                    initialTimeLeft={Math.max(0, Math.floor((incomingOrderDeadline - Date.now()) / 1000))}
+                    onAccept={(o) => { acceptOrder(o); setIncomingOrder(null); setIncomingOrderDeadline(null); clearNewOrder(); }} 
+                    onReject={() => { setIncomingOrder(null); setIncomingOrderDeadline(null); clearNewOrder(); }} 
+                    onMinimize={() => setIsModalMinimized(true)} 
+                  />
                 )}
                 {(tripStatus === 'PICKING_UP' || tripStatus === 'REACHED_PICKUP') && (
                   <PickupActionModal order={activeOrder} status={tripStatus} isWithinRange={isWithinRange} distanceToTarget={distanceToTarget} eta={eta} onReachedPickup={reachPickup} onPickedUp={(billImageUrl) => pickUpOrder(billImageUrl)} onMinimize={() => setIsModalMinimized(true)} />
                 )}
                 {(tripStatus === 'PICKED_UP' || tripStatus === 'REACHED_DROP') && (
-                  <div className="absolute bottom-4 inset-x-0 z-[120] px-4">
+                  <div className="absolute bottom-0 inset-x-0 z-[120]">
                     {tripStatus === 'PICKED_UP' ? (
-                      <div className="bg-white rounded-[3rem] p-8 shadow-[0_-20px_80px_rgba(0,0,0,0.4)] border border-gray-100 flex flex-col items-center">
+                      <div className="bg-white rounded-t-[3rem] p-8 shadow-[0_-20px_80px_rgba(0,0,0,0.4)] border border-gray-100 flex flex-col items-center pb-12">
                         <div className="w-full flex justify-center pb-4 pt-0 -mt-2"><button onClick={() => setIsModalMinimized(true)} className="p-1 hover:bg-gray-100 active:scale-95 transition-all rounded-full flex flex-col items-center"><ChevronDown className="w-6 h-6 text-gray-400 stroke-[3]" /></button></div>
                         <div className="flex justify-between w-full items-center mb-10 px-2 text-left">
                           <div className="flex items-center gap-4">
@@ -748,7 +782,9 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                         <ActionSlider label="Slide to Arrive" successLabel="Arrived ✓" disabled={!isWithinRange} onConfirm={reachDrop} color="bg-blue-600" />
                       </div>
                     ) : (
-                      <button onClick={() => setShowVerification(true)} className="w-full bg-green-500 hover:bg-green-600 text-white shadow-xl shadow-green-500/30 rounded-2xl py-5 font-bold text-sm tracking-[0.2em] transform transition-all active:scale-95 flex items-center justify-center gap-3"><CheckCircle2 className="w-6 h-6" /> VERIFY & COMPLETE</button>
+                      <div className="px-4 pb-8">
+                        <button onClick={() => setShowVerification(true)} className="w-full bg-green-500 hover:bg-green-600 text-white shadow-xl shadow-green-500/30 rounded-2xl py-5 font-bold text-sm tracking-[0.2em] transform transition-all active:scale-95 flex items-center justify-center gap-3"><CheckCircle2 className="w-6 h-6" /> VERIFY & COMPLETE</button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -776,33 +812,39 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       {isModalMinimized && (activeOrder || incomingOrder || showVerification) && (
         <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="fixed bottom-[100px] inset-x-0 z-[300] px-6">
           <button onClick={() => setIsModalMinimized(false)} className="w-full bg-gray-900/90 text-white rounded-2xl py-4 flex items-center justify-between px-6 shadow-2xl backdrop-blur-md border border-white/10">
-            <div className="flex flex-col items-start gap-0.5"><span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Order Action Pending</span><span className="text-xs font-bold uppercase tracking-wider">Tap to open delivery panel</span></div>
+            <div className="flex flex-col items-start gap-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Order Action Pending</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Tap to open delivery panel</span>
+            </div>
             <div className="bg-orange-500 p-2 rounded-xl text-white"><Plus className="w-5 h-5" /></div>
           </button>
         </motion.div>
       )}
 
       {/* ─── 3. BOTTOM NAV (True Navy Glassmorphism) ─── */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-sm z-[500] px-2 py-1">
-        <div className="bg-white/70 backdrop-blur-2xl border-2 border-slate-900/30 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex justify-between items-center px-2 py-1.5 ring-1 ring-slate-900/10">
-          {[
-            { id: 'feed', label: 'Feed', icon: LayoutGrid, path: '/delivery/feed' },
-            { id: 'pocket', label: 'Pocket', icon: Wallet, path: '/delivery/pocket' },
-            { id: 'history', label: 'History', icon: History, path: '/delivery/history' },
-            { id: 'profile', label: 'Profile', icon: UserIcon, path: '/delivery/profile' }
-          ].map((nav) => (
-            <button
-              key={nav.id}
-              onClick={() => navigate(nav.path)}
-              className={`flex-1 flex flex-col items-center gap-1 py-2 transition-colors duration-200 rounded-full will-change-transform ${currentTab === nav.id ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-white/50'
+      {((!incomingOrder && !activeOrder && !showVerification) || isModalMinimized) && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-sm z-[500] px-2 py-1">
+          <div className="bg-white/70 backdrop-blur-2xl border-2 border-slate-900/30 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex justify-between items-center px-2 py-1.5 ring-1 ring-slate-900/10">
+            {[
+              { id: 'feed', label: 'Feed', icon: LayoutGrid, path: '/delivery/feed' },
+              { id: 'pocket', label: 'Pocket', icon: Wallet, path: '/delivery/pocket' },
+              { id: 'history', label: 'History', icon: History, path: '/delivery/history' },
+              { id: 'profile', label: 'Profile', icon: UserIcon, path: '/delivery/profile' }
+            ].map((nav) => (
+              <button
+                key={nav.id}
+                onClick={() => navigate(nav.path)}
+                className={`flex-1 flex flex-col items-center gap-1 py-2 transition-colors duration-200 rounded-full will-change-transform ${
+                  currentTab === nav.id ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-white/50'
                 }`}
-            >
-              <nav.icon className={`w-5 h-5 ${currentTab === nav.id ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-              <span className={`text-[10px] font-semibold uppercase tracking-wider ${currentTab === nav.id ? 'opacity-100' : 'opacity-70'}`}>{nav.label}</span>
-            </button>
-          ))}
+              >
+                <nav.icon className={`w-5 h-5 ${currentTab === nav.id ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                <span className={`text-[10px] font-semibold uppercase tracking-wider ${currentTab === nav.id ? 'opacity-100' : 'opacity-70'}`}>{nav.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

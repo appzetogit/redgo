@@ -9,16 +9,21 @@ import { getHaversineDistance, calculateETA } from '@/modules/DeliveryV2/utils/g
  * NewOrderModal - Ported to Original 1:1 Theme with Slider Accept.
  * Matches the Zomato/Swiggy style Green Header + White Card.
  */
-export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
+export const NewOrderModal = ({ order, onAccept, onReject, onMinimize, initialTimeLeft = 30 }) => {
   const { riderLocation } = useDeliveryStore();
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
+
+  useEffect(() => {
+    // Sync with prop if it changes (e.g. on reopen)
+    setTimeLeft(initialTimeLeft);
+  }, [initialTimeLeft]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
       onReject();
       return;
     }
-    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    const timer = setInterval(() => setTimeLeft((t) => Math.max(0, t - 1)), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, onReject]);
 

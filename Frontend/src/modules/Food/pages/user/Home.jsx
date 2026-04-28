@@ -2306,7 +2306,8 @@ export default function Home() {
   }, [openLocationSelector]);
 
   const handleSearchFocus = useCallback((startVoice = false) => {
-    navigate("/search", { state: { startVoice } });
+    const isVoice = typeof startVoice === 'boolean' ? startVoice : false;
+    navigate("/search", { state: { startVoice: isVoice } });
   }, [navigate]);
 
   const handleSearchClose = useCallback(() => {

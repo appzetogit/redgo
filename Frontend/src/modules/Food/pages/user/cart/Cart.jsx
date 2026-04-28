@@ -22,7 +22,6 @@ import { getCompanyNameAsync } from "@food/utils/businessSettings"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 import { getRestaurantAvailabilityStatus } from "@food/utils/restaurantAvailability"
 import useAppBackNavigation from "@food/hooks/useAppBackNavigation"
-import zoopSound from "@food/assets/audio/zomato_sms.mp3"
 const debugLog = (...args) => { }
 const debugWarn = (...args) => { }
 const debugError = (...args) => { }
@@ -77,7 +76,6 @@ export default function Cart() {
   const companyName = useCompanyName()
   const navigate = useNavigate()
   const goBack = useAppBackNavigation()
-  const orderSuccessAudioRef = useRef(null)
   const hasRestoredRecipientRef = useRef(false)
   const hasRestoredNoteRef = useRef(false)
 
@@ -179,28 +177,7 @@ export default function Cart() {
     }
   })
 
-  useEffect(() => {
-    const audio = new Audio(zoopSound)
-    audio.preload = "auto"
-    audio.volume = 0.8
-    orderSuccessAudioRef.current = audio
 
-    return () => {
-      if (orderSuccessAudioRef.current) {
-        orderSuccessAudioRef.current.pause()
-        orderSuccessAudioRef.current = null
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!showOrderSuccess || !orderSuccessAudioRef.current) return
-
-    orderSuccessAudioRef.current.currentTime = 0
-    orderSuccessAudioRef.current.play().catch((error) => {
-      debugWarn("Order success sound blocked by browser:", error?.message || error)
-    })
-  }, [showOrderSuccess])
 
   const [restaurantData, setRestaurantData] = useState(null)
   const [loadingRestaurant, setLoadingRestaurant] = useState(false)

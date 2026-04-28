@@ -34,7 +34,7 @@ const CUSTOMER_PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" hei
   <circle cx="12" cy="9" r="3" fill="#FFFFFF"/>
 </svg>`;
 
-const debugLog = (...args) => console.log('[DeliveryTrackingMap]', ...args);
+const debugLog = () => {}; // console.log('[DeliveryTrackingMap]', ...args);
 const debugWarn = (...args) => console.warn('[DeliveryTrackingMap]', ...args);
 const debugError = (...args) => console.error('[DeliveryTrackingMap]', ...args);
 

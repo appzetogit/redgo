@@ -663,7 +663,7 @@ function TableBookings() {
   );
 }
 
-function AllOrders({ onSelectOrder, onCancel }) {
+function AllOrders({ onSelectOrder, onCancel, refreshToken }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -730,7 +730,7 @@ function AllOrders({ onSelectOrder, onCancel }) {
       if (intervalId) clearInterval(intervalId);
       if (countdownIntervalId) clearInterval(countdownIntervalId);
     };
-  }, []);
+  }, [refreshToken]);
 
   const handleMarkReady = async ({ orderId, mongoId }) => {
     const orderKey = mongoId || orderId;
@@ -851,11 +851,80 @@ export default function OrdersMain() {
   const isMouseDown = useRef(false);
 
   // New order popup states
-  const [showNewOrderPopup, setShowNewOrderPopup] = useState(false);
-  const [popupOrder, setPopupOrder] = useState(null); // Store order for popup (from Socket.IO or API)
+  const [popupOrder, setPopupOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem("restaurantCurrentPendingOrder");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  }); // Store order for popup (from Socket.IO or API)
+  
+  const [showNewOrderPopup, setShowNewOrderPopup] = useState(() => {
+    try {
+      return !!localStorage.getItem("restaurantCurrentPendingOrder");
+    } catch {}
+    return false;
+  });
+  
   const [isMuted, setIsMuted] = useState(false);
-  const [prepTime, setPrepTime] = useState(11);
-  const [countdown, setCountdown] = useState(240); // 4 minutes in seconds
+  const DEFAULT_PREP_TIME = 11;
+  const [prepTime, setPrepTime] = useState(DEFAULT_PREP_TIME);
+
+  const getStableOrderId = (order) => {
+    if (!order) return null;
+    return (order.orderMongoId || order._id || order.order_mongo_id || order.orderId || order.order_id || order.id || "").toString();
+  };
+
+  const { newOrder, clearNewOrder, isConnected } = useRestaurantNotifications({ disableAudio: true });
+
+  const [countdown, setCountdown] = useState(() => {
+    try {
+      const saved = localStorage.getItem("restaurantCurrentPendingOrder");
+      if (saved) {
+        const orderObj = JSON.parse(saved);
+        const stableId = getStableOrderId(orderObj);
+        const deadlineStr = localStorage.getItem(`order_accept_deadline_${stableId}`);
+        if (deadlineStr) {
+          const diff = parseInt(deadlineStr) - Date.now();
+          // Use ceil to give user the full remaining second and avoid immediate 0
+          return Math.max(0, Math.ceil(diff / 1000));
+        }
+      }
+    } catch {}
+    return 240;
+  }); // 4 minutes in seconds
+
+  // Sync prepTime with order when popupOrder changes or on mount
+  useEffect(() => {
+    const stableId = getStableOrderId(popupOrder || newOrder);
+    if (stableId) {
+      const saved = localStorage.getItem(`order_prep_time_${stableId}`);
+      if (saved) {
+        setPrepTime(parseInt(saved));
+      } else {
+        setPrepTime(DEFAULT_PREP_TIME);
+      }
+    } else {
+      setPrepTime(DEFAULT_PREP_TIME);
+    }
+  }, [popupOrder, newOrder]);
+
+  // Persist prepTime changes for the CURRENT order
+  useEffect(() => {
+    const stableId = getStableOrderId(popupOrder || newOrder);
+    if (stableId) {
+      localStorage.setItem(`order_prep_time_${stableId}`, prepTime.toString());
+    }
+  }, [prepTime, popupOrder, newOrder]);
+  
+  // Grace period to prevent immediate timeout on refresh
+  const isJustMounted = useRef(true);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      isJustMounted.current = false;
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
   const [showRejectPopup, setShowRejectPopup] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -864,8 +933,17 @@ export default function OrdersMain() {
   const [orderToCancel, setOrderToCancel] = useState(null);
   const [acceptSwipeProgress, setAcceptSwipeProgress] = useState(0);
   const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
+  const [isAudioStoppedManually, setIsAudioStoppedManually] = useState(false);
   const audioRef = useRef(null);
-  const shownOrdersRef = useRef(new Set()); // Track orders already shown in popup
+  const shownOrdersRef = useRef(new Set()); 
+  
+  // Seed shown orders from currently active popup order to prevent re-triggering logic on mount
+  useEffect(() => {
+    if (popupOrder) {
+      const id = popupOrder._id || popupOrder.orderMongoId || popupOrder.orderId;
+      if (id) shownOrdersRef.current.add(String(id));
+    }
+  }, []); // Only on mount
   const acceptSliderRef = useRef(null);
   const acceptSwipeStartXRef = useRef(0);
   const acceptSwipeActiveRef = useRef(false);
@@ -876,7 +954,7 @@ export default function OrdersMain() {
     isLoading: true,
   });
   const [isReverifying, setIsReverifying] = useState(false);
-  const audioUnlockedRef = useRef(false);
+  const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
   const showNewOrderPopupRef = useRef(showNewOrderPopup);
   const isMutedRef = useRef(isMuted);
   const newOrderRef = useRef(null);
@@ -895,18 +973,8 @@ export default function OrdersMain() {
   };
 
   const hasOrderBeenShown = (orderLike) => {
-    const keys = [
-      orderLike?.orderMongoId,
-      orderLike?.order_mongo_id,
-      orderLike?.orderId,
-      orderLike?.order_id,
-      orderLike?._id,
-      orderLike?.id,
-    ]
-      .map((v) => (v == null ? "" : String(v).trim()))
-      .filter(Boolean);
-
-    return keys.some((k) => shownOrdersRef.current.has(k));
+    const id = getStableOrderId(orderLike);
+    return id ? shownOrdersRef.current.has(id) : false;
   };
 
   const getPopupOrderTotal = (orderLike) => {
@@ -931,8 +999,7 @@ export default function OrdersMain() {
     return Number.isFinite(itemsTotal) ? itemsTotal : 0;
   };
 
-  // Restaurant notifications hook for real-time orders
-  const { newOrder, clearNewOrder, isConnected } = useRestaurantNotifications({ disableAudio: true });
+
 
   const rejectReasons = [
     "Restaurant is too busy",
@@ -1104,30 +1171,37 @@ export default function OrdersMain() {
         return; // Do not show the immediate popup
       }
 
+      // If popup is already showing this order (e.g. after refresh), don't re-init timer/popup
+      const currentPopupId = popupOrder?._id || popupOrder?.orderMongoId || popupOrder?.orderId;
+      const incomingId = newOrder._id || newOrder.orderMongoId || newOrder.orderId;
+      
+      if (showNewOrderPopup && currentPopupId && String(currentPopupId) === String(incomingId)) {
+        return;
+      }
+
       if (!hasOrderBeenShown(newOrder)) {
         markOrderAsShown(newOrder);
         setPopupOrder(newOrder);
         
-        // Timer persistence: Calculate or recover deadline
-        const orderId = newOrder.orderMongoId || newOrder._id || newOrder.orderId;
-        const storageKey = `order_accept_deadline_${orderId}`;
+        const stableId = getStableOrderId(newOrder);
+        const storageKey = `order_accept_deadline_${stableId}`;
         const storedDeadline = localStorage.getItem(storageKey);
         const now = Date.now();
         
         let remaining = 240;
         if (storedDeadline) {
-          remaining = Math.max(0, Math.floor((parseInt(storedDeadline) - now) / 1000));
+          const diff = parseInt(storedDeadline) - now;
+          remaining = Math.max(0, Math.ceil(diff / 1000));
         } else {
-          // Calculate deadline relative to order creation + 4 minutes
-          // Use provided createdAt or now as fallback
           const createdAt = new Date(newOrder.createdAt || Date.now()).getTime();
           const deadline = createdAt + 4 * 60 * 1000;
-          remaining = Math.max(0, Math.floor((deadline - now) / 1000));
+          remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
           localStorage.setItem(storageKey, deadline.toString());
         }
         
         setCountdown(remaining);
         setShowNewOrderPopup(true);
+        localStorage.setItem("restaurantCurrentPendingOrder", JSON.stringify(newOrder));
         requestOrdersRefresh();
       }
     }
@@ -1149,52 +1223,71 @@ export default function OrdersMain() {
   // Best-effort unlock for popup buzzer — fires once on first user interaction.
   // Does NOT resume playback here; the useEffect on [showNewOrderPopup, isMuted] is the
   // single source of truth for ongoing audio control.
+  // Robust audio playback on interaction to satisfy browser policies and prevent accidental stops
   useEffect(() => {
-    const unlockAudio = async () => {
-      if (!audioRef.current || audioUnlockedRef.current) return;
-      try {
-        audioRef.current.muted = true;
-        await audioRef.current.play();
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.muted = false;
-        audioRef.current.volume = 1;
-        audioUnlockedRef.current = true;
-      } catch (_) {
-        // Autoplay still blocked — the audio useEffect will retry on next user action.
+    const handleInteraction = () => {
+      if (!audioRef.current) return;
+      
+      // If popup is showing and should be playing, ensure it's playing
+      if (showNewOrderPopup && !isMuted && !isAudioStoppedManually) {
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(() => {});
+        }
+        if (!isAudioUnlocked) setIsAudioUnlocked(true);
       }
     };
 
-    window.addEventListener("pointerdown", unlockAudio, { passive: true });
-    window.addEventListener("keydown", unlockAudio, { passive: true });
-
+    window.addEventListener("pointerdown", handleInteraction, { passive: true });
+    window.addEventListener("keydown", handleInteraction, { passive: true });
+    
     return () => {
-      window.removeEventListener("pointerdown", unlockAudio);
-      window.removeEventListener("keydown", unlockAudio);
+      window.removeEventListener("pointerdown", handleInteraction);
+      window.removeEventListener("keydown", handleInteraction);
     };
-  }, []);
+  }, [showNewOrderPopup, isMuted, isAudioStoppedManually, isAudioUnlocked]);
 
   const [ordersRefreshToken, setOrdersRefreshToken] = useState(0);
   const requestOrdersRefresh = () => setOrdersRefreshToken((t) => t + 1);
 
 
+  // Reset audio stop flag when popup opens
+  useEffect(() => {
+    if (showNewOrderPopup) {
+      setIsAudioStoppedManually(false);
+    }
+  }, [showNewOrderPopup]);
+
+  // If user unmutes, we automatically want to "unstop" it manually so it plays again
+  useEffect(() => {
+    if (!isMuted) {
+      setIsAudioStoppedManually(false);
+    }
+  }, [isMuted]);
+
   // Play audio when popup opens
   useEffect(() => {
-    if (showNewOrderPopup && !isMuted) {
+    if (showNewOrderPopup && !isMuted && !isAudioStoppedManually) {
       if (audioRef.current) {
         audioRef.current.loop = true;
         audioRef.current.muted = false;
         audioRef.current.volume = 1;
-        audioRef.current.currentTime = 0;
+        // removed currentTime = 0 to allow resume as per user request
         audioRef.current
           .play()
           .catch((err) => debugLog("Audio play failed:", err));
       }
     } else if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+      // Only reset to 0 when popup closes completely, not on every pause/mute
     }
-  }, [showNewOrderPopup, isMuted]);
+  }, [showNewOrderPopup, isMuted, isAudioStoppedManually, isAudioUnlocked]);
+
+  // Reset audio to start only when popup closes/reset
+  useEffect(() => {
+     if (!showNewOrderPopup && audioRef.current) {
+       audioRef.current.currentTime = 0;
+     }
+  }, [showNewOrderPopup]);
 
   // Countdown timer
   useEffect(() => {
@@ -1205,6 +1298,46 @@ export default function OrdersMain() {
       return () => clearInterval(timer);
     }
   }, [showNewOrderPopup, countdown]);
+
+  // Auto-reject when time expires
+  useEffect(() => {
+    const handleAutoReject = async () => {
+      if (showNewOrderPopup && countdown <= 0 && !isJustMounted.current) {
+        debugLog("?? Order countdown reached 0, auto-rejecting...");
+        const orderToReject = popupOrder || newOrder;
+        
+        const stableId = getStableOrderId(orderToReject);
+        if (stableId) {
+          // Auto reject gracefully, await it so the refresh sees the change
+          try {
+            await restaurantAPI.rejectOrder(stableId, "Restaurant didn't accept in time");
+          } catch (err) {
+            debugLog("Auto-reject failed/ignored:", err);
+          }
+          toast.error("Order automatically cancelled because it wasn't accepted in time.");
+        }
+        
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        
+        if (stableId) {
+          localStorage.removeItem(`order_accept_deadline_${stableId}`);
+        }
+        localStorage.removeItem("restaurantCurrentPendingOrder");
+        
+        setShowNewOrderPopup(false);
+        setPopupOrder(null);
+        clearNewOrder();
+        setCountdown(240);
+        setPrepTime(DEFAULT_PREP_TIME);
+        requestOrdersRefresh();
+      }
+    };
+    
+    handleAutoReject();
+  }, [showNewOrderPopup, countdown, popupOrder, newOrder, clearNewOrder]);
 
   useEffect(() => {
     if (!showNewOrderPopup) {
@@ -1280,6 +1413,12 @@ export default function OrdersMain() {
 
   const handleAcceptSwipeStart = (clientX) => {
     if (isAcceptingOrder) return;
+    
+    // Ensure audio continues playing on touch
+    if (audioRef.current && showNewOrderPopup && !isMuted && !isAudioStoppedManually) {
+      audioRef.current.play().catch(() => {});
+    }
+
     acceptSwipeStartXRef.current = clientX;
     acceptSwipeActiveRef.current = true;
   };
@@ -1351,16 +1490,18 @@ export default function OrdersMain() {
     }
 
     // Clear the persistent deadline from storage
-    const orderIdToClear = (popupOrder || newOrder)?.orderMongoId || (popupOrder || newOrder)?.orderId;
-    if (orderIdToClear) {
-      localStorage.removeItem(`order_accept_deadline_${orderIdToClear}`);
+    const orderToClearAccept = popupOrder || newOrder;
+    const stableIdAccept = orderToClearAccept?._id || orderToClearAccept?.orderMongoId || orderToClearAccept?.order_mongo_id || orderToClearAccept?.orderId;
+    if (stableIdAccept) {
+      localStorage.removeItem(`order_accept_deadline_${stableIdAccept}`);
     }
+    localStorage.removeItem("restaurantCurrentPendingOrder");
 
     setShowNewOrderPopup(false);
     setPopupOrder(null);
     clearNewOrder();
     setCountdown(240);
-    setPrepTime(11);
+    setPrepTime(DEFAULT_PREP_TIME);
     setAcceptSwipeProgress(0);
     setIsAcceptingOrder(false);
 
@@ -1398,10 +1539,12 @@ export default function OrdersMain() {
       audioRef.current.currentTime = 0;
     }
     // Clear the persistent deadline from storage
-    const orderIdToClear = (popupOrder || newOrder)?.orderMongoId || (popupOrder || newOrder)?.orderId;
-    if (orderIdToClear) {
-      localStorage.removeItem(`order_accept_deadline_${orderIdToClear}`);
+    const orderToClearReject = popupOrder || newOrder;
+    const stableIdReject = orderToClearReject?._id || orderToClearReject?.orderMongoId || orderToClearReject?.order_mongo_id || orderToClearReject?.orderId;
+    if (stableIdReject) {
+      localStorage.removeItem(`order_accept_deadline_${stableIdReject}`);
     }
+    localStorage.removeItem("restaurantCurrentPendingOrder");
 
     setShowRejectPopup(false);
     setShowNewOrderPopup(false);
@@ -1409,15 +1552,17 @@ export default function OrdersMain() {
     clearNewOrder();
     setRejectReason("");
     setCountdown(240);
-    setPrepTime(11);
+    setPrepTime(DEFAULT_PREP_TIME);
   };
 
   const handleRejectCancel = () => {
     // Clear the persistent deadline from storage
-    const orderIdToClear = (popupOrder || newOrder)?.orderMongoId || (popupOrder || newOrder)?.orderId;
-    if (orderIdToClear) {
-      localStorage.removeItem(`order_accept_deadline_${orderIdToClear}`);
+    const orderToClear = popupOrder || newOrder;
+    const stableId = orderToClear?._id || orderToClear?.orderMongoId || orderToClear?.order_mongo_id || orderToClear?.orderId;
+    if (stableId) {
+      localStorage.removeItem(`order_accept_deadline_${stableId}`);
     }
+    localStorage.removeItem("restaurantCurrentPendingOrder");
 
     setShowRejectPopup(false);
     setShowNewOrderPopup(false);
@@ -1742,6 +1887,7 @@ export default function OrdersMain() {
           <AllOrders
             onSelectOrder={handleSelectOrder}
             onCancel={handleCancelClick}
+            refreshToken={ordersRefreshToken}
           />
         );
       case "preparing":
@@ -2683,7 +2829,7 @@ export default function OrdersMain() {
       </AnimatePresence>
 
       {/* Bottom Navigation - Sticky */}
-      <BottomNavOrders />
+      {!showNewOrderPopup && <BottomNavOrders />}
     </div>
   );
 }
